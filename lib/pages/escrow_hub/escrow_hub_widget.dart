@@ -60,6 +60,8 @@ class _EscrowHubWidgetState extends State<EscrowHubWidget> {
       'counterparty': escrow.getCounterpartyDisplayName(currentUserId),
       'buyer_username': escrow.buyerUsername,
       'seller_username': escrow.sellerUsername,
+      'sender_username': escrow.buyerUsername,
+      'recipient_username': escrow.sellerUsername,
     };
   }
 

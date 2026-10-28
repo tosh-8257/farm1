@@ -458,13 +458,23 @@ class _DashboardWidgetState extends State<DashboardWidget>
   }
 
   bool get isKycApproved {
-    final status = FFAppState().kycStatus.trim().toLowerCase();
+    final status = FFAppState()
+        .kycStatus
+        .trim()
+        .toLowerCase()
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
     return ['verified', 'approved', 'complete', 'success'].contains(status);
   }
 
-  bool get hasKycSubmission {
-    final status = FFAppState().kycStatus.trim().toLowerCase();
-    return ['pending', 'rejected', 'under review', 'review'].contains(status);
+  bool get isKycPending {
+    final status = FFAppState()
+        .kycStatus
+        .trim()
+        .toLowerCase()
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+    return ['pending', 'under_review', 'review'].contains(status);
   }
 
   Future<void> _guardKycAccess({
@@ -478,11 +488,23 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
     if (!mounted) return;
 
+    final waitingForApproval = [
+      'pending',
+      'under_review',
+      'under review',
+      'review',
+    ].contains(FFAppState().kycStatus.trim().toLowerCase());
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${'common.kyc_required'.tr()} $feature.'),
+        content: Text(
+          waitingForApproval
+              ? 'Your KYC details are pending admin approval. $feature will be available once approved.'
+              : '${'common.kyc_required'.tr()} $feature.',
+        ),
         action: SnackBarAction(
-          label: 'common.complete_kyc'.tr(),
+          label: waitingForApproval
+              ? 'View KYC status'
+              : 'common.complete_kyc'.tr(),
           onPressed: () => context.pushNamed('KYCPAGE'),
         ),
       ),
@@ -706,11 +728,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
             ),
             const SizedBox(height: 12.0),
             FloatingActionButton.extended(
-              onPressed: () => _guardKycAccess(
-                feature: 'merchants',
-                onAllowed: () => context.pushNamed(
-                  MerchantDashboardWidget.routeName,
-                ),
+              onPressed: () => context.pushNamed(
+                MerchantDashboardWidget.routeName,
               ),
               backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
               icon: Icon(
@@ -890,8 +909,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                           ),
                                         ].divide(const SizedBox(width: 4.0)),
                                       ),
-                                      if (hasKycSubmission &&
-                                          !isKycApproved) ...[
+                                      if (!isKycApproved) ...[
                                         const SizedBox(height: 10.0),
                                         SizedBox(
                                           width: 160.0,
@@ -915,7 +933,9 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                               ),
                                             ),
                                             child: Text(
-                                              'Verify KYC',
+                                              isKycPending
+                                                  ? 'Pending KYC Approval'
+                                                  : 'Verify KYC',
                                               style: FlutterFlowTheme.of(
                                                       context)
                                                   .titleSmall

@@ -71,6 +71,19 @@ class TransactionReceiptService {
           transaction['id']);
 
   static String transactionLookupId(Map<String, dynamic> transaction) {
+    final transactionType = _text(
+      transaction['transaction_type'] ?? transaction['type'],
+    ).toLowerCase();
+    final withdrawalReference = _text(
+      transaction['transaction_reference'] ?? transaction['reference'],
+    );
+    if ((transactionType == 'withdrawal' ||
+            transaction['method'] != null ||
+            transaction['withdrawal_method'] != null) &&
+        withdrawalReference.isNotEmpty) {
+      return withdrawalReference;
+    }
+
     final databaseId = _text(transaction['id']);
     return databaseId.isNotEmpty ? databaseId : transactionId(transaction);
   }
@@ -118,8 +131,13 @@ class TransactionReceiptService {
     bool includeDescription = true,
   }) {
     final amount = transaction['amount'] ?? transaction['value'] ?? 'N/A';
-    final type =
-        transaction['transaction_type'] ?? transaction['type'] ?? 'N/A';
+    final transactionType =
+        transaction['transaction_type'] ?? transaction['type'];
+    final type = transactionType ??
+        ((transaction['method'] != null ||
+                transaction['withdrawal_method'] != null)
+            ? 'withdrawal'
+            : 'N/A');
     final typeText = _text(type).toLowerCase();
     final isOutgoing = transaction['is_outgoing'] == true ||
         typeText.contains('withdraw') ||

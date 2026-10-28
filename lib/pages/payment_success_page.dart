@@ -26,6 +26,7 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
   double? _amount;
   String _currency = 'KES';
   bool _pollInProgress = false;
+  bool _downloadingReceipt = false;
 
   @override
   void initState() {
@@ -91,6 +92,31 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open the Play Store link.')),
       );
+    }
+  }
+
+  Future<void> _downloadReceipt() async {
+    if (_downloadingReceipt || widget.reference == null) return;
+    setState(() => _downloadingReceipt = true);
+    try {
+      final response = await QrPublicPaymentApi.get(
+        '/qr-payments/receipt/${Uri.encodeComponent(widget.reference!.trim())}/download',
+      );
+      final data = response['data'];
+      final url = data is Map ? data['url']?.toString() : null;
+      final uri = url == null ? null : Uri.tryParse(url);
+      if (uri == null ||
+          !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw StateError('Could not open the receipt download.');
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not download receipt: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloadingReceipt = false);
     }
   }
 
@@ -165,7 +191,21 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
           FilledButton.icon(
             onPressed: _openPlayStore,
             icon: const Icon(Icons.download),
-            label: const Text('Download FarmApp'),
+            label: const Text('Download app'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _downloadingReceipt ? null : _downloadReceipt,
+            icon: _downloadingReceipt
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.receipt_long),
+            label: Text(
+              _downloadingReceipt ? 'Preparing receipt…' : 'Download receipt',
+            ),
           ),
         ],
       );

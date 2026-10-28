@@ -596,6 +596,30 @@ class AdminApiService {
         },
       );
 
+  static Future<Map<String, dynamic>> getNowpaymentsCryptoWithdrawals() => _req(
+        method: 'GET',
+        path: '/admin/crypto-withdrawals/pending',
+      );
+
+  static Future<Map<String, dynamic>> approveNowpaymentsCryptoWithdrawal(
+          String reference) =>
+      _req(
+        method: 'POST',
+        path:
+            '/admin/crypto-withdrawals/${Uri.encodeComponent(reference)}/approve',
+      );
+
+  static Future<Map<String, dynamic>> verifyNowpaymentsCryptoWithdrawal(
+    String reference,
+    String verificationCode,
+  ) =>
+      _req(
+        method: 'POST',
+        path:
+            '/admin/crypto-withdrawals/${Uri.encodeComponent(reference)}/verify',
+        body: {'verification_code': verificationCode},
+      );
+
   static Future<
       Map<String,
           dynamic>> getPayouts({int page = 1, String? status}) => _req(

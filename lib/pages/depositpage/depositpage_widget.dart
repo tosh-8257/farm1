@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '/backend/services/api_service.dart';
 // Removed unused import
 import '/flutter_flow/flutter_flow_icon_button.dart';
@@ -8,8 +10,8 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/components/kyc_required_widget.dart';
 import '/services/transaction_receipt_service.dart';
-import '/services/ivorypay_inline_checkout.dart';
 import '/services/paystack_inline_checkout.dart';
+import '/widgets/searchable_crypto_picker.dart';
 
 class DepositpageWidget extends StatefulWidget {
   const DepositpageWidget({super.key});
@@ -33,6 +35,9 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   bool _loadingCryptoTokens = false;
   bool _cryptoTokensLoaded = false;
   String? _cryptoTokensError;
+  double? _cryptoMinimumUsd;
+  bool _loadingCryptoMinimum = false;
+  String? _cryptoMinimumError;
 
   bool isLoading = false;
   bool loadingWallet = true;
@@ -53,7 +58,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     'CARD': {'min': 10, 'max': 19999},
     'BANK_TRANSFER': {'min': 10, 'max': 999999},
     'MOBILE_MONEY': {'min': 10, 'max': 249000},
-    'CRYPTO': {'min': 100, 'max': null},
+    'CRYPTO': {'min': 0, 'max': null},
   };
 
   double get amount => double.tryParse(amountController.text.trim()) ?? 0;
@@ -63,10 +68,15 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
 
   Map<String, double?> get _activeDepositLimits =>
       _depositLimits[selectedMethod] ?? _depositLimits['MOBILE_MONEY']!;
-  double get _activeDepositMin => _activeDepositLimits['min'] ?? 10;
+  double get _activeDepositMin => selectedMethod == 'CRYPTO'
+      ? (_cryptoMinimumUsd ?? 0)
+      : (_activeDepositLimits['min'] ?? 10);
   double? get _activeDepositMax => _activeDepositLimits['max'];
+  String get _amountCurrency =>
+      selectedMethod == 'CRYPTO' ? 'USD' : selectedCurrency;
   bool get _hasValidDepositAmount =>
       amount > 0 &&
+      (selectedMethod != 'CRYPTO' || _cryptoMinimumUsd != null) &&
       amount >= _activeDepositMin &&
       (_activeDepositMax == null || amount <= _activeDepositMax!);
 
@@ -80,25 +90,25 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     try {
       final response = await ApiService.request(
         method: 'GET',
-        path: '/crypto/payment-options',
+        path: '/wallet/deposit/crypto/currencies',
         requiresAuth: true,
       );
-      final data = response['data'];
-      if (data is! List) {
+      final rawCurrencies = response['data'];
+      if (rawCurrencies is! List) {
         throw const FormatException(
-          'The server returned an invalid cryptocurrency list.',
+          'The server returned an invalid NOWPayments currency list.',
         );
       }
-      final tokens = data
+      final tokens = rawCurrencies
           .whereType<String>()
-          .map((token) => token.trim().toUpperCase())
-          .where((token) => token.isNotEmpty && token != 'USD')
+          .map((currency) => currency.trim().toUpperCase())
+          .where((currency) => currency.isNotEmpty)
           .toSet()
           .toList()
         ..sort();
       if (tokens.isEmpty) {
         throw const FormatException(
-          'No cryptocurrencies are currently available for deposit.',
+          'No cryptocurrencies are currently available through NOWPayments.',
         );
       }
       if (!mounted) return;
@@ -120,22 +130,84 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     }
   }
 
+  Future<void> _fetchCryptoMinimum(String currency) async {
+    setState(() {
+      _loadingCryptoMinimum = true;
+      _cryptoMinimumUsd = null;
+      _cryptoMinimumError = null;
+    });
+    try {
+      final response = await ApiService.request(
+        method: 'GET',
+        path:
+            '/wallet/deposit/crypto/minimum/${Uri.encodeComponent(currency.toLowerCase())}',
+        requiresAuth: true,
+      );
+      final data = response['data'];
+      final minimum = data is Map
+          ? double.tryParse(data['minimumUsd']?.toString() ?? '')
+          : null;
+      if (minimum == null || !minimum.isFinite || minimum <= 0) {
+        throw const FormatException(
+          'NOWPayments returned an invalid minimum for this currency.',
+        );
+      }
+      if (!mounted || _selectedCryptoToken != currency) return;
+      setState(() => _cryptoMinimumUsd = minimum);
+    } catch (error) {
+      if (!mounted || _selectedCryptoToken != currency) return;
+      setState(() => _cryptoMinimumError = error.toString());
+    } finally {
+      if (mounted && _selectedCryptoToken == currency) {
+        setState(() => _loadingCryptoMinimum = false);
+      }
+    }
+  }
+
   String _formatAmount(double value) {
     final formatter = NumberFormat('#,##0', 'en_US');
     return formatter.format(value);
   }
 
+  String _formatMinimumUsd(double value) {
+    final formatter = NumberFormat('#,##0.########', 'en_US')
+      ..minimumFractionDigits = 2;
+    return formatter.format(value);
+  }
+
   String get _depositValidationMessage {
+    final currency = _amountCurrency;
+    if (selectedMethod == 'CRYPTO' && _selectedCryptoToken == null) {
+      return 'Select a cryptocurrency to see its minimum deposit amount';
+    }
+    if (selectedMethod == 'CRYPTO' && _loadingCryptoMinimum) {
+      return 'Loading ${_selectedCryptoToken!.toUpperCase()} minimum...';
+    }
+    if (selectedMethod == 'CRYPTO' && _cryptoMinimumError != null) {
+      return 'Could not load the minimum for ${_selectedCryptoToken!.toUpperCase()}';
+    }
+    if (selectedMethod == 'CRYPTO' && _cryptoMinimumUsd == null) {
+      return 'Select a cryptocurrency to see its minimum deposit amount';
+    }
     if (amount <= 0) {
-      return 'Range: KES ${_formatAmount(_activeDepositMin)}${_activeDepositMax == null ? '+' : ' - KES ${_formatAmount(_activeDepositMax!)}'}';
+      final minimum = selectedMethod == 'CRYPTO'
+          ? _formatMinimumUsd(_activeDepositMin)
+          : _formatAmount(_activeDepositMin);
+      return 'Range: $currency $minimum${_activeDepositMax == null ? '+' : ' - $currency ${_formatAmount(_activeDepositMax!)}'}';
     }
     if (_hasValidDepositAmount) {
-      return 'Range: KES ${_formatAmount(_activeDepositMin)}${_activeDepositMax == null ? '+' : ' - KES ${_formatAmount(_activeDepositMax!)}'}';
+      final minimum = selectedMethod == 'CRYPTO'
+          ? _formatMinimumUsd(_activeDepositMin)
+          : _formatAmount(_activeDepositMin);
+      return 'Range: $currency $minimum${_activeDepositMax == null ? '+' : ' - $currency ${_formatAmount(_activeDepositMax!)}'}';
     }
+    final minimum = selectedMethod == 'CRYPTO'
+        ? _formatMinimumUsd(_activeDepositMin)
+        : _formatAmount(_activeDepositMin);
     final maxText = _activeDepositMax == null
         ? ' and above'
-        : ' and KES ${_formatAmount(_activeDepositMax!)}';
-    return 'Amount must be between KES ${_formatAmount(_activeDepositMin)}$maxText';
+        : ' and $currency ${_formatAmount(_activeDepositMax!)}';
+    return 'Amount must be at least $currency $minimum$maxText';
   }
 
   @override
@@ -271,7 +343,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     }
   }
 
-  // ── Create deposit (Paystack for CARD/MOBILE_MONEY, Ivorypay for CRYPTO) ─
+  // ── Create a Paystack deposit or an in-app NOWPayments crypto deposit ─────
   Future<void> _createDeposit() async {
     if (isLoading) return;
 
@@ -279,6 +351,14 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
         (_selectedCryptoToken == null ||
             !_cryptoTokens.contains(_selectedCryptoToken))) {
       _snack('Choose a cryptocurrency before continuing');
+      return;
+    }
+    if (selectedMethod == 'CRYPTO' &&
+        (_loadingCryptoMinimum || _cryptoMinimumUsd == null)) {
+      _snack(
+        _cryptoMinimumError ??
+            'Wait for the selected cryptocurrency minimum to load',
+      );
       return;
     }
 
@@ -290,11 +370,70 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     setState(() => isLoading = true);
 
     try {
+      if (selectedMethod == 'CRYPTO') {
+        final response = await ApiService.request(
+          method: 'POST',
+          path: '/wallet/deposit/crypto',
+          body: {
+            'price_amount': amount,
+            'price_currency': 'usd',
+            'pay_currency': _selectedCryptoToken!.toLowerCase(),
+          },
+          requiresAuth: true,
+        );
+        final payment = response['data'];
+        if (payment is! Map) {
+          throw const FormatException(
+            'NOWPayments did not return payment instructions.',
+          );
+        }
+        final paymentId = payment['payment_id']?.toString();
+        final address = payment['pay_address']?.toString();
+        final payAmount = payment['pay_amount'];
+        final payCurrency = payment['pay_currency']?.toString();
+        if (paymentId == null ||
+            paymentId.isEmpty ||
+            address == null ||
+            address.isEmpty ||
+            payAmount == null ||
+            payCurrency == null ||
+            payCurrency.isEmpty) {
+          throw const FormatException(
+            'NOWPayments returned incomplete payment instructions.',
+          );
+        }
+
+        if (!mounted) return;
+        final completed = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => _NowpaymentsDepositDialog(
+            paymentId: paymentId,
+            address: address,
+            amount: payAmount.toString(),
+            currency: payCurrency.toUpperCase(),
+            expirationEstimate: (payment['expiration_estimate'] ??
+                    payment['expiration_estimate_date'])
+                ?.toString(),
+          ),
+        );
+        if (!mounted) return;
+        await _fetchHistory();
+        await _fetchWallet();
+        if (completed == true) {
+          amountController.clear();
+          _snack('Payment successful. Your wallet is credited.');
+        } else if (completed == false) {
+          _snack('Payment expired or failed. No funds were credited.');
+        }
+        return;
+      }
+
       final paymentMethodRaw = switch (selectedMethod) {
         'CARD' => 'card',
         'BANK_TRANSFER' => 'bank_transfer',
         'MOBILE_MONEY' => 'mobile_money',
-        _ => 'crypto',
+        _ => 'card',
       };
       final depositUserDetails = selectedMethod == 'CRYPTO'
           ? null
@@ -309,18 +448,15 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
         'payment_method': paymentMethodRaw,
         'method': paymentMethodRaw,
         'payment_channel': paymentMethodRaw,
-        if (selectedMethod == 'CRYPTO') 'crypto': _selectedCryptoToken,
         if (depositUserDetails != null) ...{
           'email': depositUserDetails['email'],
           'phone': depositUserDetails['phone'],
         },
-        'payment_provider':
-            selectedMethod == 'CRYPTO' ? 'ivorypay' : 'paystack',
-        'provider': selectedMethod == 'CRYPTO' ? 'ivorypay' : 'paystack',
+        'payment_provider': 'paystack',
+        'provider': 'paystack',
       };
 
-      final path =
-          selectedMethod == 'CRYPTO' ? '/crypto/deposit' : '/deposit/create';
+      const path = '/deposit/create';
 
       if (!mounted) return;
 
@@ -354,93 +490,40 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
               'The payment server did not return a transaction reference.');
         }
 
-        if (selectedMethod == 'CRYPTO') {
-          final checkoutResult = await IvoryPayInlineCheckout.show(
-            context,
-            paymentUrl: paymentUrl,
-          );
-          if (!mounted) return;
+        final checkoutResult = await PaystackInlineCheckout.show(
+          context,
+          accessCode: paystackAccessCode,
+          paymentUrl: paymentUrl,
+        );
+        if (!mounted) return;
 
-          try {
-            final verification = await ApiService.request(
-              method: 'POST',
-              path: '/crypto/status/${Uri.encodeComponent(reference)}/verify',
-              body: const {},
-              requiresAuth: true,
-            );
-            final result = verification['data'];
-            final status = result is Map
-                ? result['status']?.toString().toLowerCase()
-                : null;
-            if (status == 'success' || status == 'completed') {
-              await _fetchHistory();
-              await _fetchWallet();
-              if (mounted) {
-                _snack('Payment successful. Your wallet is credited.');
-              }
-              amountController.clear();
-              return;
-            }
-            if (status == 'failed' ||
-                status == 'cancelled' ||
-                status == 'expired') {
-              await _fetchHistory();
-              await _fetchWallet();
-              if (mounted) {
-                _snack(
-                    'Payment ${status == 'cancelled' ? 'cancelled' : 'failed'}. '
-                    'No funds were deducted.');
-              }
-              return;
-            }
-            _snack(
-              checkoutResult == true
-                  ? 'Payment submitted. Waiting for IvoryPay confirmation...'
-                  : 'Payment is not confirmed yet. Your wallet will update after confirmation.',
-            );
-          } catch (error) {
-            _snack(
-              'Checkout closed, but payment verification is pending: $error',
-            );
-          }
-        } else {
-          final checkoutResult = await PaystackInlineCheckout.show(
-            context,
-            accessCode: paystackAccessCode,
-            paymentUrl: paymentUrl,
+        try {
+          final verification = await ApiService.request(
+            method: 'POST',
+            path: '/deposit/verify/${Uri.encodeComponent(reference)}',
+            body: const {},
+            requiresAuth: true,
           );
-          if (!mounted) return;
-
-          try {
-            final verification = await ApiService.request(
-              method: 'POST',
-              path: '/deposit/verify/${Uri.encodeComponent(reference)}',
-              body: const {},
-              requiresAuth: true,
-            );
-            final result = verification['data'];
-            final status = result is Map
-                ? result['status']?.toString().toUpperCase()
-                : null;
-            final credited = result is Map && result['credited'] == true;
-            if (status == 'SUCCESS' || credited) {
-              await _fetchHistory();
-              await _fetchWallet();
-              if (mounted)
-                _snack('Payment successful. Your wallet is credited.');
-              amountController.clear();
-              return;
-            }
-            _snack(
-              checkoutResult == true
-                  ? 'Payment received. Waiting for Paystack confirmation...'
-                  : 'Payment is not confirmed yet. Your wallet will update after confirmation.',
-            );
-          } catch (error) {
-            _snack(
-              'Checkout closed, but payment verification is pending: $error',
-            );
+          final result = verification['data'];
+          final status =
+              result is Map ? result['status']?.toString().toUpperCase() : null;
+          final credited = result is Map && result['credited'] == true;
+          if (status == 'SUCCESS' || credited) {
+            await _fetchHistory();
+            await _fetchWallet();
+            if (mounted) _snack('Payment successful. Your wallet is credited.');
+            amountController.clear();
+            return;
           }
+          _snack(
+            checkoutResult == true
+                ? 'Payment received. Waiting for Paystack confirmation...'
+                : 'Payment is not confirmed yet. Your wallet will update after confirmation.',
+          );
+        } catch (error) {
+          _snack(
+            'Checkout closed, but payment verification is pending: $error',
+          );
         }
 
         // Poll with timeout and handle all statuses: completed, failed, cancelled
@@ -693,6 +776,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     required IconData icon,
     required String title,
     required String subtitle,
+    bool enabled = true,
+    String? unavailableMessage,
   }) {
     final theme = FlutterFlowTheme.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -703,11 +788,23 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     final cardBorder = selected
         ? (isDark ? const Color(0xFF2A2A2A) : Colors.black)
         : theme.secondaryText.withAlpha(90);
-    final textColor = selected ? Colors.white : theme.primaryText;
-    final subtitleColor = selected ? Colors.white70 : theme.secondaryText;
+    final textColor = !enabled
+        ? theme.secondaryText
+        : selected
+            ? Colors.white
+            : theme.primaryText;
+    final subtitleColor = !enabled
+        ? theme.secondaryText
+        : selected
+            ? Colors.white70
+            : theme.secondaryText;
 
     return GestureDetector(
       onTap: () {
+        if (!enabled) {
+          _snack(unavailableMessage ?? '$title is currently unavailable.');
+          return;
+        }
         setState(() => selectedMethod = method);
         if (method == 'CRYPTO') unawaited(_fetchCryptoTokens());
       },
@@ -760,7 +857,10 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
         key: scaffoldKey,
         backgroundColor: theme.primaryBackground,
         body: SafeArea(
-          child: KycRequiredWidget(feature: 'deposit'),
+          child: KycRequiredWidget(
+            feature: 'deposit',
+            onKycApproved: () => setState(() {}),
+          ),
         ),
       );
     }
@@ -837,7 +937,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                       fontWeight: FontWeight.bold,
                       color: theme.primaryText),
                   decoration: InputDecoration(
-                    prefixText: '$selectedCurrency  ',
+                    prefixText: '$_amountCurrency  ',
                     border: InputBorder.none,
                     hintText: '0.00',
                     hintStyle: GoogleFonts.plusJakartaSans(
@@ -880,7 +980,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 method: 'BANK_TRANSFER',
                 icon: Icons.account_balance,
                 title: 'Bank Transfer',
-                subtitle: 'Instant',
+                subtitle: 'Pesalink',
               ),
               _methodCard(
                 context,
@@ -894,13 +994,13 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 method: 'CRYPTO',
                 icon: Icons.currency_bitcoin,
                 title: 'Crypto',
-                subtitle: 'Instant',
+                subtitle: 'Pay in-app with NOWPayments',
               ),
 
               if (selectedMethod == 'CRYPTO') ...[
                 const SizedBox(height: 4),
                 Text(
-                  'Cryptocurrency',
+                  'Cryptocurrency${_cryptoMinimumUsd == null ? '' : ' (minimum USD ${_formatMinimumUsd(_cryptoMinimumUsd!)})'}',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -932,26 +1032,17 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                     ],
                   )
                 else
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedCryptoToken,
-                    decoration: InputDecoration(
-                      hintText: 'Choose a cryptocurrency',
-                      filled: true,
-                      fillColor: theme.secondaryBackground,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: _cryptoTokens
-                        .map(
-                          (token) => DropdownMenuItem<String>(
-                            value: token,
-                            child: Text(token),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (token) =>
-                        setState(() => _selectedCryptoToken = token),
+                  SearchableCryptoPicker(
+                    currencies: _cryptoTokens,
+                    selectedCurrency: _selectedCryptoToken,
+                    onSelected: (token) {
+                      setState(() {
+                        _selectedCryptoToken = token;
+                        _cryptoMinimumUsd = null;
+                        _cryptoMinimumError = null;
+                      });
+                      _fetchCryptoMinimum(token);
+                    },
                   ),
                 const SizedBox(height: 16),
               ],
@@ -968,12 +1059,14 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 ),
                 child: Column(
                   children: [
-                    _feeRow('Amount', 'KES ${amount.toStringAsFixed(2)}'),
+                    _feeRow('Amount',
+                        '$_amountCurrency ${amount.toStringAsFixed(2)}'),
                     const SizedBox(height: 10),
                     _feeRow('Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
-                        'KES ${fee.toStringAsFixed(2)}'),
+                        '$_amountCurrency ${fee.toStringAsFixed(2)}'),
                     const Divider(height: 20),
-                    _feeRow('Total', 'KES ${total.toStringAsFixed(2)}',
+                    _feeRow(
+                        'Total', '$_amountCurrency ${total.toStringAsFixed(2)}',
                         bold: true),
                   ],
                 ),
@@ -1173,6 +1266,206 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [Text(label, style: style), Text(value, style: style)],
+    );
+  }
+}
+
+class _NowpaymentsDepositDialog extends StatefulWidget {
+  const _NowpaymentsDepositDialog({
+    required this.paymentId,
+    required this.address,
+    required this.amount,
+    required this.currency,
+    this.expirationEstimate,
+  });
+
+  final String paymentId;
+  final String address;
+  final String amount;
+  final String currency;
+  final String? expirationEstimate;
+
+  @override
+  State<_NowpaymentsDepositDialog> createState() =>
+      _NowpaymentsDepositDialogState();
+}
+
+class _NowpaymentsDepositDialogState extends State<_NowpaymentsDepositDialog> {
+  Timer? _pollTimer;
+  Timer? _countdownTimer;
+  DateTime? _expiresAt;
+  bool _checking = false;
+  String _status = 'waiting';
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _expiresAt = _parseExpiry(widget.expirationEstimate);
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _checkStatus(),
+    );
+    if (_expiresAt != null) {
+      _countdownTimer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) {
+          if (mounted) setState(() {});
+        },
+      );
+    }
+  }
+
+  DateTime? _parseExpiry(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final parsedDate = DateTime.tryParse(value);
+    if (parsedDate != null) return parsedDate.toLocal();
+    final numeric = int.tryParse(value);
+    if (numeric == null) return null;
+    if (numeric > 1000000000) {
+      return DateTime.fromMillisecondsSinceEpoch(
+        numeric > 1000000000000 ? numeric : numeric * 1000,
+      );
+    }
+    return DateTime.now().add(Duration(seconds: numeric));
+  }
+
+  String get _countdown {
+    final remaining = _expiresAt?.difference(DateTime.now());
+    if (remaining == null) return 'Expiry time unavailable';
+    if (remaining.isNegative) return 'Expired';
+    final minutes = remaining.inMinutes;
+    final seconds = remaining.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _checkStatus() async {
+    if (_checking) return;
+    _checking = true;
+    try {
+      final response = await ApiService.request(
+        method: 'GET',
+        path: '/wallet/deposit/status/${Uri.encodeComponent(widget.paymentId)}',
+        requiresAuth: true,
+      );
+      final data = response['data'];
+      if (data is! Map) {
+        throw const FormatException('Invalid payment status response.');
+      }
+      final status = data['status']?.toString().toLowerCase() ?? 'unknown';
+      if (!mounted) return;
+      setState(() {
+        _status = status;
+        _error = null;
+      });
+      if (['finished', 'confirmed'].contains(status) &&
+          data['credited'] == true) {
+        Navigator.of(context).pop(true);
+      } else if (['failed', 'expired', 'refunded'].contains(status)) {
+        Navigator.of(context).pop(false);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = 'Status check will retry: $error');
+      }
+    } finally {
+      _checking = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Complete crypto deposit'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            QrImageView(
+              data: widget.address,
+              size: 190,
+              backgroundColor: Colors.white,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: SelectableText(
+                    '${widget.amount} ${widget.currency}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Copy amount',
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: widget.amount),
+                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Amount copied')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.copy),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SelectableText(
+              widget.address,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12),
+            ),
+            TextButton.icon(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: widget.address));
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Address copied')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.copy),
+              label: const Text('Copy address'),
+            ),
+            Text('Time remaining: $_countdown'),
+            const SizedBox(height: 6),
+            Text('Payment status: $_status'),
+            if (_checking) const LinearProgressIndicator(),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _checking ? null : _checkStatus,
+          child: const Text('Check status'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
     );
   }
 }

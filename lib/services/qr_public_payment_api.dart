@@ -51,8 +51,13 @@ class QrPublicPaymentApi {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final message = data['message'];
+      final errorMessage = switch (message) {
+        String value when value.trim().isNotEmpty => value,
+        List values => values.map((value) => value.toString()).join(', '),
+        _ => 'Payment request failed (HTTP ${response.statusCode}).',
+      };
       throw Exception(
-        message is String ? message : 'Payment request failed.',
+        errorMessage,
       );
     }
     return data;

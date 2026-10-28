@@ -258,9 +258,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         final resolvedMerchantId = merchant?.merchantId ?? merchantId ?? '';
         final resolvedBusinessName =
             merchant?.businessName ?? businessName ?? 'Merchant';
-        if (resolvedMerchantId.isEmpty || payload == null || payload.isEmpty) {
+        if (resolvedMerchantId.isEmpty) {
           debugPrint(
-            '[APP LINKS] Merchant payment link is missing its payload or merchant ID',
+            '[APP LINKS] Merchant payment link is missing its merchant ID',
           );
           return;
         }
@@ -269,7 +269,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           queryParameters: {
             'merchantId': resolvedMerchantId,
             'businessName': resolvedBusinessName,
-            'qrPayload': payload,
+            'qrPayload': payload ?? '',
           },
         ).toString());
       } catch (error) {

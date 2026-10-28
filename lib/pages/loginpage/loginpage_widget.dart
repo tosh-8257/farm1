@@ -61,7 +61,12 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
     {'name': 'Burundi', 'iso': 'BI', 'code': '+257', 'flag': '🇧🇮'},
     {'name': 'Cabo Verde', 'iso': 'CV', 'code': '+238', 'flag': '🇨🇻'},
     {'name': 'Cameroon', 'iso': 'CM', 'code': '+237', 'flag': '🇨🇲'},
-    {'name': 'Central African Republic', 'iso': 'CF', 'code': '+236', 'flag': '🇨🇫'},
+    {
+      'name': 'Central African Republic',
+      'iso': 'CF',
+      'code': '+236',
+      'flag': '🇨🇫'
+    },
     {'name': 'Chad', 'iso': 'TD', 'code': '+235', 'flag': '🇹🇩'},
     {'name': 'Comoros', 'iso': 'KM', 'code': '+269', 'flag': '🇰🇲'},
     {'name': 'Congo', 'iso': 'CG', 'code': '+242', 'flag': '🇨🇬'},
@@ -93,7 +98,12 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
     {'name': 'Niger', 'iso': 'NE', 'code': '+227', 'flag': '🇳🇪'},
     {'name': 'Nigeria', 'iso': 'NG', 'code': '+234', 'flag': '🇳🇬'},
     {'name': 'Rwanda', 'iso': 'RW', 'code': '+250', 'flag': '🇷🇼'},
-    {'name': 'Sao Tome and Principe', 'iso': 'ST', 'code': '+239', 'flag': '🇸🇹'},
+    {
+      'name': 'Sao Tome and Principe',
+      'iso': 'ST',
+      'code': '+239',
+      'flag': '🇸🇹'
+    },
     {'name': 'Senegal', 'iso': 'SN', 'code': '+221', 'flag': '🇸🇳'},
     {'name': 'Seychelles', 'iso': 'SC', 'code': '+248', 'flag': '🇸🇨'},
     {'name': 'Sierra Leone', 'iso': 'SL', 'code': '+232', 'flag': '🇸🇱'},
@@ -242,6 +252,12 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
           );
         } else {
           print('Navigating to Dashboard');
+          final paymentRoute = FFAppState().pendingMerchantPaymentRoute;
+          if (paymentRoute.startsWith('/merchantPayment')) {
+            FFAppState().pendingMerchantPaymentRoute = '';
+            context.go(paymentRoute);
+            return;
+          }
           context.goNamed('Dashboard');
         }
       },

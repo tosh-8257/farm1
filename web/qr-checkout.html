@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#146c43" />
+    <meta name="robots" content="noindex" />
+    <title>FARM Secure Checkout</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, sans-serif;
+        color: #17231d;
+        background: #f3f6f4;
+        font-synthesis: none;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        padding: 24px 16px;
+        display: grid;
+        place-items: center;
+      }
+      main {
+        width: min(100%, 520px);
+        padding: 28px;
+        background: #fff;
+        border: 1px solid #e1e8e3;
+        border-radius: 18px;
+        box-shadow: 0 8px 30px #123b2a18;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.65rem;
+      }
+      p {
+        line-height: 1.5;
+        color: #56635b;
+      }
+      button,
+      input,
+      select {
+        width: 100%;
+        min-height: 50px;
+        border-radius: 10px;
+        font: inherit;
+      }
+      button {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border: 0;
+        background: #146c43;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.secondary {
+        border: 1px solid #ccd6cf;
+        background: #fff;
+        color: #145333;
+      }
+      button:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+      label {
+        display: block;
+        margin: 18px 0 7px;
+        font-weight: 700;
+      }
+      input,
+      select {
+        padding: 12px;
+        border: 1px solid #ccd6cf;
+        background: #fff;
+        color: #17231d;
+      }
+      input:focus,
+      select:focus {
+        outline: 2px solid #146c43;
+        outline-offset: 1px;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .fine-print {
+        font-size: 0.9rem;
+      }
+      #message {
+        min-height: 24px;
+        margin-bottom: 0;
+        color: #a12622;
+        font-weight: 700;
+      }
+      @media (max-width: 480px) {
+        main {
+          padding: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="title">FARM Secure Checkout</h1>
+      <p id="merchant">Loading merchant details…</p>
+
+      <section id="choices" class="hidden">
+        <button id="app-pay" class="secondary" type="button">
+          I have the FARM app
+        </button>
+        <p class="fine-print">
+          Have the app? Pay from your FARM wallet. No app? Continue securely on
+          this page.
+        </p>
+        <button id="web-pay" type="button">Continue on web</button>
+      </section>
+
+      <form id="checkout" class="hidden">
+        <label for="amount">Amount (KES)</label>
+        <input
+          id="amount"
+          name="amount"
+          type="number"
+          inputmode="decimal"
+          min="0.01"
+          step="0.01"
+          required
+          placeholder="Enter amount"
+        />
+
+        <label for="method">Payment method</label>
+        <select id="method" name="method" required>
+          <option value="mpesa">M-Pesa</option>
+          <option value="card">Bank card</option>
+          <option value="bank">Bank transfer</option>
+          <option value="crypto">Crypto</option>
+        </select>
+
+        <div id="crypto-field" class="hidden">
+          <label for="crypto">Cryptocurrency</label>
+          <input
+            id="crypto-search"
+            type="search"
+            placeholder="Search cryptocurrencies"
+            aria-label="Search cryptocurrencies"
+            autocomplete="off"
+          />
+          <select id="crypto" name="crypto"></select>
+        </div>
+
+        <label for="email">Email for payment receipt</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          inputmode="email"
+          autocomplete="email"
+          required
+          placeholder="you@example.com"
+        />
+        <button id="submit" type="submit">Continue to payment</button>
+      </form>
+
+      <p id="message" role="status" aria-live="polite"></p>
+      <p class="fine-print">
+        Your merchant is credited after the payment provider confirms payment.
+      </p>
+    </main>
+
+    <script>
+      (() => {
+        const api = "https://farm-backend-r64g.onrender.com/api/v1";
+        const params = new URLSearchParams(location.search);
+        const path = location.pathname.split("/").filter(Boolean);
+        const isLegacyCheckout = path[0] === "merchant-payment";
+        const legacyReference = [
+          "farm_reference",
+          "reference",
+          "trxref",
+          "tx_ref",
+          "transaction_reference",
+          "transaction_id",
+          "payment_reference",
+          "provider_reference",
+          "provider_transaction_id",
+          "id",
+        ]
+          .map((key) => params.get(key)?.trim() ?? "")
+          .find(Boolean);
+
+        if (
+          ["farmapp-e2145.web.app", "farmapp-e2145.firebaseapp.com"].includes(
+            location.hostname,
+          )
+        ) {
+          location.replace(
+            `https://farmpay.africa${location.pathname}${location.search}${location.hash}`,
+          );
+          return;
+        }
+
+        if (isLegacyCheckout && legacyReference) {
+          location.replace(
+            `/pay/success?reference=${encodeURIComponent(legacyReference)}`,
+          );
+          return;
+        }
+
+        const merchantLabel = document.getElementById("merchant");
+        const choices = document.getElementById("choices");
+        const checkout = document.getElementById("checkout");
+        const message = document.getElementById("message");
+        const amountField = document.getElementById("amount");
+        const emailField = document.getElementById("email");
+        const methodField = document.getElementById("method");
+        const cryptoField = document.getElementById("crypto-field");
+        const cryptoSelect = document.getElementById("crypto");
+        const cryptoSearch = document.getElementById("crypto-search");
+        let cryptoTokens = [];
+        let selectedCryptoToken = "";
+        let merchantId = isLegacyCheckout ? "" : (path[1] ?? "");
+        let businessName = "merchant";
+        let qrPayload = "";
+        let cryptoCurrenciesPromise;
+
+        const renderCryptoOptions = () => {
+          const query = cryptoSearch.value.trim().toLowerCase();
+          const matches = cryptoTokens.filter((token) =>
+            token.toLowerCase().includes(query),
+          );
+          const selectedToken = selectedCryptoToken.toLowerCase();
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = "Choose a cryptocurrency";
+          placeholder.disabled = true;
+          placeholder.selected = !matches.some(
+            (token) => token.toLowerCase() === selectedToken,
+          );
+          cryptoSelect.replaceChildren(
+            placeholder,
+            ...matches.map((token) => {
+              const option = document.createElement("option");
+              option.value = token.toLowerCase();
+              option.textContent = token.toUpperCase();
+              option.selected = token.toLowerCase() === selectedToken;
+              return option;
+            }),
+          );
+        };
+        cryptoSearch.addEventListener("input", renderCryptoOptions);
+        cryptoSelect.addEventListener("change", () => {
+          selectedCryptoToken = cryptoSelect.value.toLowerCase();
+        });
+
+        const loadCryptoCurrencies = async () => {
+          if (!cryptoCurrenciesPromise) {
+            cryptoCurrenciesPromise = request(`${api}/qr-payments/crypto-options`)
+              .then((result) => {
+                const tokens = result.data?.tokens;
+                if (!Array.isArray(tokens) || tokens.length === 0) {
+                  throw new Error(
+                    "No cryptocurrencies are currently available through NOWPayments.",
+                  );
+                }
+                cryptoTokens = tokens.map((token) =>
+                  String(token).trim().toLowerCase(),
+                );
+                renderCryptoOptions();
+              })
+              .catch((error) => {
+                cryptoCurrenciesPromise = null;
+                throw error;
+              });
+          }
+          return cryptoCurrenciesPromise;
+        };
+
+        methodField.addEventListener("change", async () => {
+          const isCrypto = methodField.value === "crypto";
+          cryptoField.classList.toggle("hidden", !isCrypto);
+          if (isCrypto) {
+            try {
+              await loadCryptoCurrencies();
+              message.textContent = "";
+            } catch (error) {
+              message.textContent = error.message;
+            }
+          }
+        });
+
+        const decodeQrPayload = (value) => {
+          try {
+            const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+            return decodeURIComponent(
+              escape(
+                atob(normalized + "=".repeat((4 - (normalized.length % 4)) % 4)),
+              ),
+            );
+          } catch {
+            return value;
+          }
+        };
+
+        const request = async (url, options) => {
+          const response = await fetch(url, options);
+          const result = await response.json();
+          if (!response.ok) {
+            const error = result.message;
+            throw new Error(
+              Array.isArray(error)
+                ? error.join(", ")
+                : error || "The payment request failed.",
+            );
+          }
+          return result;
+        };
+
+        const loadMerchant = async () => {
+          if (isLegacyCheckout) {
+            const encodedPayload = params.get("qr");
+            if (!encodedPayload) {
+              throw new Error("Merchant QR information is missing.");
+            }
+            qrPayload = decodeQrPayload(encodedPayload);
+            const result = await request(
+              `${api}/qr/checkout/merchant?qr_payload=${encodeURIComponent(qrPayload)}`,
+            );
+            merchantId = result.data?.merchant_id ?? "";
+            businessName = result.data?.business_name ?? "merchant";
+          } else {
+            if (
+              !merchantId ||
+              merchantId === "ANYID" ||
+              merchantId.length < 10
+            ) {
+              throw new Error("Invalid QR code. Ask the merchant to regenerate it.");
+            }
+            const result = await request(
+              `${api}/merchants/public/${encodeURIComponent(merchantId)}`,
+            );
+            const merchant = result.data;
+            merchantId = merchant?.id ?? merchantId;
+            businessName = merchant?.farmName ?? "merchant";
+            qrPayload = merchant?.qrPayload ?? "";
+          }
+
+          document.getElementById("title").textContent = `Pay ${businessName}`;
+          merchantLabel.textContent = `Securely pay this FARM merchant.`;
+          choices.classList.remove("hidden");
+        };
+
+        document.getElementById("app-pay").addEventListener("click", () => {
+          const deepLink = new URL("farm://farm.com/pay");
+          deepLink.searchParams.set("merchantId", merchantId);
+          deepLink.searchParams.set("businessName", businessName);
+          if (qrPayload) deepLink.searchParams.set("qrPayload", qrPayload);
+          location.href = deepLink.toString();
+        });
+
+        document.getElementById("web-pay").addEventListener("click", () => {
+          choices.classList.add("hidden");
+          checkout.classList.remove("hidden");
+          amountField.focus();
+        });
+
+        checkout.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          message.textContent = "";
+          const amount = Number(amountField.value);
+          const submit = document.getElementById("submit");
+          if (!Number.isFinite(amount) || amount <= 0) {
+            message.textContent = "Enter an amount greater than zero.";
+            return;
+          }
+          if (methodField.value === "crypto" && !cryptoSelect.value) {
+            message.textContent = "Choose a cryptocurrency to continue.";
+            return;
+          }
+
+          submit.disabled = true;
+          submit.textContent = "Preparing secure checkout…";
+          try {
+            const result = await request(`${api}/qr-payments/initialize`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify({
+                merchantId,
+                amount,
+                method: methodField.value,
+                guestEmail: emailField.value.trim(),
+                ...(methodField.value === "crypto"
+                  ? { crypto: cryptoSelect.value }
+                  : {}),
+              }),
+            });
+            const paymentUrl = result.data?.authorization_url;
+            if (!paymentUrl || !/^https:\/\//i.test(paymentUrl)) {
+              throw new Error(
+                "The payment provider did not return a valid checkout link.",
+              );
+            }
+            location.assign(paymentUrl);
+          } catch (error) {
+            message.textContent = error.message;
+            submit.disabled = false;
+            submit.textContent = "Continue to payment";
+          }
+        });
+
+        loadMerchant().catch((error) => {
+          merchantLabel.textContent = error.message;
+        });
+      })();
+    </script>
+  </body>
+</html>

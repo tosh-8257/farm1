@@ -34,7 +34,19 @@
   <meta name="twitter:description" content="Built with FlutterFlow." />
   <meta name="twitter:image" content="https://storage.googleapis.com/flutterflow-prod-hosting/og_splash_gradient.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  
+  <script>
+    if (
+      ['farmapp-e2145.web.app', 'farmapp-e2145.firebaseapp.com'].includes(
+        window.location.hostname,
+      ) &&
+      (/^\/pay(?:\/|$)/.test(window.location.pathname) ||
+        /^\/merchant-payment(?:\/|$)/.test(window.location.pathname))
+    ) {
+      window.location.replace(
+        `https://farmpay.africa${window.location.pathname}${window.location.search}${window.location.hash}`,
+      );
+    }
+  </script>
 </head>
 <body>
   <!-- Flutter app root -->
@@ -43,4 +55,3 @@
   </script>
 </body>
 </html>
-

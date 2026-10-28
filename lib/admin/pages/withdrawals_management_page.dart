@@ -50,13 +50,61 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage>
     if (!mounted) return;
     setState(() => _loading = true);
     try {
-      final res = await AdminApiService.getWithdrawals(
-          page: _page, status: _statusFilter == 'all' ? null : _statusFilter);
+      final results = await Future.wait([
+        AdminApiService.getWithdrawals(
+          page: _page,
+          status: _statusFilter == 'all' ? null : _statusFilter,
+        ),
+        AdminApiService.getNowpaymentsCryptoWithdrawals(),
+      ]);
+      final res = results[0];
+      final cryptoTransactions = results[1]['data'];
+      final cryptoMetadataByReference = <String, Map<String, dynamic>>{};
+      if (cryptoTransactions is List) {
+        for (final item in cryptoTransactions.whereType<Map>()) {
+          final reference = item['transaction_reference']?.toString();
+          final metadata = item['metadata'];
+          if (reference != null && metadata is Map) {
+            cryptoMetadataByReference[reference] =
+                Map<String, dynamic>.from(metadata);
+          }
+        }
+      }
+      final rawWithdrawals = res['data'];
+      final withdrawals = rawWithdrawals is List
+          ? rawWithdrawals.whereType<Map>().map((item) {
+              final withdrawal = Map<String, dynamic>.from(item);
+              final reference = withdrawal['reference']?.toString();
+              final metadata = reference == null
+                  ? null
+                  : cryptoMetadataByReference[reference];
+              if (metadata != null) withdrawal['metadata'] = metadata;
+              return withdrawal;
+            }).toList()
+          : <Map<String, dynamic>>[];
+      if (cryptoTransactions is List) {
+        for (final item in cryptoTransactions.whereType<Map>()) {
+          final cryptoWithdrawal = item['withdrawal'];
+          if (cryptoWithdrawal is! Map) continue;
+          final withdrawal = Map<String, dynamic>.from(cryptoWithdrawal);
+          final reference = withdrawal['reference']?.toString();
+          if (reference == null ||
+              withdrawals.any((item) => item['reference'] == reference)) {
+            continue;
+          }
+          final metadata = item['metadata'];
+          if (metadata is Map) {
+            withdrawal['metadata'] = Map<String, dynamic>.from(metadata);
+          }
+          withdrawals.add(withdrawal);
+        }
+      }
       setState(() {
-        _withdrawals = res['data'] ?? [];
+        _withdrawals = withdrawals;
         _selectedTransactions.clear();
       });
-    } catch (_) {
+    } catch (error) {
+      _snack('Could not load withdrawals: $error', context.errorColor);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -123,6 +171,70 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage>
     } catch (e) {
       debugPrint('Error processing withdrawal: ${e.toString()}');
       _snack(e.toString(), context.errorColor);
+    }
+  }
+
+  Future<String?> _requestNowpaymentsVerificationCode() async {
+    final controller = TextEditingController();
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Verify NOWPayments payout'),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            maxLength: 20,
+            decoration: const InputDecoration(
+              labelText: 'Verification code',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final code = controller.text.trim();
+                if (code.isNotEmpty) Navigator.pop(dialogContext, code);
+              },
+              child: const Text('Verify'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _approveNowpaymentsWithdrawal(String reference) async {
+    try {
+      final result =
+          await AdminApiService.approveNowpaymentsCryptoWithdrawal(reference);
+      if (result['requires_provider_verification'] == true) {
+        final code = await _requestNowpaymentsVerificationCode();
+        if (code == null || code.isEmpty) return;
+        await AdminApiService.verifyNowpaymentsCryptoWithdrawal(
+          reference,
+          code,
+        );
+        _snack(
+          'NOWPayments payout verification submitted. Waiting for provider confirmation.',
+          context.successColor,
+        );
+      } else {
+        _snack(
+          'NOWPayments payout approved. Waiting for provider confirmation.',
+          context.successColor,
+        );
+      }
+      await _load();
+    } catch (error) {
+      _snack(
+          'Could not approve NOWPayments payout: $error', context.errorColor);
     }
   }
 
@@ -320,6 +432,50 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage>
                                     .toLowerCase();
                                 final isPending = status == 'pending';
                                 final canRetry = status == 'failed';
+                                final metadataProvider =
+                                    (meta['provider'] ?? '')
+                                        .toString()
+                                        .toLowerCase();
+                                final isNowpaymentsCrypto =
+                                    method == 'CRYPTO' &&
+                                        metadataProvider == 'nowpayments';
+                                final approvalStatus =
+                                    (meta['payout_approval_status'] ?? '')
+                                        .toString()
+                                        .toLowerCase();
+                                final providerPayoutStatus =
+                                    (meta['nowpayments_payout_status'] ?? '')
+                                        .toString()
+                                        .toLowerCase();
+                                final payoutId =
+                                    meta['nowpayments_payout_id']?.toString();
+                                final reference = (w['reference'] ??
+                                        w['transaction_reference'] ??
+                                        w['id'] ??
+                                        '-')
+                                    .toString();
+                                final nowpaymentsNeedsApproval =
+                                    isNowpaymentsCrypto &&
+                                        approvalStatus == 'pending';
+                                final nowpaymentsNeedsRetry =
+                                    isNowpaymentsCrypto &&
+                                        approvalStatus == 'approved' &&
+                                        (payoutId == null ||
+                                            payoutId.isEmpty) &&
+                                        ['creating', 'unknown']
+                                            .contains(providerPayoutStatus);
+                                final nowpaymentsNeedsVerification =
+                                    isNowpaymentsCrypto &&
+                                        approvalStatus == 'approved' &&
+                                        payoutId != null &&
+                                        payoutId.isNotEmpty &&
+                                        providerPayoutStatus == 'creating' &&
+                                        meta['nowpayments_payout_verified_at'] ==
+                                            null;
+                                final canManageNowpayments =
+                                    nowpaymentsNeedsApproval ||
+                                        nowpaymentsNeedsRetry ||
+                                        nowpaymentsNeedsVerification;
                                 final color = _sc(status);
                                 final userLabel = _userLabel(w);
                                 final userId = (w['user_id'] ?? '').toString();
@@ -328,10 +484,6 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage>
                                 final receiverLabel =
                                     (w['receiver_name'] ?? _destinationLabel(w))
                                         .toString();
-                                final reference = (w['transaction_reference'] ??
-                                        w['id'] ??
-                                        '-')
-                                    .toString();
                                 final amountLabel = w['amount_display']
                                         ?.toString() ??
                                     '${double.tryParse(w['amount']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00'} FARM';
@@ -578,7 +730,9 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage>
                                               ),
                                             ),
                                           ],
-                                          if (isPending || canRetry) ...[
+                                          if (isPending ||
+                                              canRetry ||
+                                              canManageNowpayments) ...[
                                             const SizedBox(height: 12),
                                             Row(children: [
                                               if (isPending)
@@ -616,13 +770,25 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage>
                                                                   BorderRadius
                                                                       .circular(
                                                                           10))),
-                                                  onPressed: () => _process(
-                                                      w['id'].toString(),
-                                                      'approve'),
+                                                  onPressed: () {
+                                                    if (isNowpaymentsCrypto) {
+                                                      _approveNowpaymentsWithdrawal(
+                                                          reference);
+                                                    } else {
+                                                      _process(
+                                                        w['id'].toString(),
+                                                        'approve',
+                                                      );
+                                                    }
+                                                  },
                                                   child: Text(
-                                                      canRetry
-                                                          ? 'Retry withdrawal'
-                                                          : 'Approve',
+                                                      nowpaymentsNeedsVerification
+                                                          ? 'Verify payout'
+                                                          : nowpaymentsNeedsRetry
+                                                              ? 'Retry provider payout'
+                                                              : canRetry
+                                                                  ? 'Retry withdrawal'
+                                                                  : 'Approve',
                                                       style: GoogleFonts
                                                           .plusJakartaSans(
                                                               color: Colors
@@ -636,7 +802,9 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage>
                                               padding: const EdgeInsets.only(
                                                   top: 12),
                                               child: Text(
-                                                'Payout submitted; waiting for provider confirmation. It cannot be resubmitted while processing.',
+                                                isNowpaymentsCrypto
+                                                    ? 'NOWPayments crypto payout is awaiting provider confirmation.'
+                                                    : 'Payout submitted; waiting for provider confirmation. It cannot be resubmitted while processing.',
                                                 style:
                                                     GoogleFonts.plusJakartaSans(
                                                   color: context.warningColor,

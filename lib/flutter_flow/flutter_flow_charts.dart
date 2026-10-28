@@ -590,8 +590,8 @@ FlTitlesData getTitlesData(
             ? xAxisLabelInfo.titleTextStyle!.fontSize! + 12
             : 16,
         sideTitles: SideTitles(
-          getTitlesWidget: (val, _) => getXTitlesWidget != null
-              ? getXTitlesWidget(val, _)
+          getTitlesWidget: (val, titleMeta) => getXTitlesWidget != null
+              ? getXTitlesWidget(val, titleMeta)
               : Text(
                   formatLabel(xAxisLabelInfo.labelFormatter, val),
                   style: xAxisLabelInfo.labelTextStyle,

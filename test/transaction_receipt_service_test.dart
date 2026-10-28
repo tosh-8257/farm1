@@ -21,5 +21,27 @@ void main() {
         'transaction-reference',
       );
     });
+
+    test('uses the transaction reference for a withdrawal history row', () {
+      expect(
+        TransactionReceiptService.transactionLookupId({
+          'id': 'withdrawal-row-id',
+          'reference': 'transaction-reference',
+          'method': 'BANK_TRANSFER',
+        }),
+        'transaction-reference',
+      );
+    });
+
+    test('uses the reference for a detailed withdrawal transaction', () {
+      expect(
+        TransactionReceiptService.transactionLookupId({
+          'id': 'transaction-row-id',
+          'transaction_reference': 'transaction-reference',
+          'transaction_type': 'withdrawal',
+        }),
+        'transaction-reference',
+      );
+    });
   });
 }

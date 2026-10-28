@@ -43,6 +43,7 @@ class BrandedQrCardService {
     required Uint8List qrBytes,
     required String displayName,
     required String category,
+    bool invertQrColors = false,
   }) async {
     final codec = await ui.instantiateImageCodec(qrBytes);
     final frame = await codec.getNextFrame();
@@ -151,7 +152,32 @@ class BrandedQrCardService {
         qrImage.height.toDouble(),
       ),
       qrImageBounds,
-      Paint()..filterQuality = FilterQuality.high,
+      Paint()
+        ..filterQuality = FilterQuality.high
+        ..colorFilter = invertQrColors
+            ? const ui.ColorFilter.matrix([
+                -1,
+                0,
+                0,
+                0,
+                255,
+                0,
+                -1,
+                0,
+                0,
+                255,
+                0,
+                0,
+                -1,
+                0,
+                255,
+                0,
+                0,
+                0,
+                1,
+                0,
+              ])
+            : null,
     );
     canvas.restore();
 

@@ -63,6 +63,35 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
     return '${value ~/ 60} min';
   }
 
+  bool get _isKycApproved {
+    final status = kycStatus.trim().toLowerCase();
+    return {'verified', 'approved', 'complete', 'success'}.contains(status);
+  }
+
+  String get _kycStatusLabel {
+    if (_isKycApproved) return 'APPROVED';
+    final status = kycStatus
+        .trim()
+        .toLowerCase()
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+    if (status.isEmpty || status == 'none') {
+      return 'NOT STARTED';
+    }
+    if ({'pending', 'under_review', 'review'}.contains(status)) {
+      return 'PENDING - AWAITING APPROVAL';
+    }
+    if (status == 'rejected') return 'REJECTED - RESUBMIT KYC';
+    if (status == 'additional_info_required') {
+      return 'ACTION REQUIRED - UPDATE KYC';
+    }
+    return kycStatus
+        .trim()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .toUpperCase();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -492,19 +521,9 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                 model: _model.profileInfoTileModel3,
                                 updateCallback: () => safeSetState(() {}),
                                 child: GestureDetector(
-                                  onTap:
-                                      (kycStatus.trim().toLowerCase() ==
-                                                  'verified' ||
-                                              kycStatus.trim().toLowerCase() ==
-                                                  'approved' ||
-                                              kycStatus.trim().toLowerCase() ==
-                                                  'complete' ||
-                                              kycStatus.trim().toLowerCase() ==
-                                                  'success')
-                                          ? null
-                                          : () {
-                                              context.pushNamed('KYCPAGE');
-                                            },
+                                  onTap: _isKycApproved
+                                      ? null
+                                      : () => context.pushNamed('KYCPAGE'),
                                   child: ProfileInfoTileWidget(
                                     icon: Icon(
                                       Icons.fingerprint_rounded,
@@ -513,8 +532,8 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                       size: 20.0,
                                     ),
                                     label: 'KYC Status',
-                                    show_arrow: true,
-                                    value: kycStatus.toUpperCase(),
+                                    show_arrow: !_isKycApproved,
+                                    value: _kycStatusLabel,
                                   ),
                                 ),
                               ),

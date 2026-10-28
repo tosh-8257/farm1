@@ -295,6 +295,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
       qrBytes: Uint8List.fromList(qrBytes),
       displayName: businessName.isEmpty ? 'FARM Merchant' : businessName,
       category: 'BUSINESS PAYMENT',
+      invertQrColors: true,
     );
   }
 
@@ -308,12 +309,12 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const leftReserved = 52.0;
+        const leftReserved = 22.0;
         const rightPadding = 8.0;
         const topPadding = 8.0;
         const bottomReserved = 28.0;
         final plotWidth = constraints.maxWidth - leftReserved - rightPadding;
-        final plotHeight = 168 - topPadding - bottomReserved;
+        final plotHeight = 168 - topPadding - bottomReserved - 22;
 
         return SizedBox(
           height: 168,
@@ -323,7 +324,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                 BarChartData(
                   minY: 0,
                   maxY: chartMax,
-                  alignment: BarChartAlignment.spaceAround,
+                  alignment: BarChartAlignment.spaceEvenly,
                   barTouchData: BarTouchData(enabled: true),
                   gridData: FlGridData(
                     show: true,
@@ -343,15 +344,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                     leftTitles: AxisTitles(
                       axisNameWidget: Text('FARM', style: theme.bodySmall),
                       axisNameSize: 22,
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: leftReserved,
-                        interval: chartMax / 4,
-                        getTitlesWidget: (value, meta) => Text(
-                          _formatChartAmount(value),
-                          style: theme.bodySmall.copyWith(fontSize: 10),
-                        ),
-                      ),
+                      sideTitles: const SideTitles(showTitles: false),
                     ),
                     bottomTitles: AxisTitles(
                       axisNameWidget: Text('Date', style: theme.bodySmall),
@@ -379,7 +372,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                       barRods: [
                         BarChartRodData(
                           toY: weeklyData[index],
-                          width: 18,
+                          width: 20,
                           color: barColor,
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -400,7 +393,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                       children: List.generate(weeklyData.length, (index) {
                         final value = weeklyData[index];
                         final labelOffset =
-                            plotHeight * (1 - (value / chartMax));
+                            plotHeight * (1 - (value / chartMax)) - 14;
                         return SizedBox(
                           width: plotWidth / weeklyData.length,
                           child: Transform.translate(
@@ -431,12 +424,30 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
   }
 
   String _formatChartAmount(double value) {
-    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}k';
     if (value == value.roundToDouble()) return value.toInt().toString();
-    return value.toStringAsFixed(1);
+    return value.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
   }
 
   Future<void> applyMerchant() async {
+    final requiredFields = [
+      businessNameController.text,
+      businessTypeController.text,
+      emailController.text,
+      phoneController.text,
+      countryController.text,
+      cityController.text,
+    ];
+    if (requiredFields.any((value) => value.trim().isEmpty)) {
+      showError('Please complete all six business details before submitting.');
+      return;
+    }
+
+    final businessEmail = emailController.text.trim();
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(businessEmail)) {
+      showError('Enter a valid business email address.');
+      return;
+    }
+
     try {
       setState(() {
         applyingMerchant = true;
@@ -448,7 +459,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         body: {
           'business_name': businessNameController.text.trim(),
           'business_type': businessTypeController.text.trim(),
-          'business_email': emailController.text.trim(),
+          'business_email': businessEmail,
           'business_phone': phoneController.text.trim(),
           'country': countryController.text.trim(),
           'city': cityController.text.trim(),
@@ -894,6 +905,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         merchantStatus == 'rejected' ||
         merchantStatus == 'kyc_required') {
       final needsApplication = merchantNotFound || merchantStatus == 'rejected';
+      final needsKyc = merchantStatus == 'kyc_required';
       final title = merchantStatus == 'pending'
           ? 'Application under review'
           : merchantStatus == 'kyc_required'
@@ -963,37 +975,43 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                             height: 1.5,
                           ),
                         ),
-                        const SizedBox(height: 40),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: needsApplication
-                                ? openApplyMerchantModal
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black,
-                              foregroundColor: Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.black
-                                  : Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
+                        if (needsApplication || needsKyc) ...[
+                          const SizedBox(height: 40),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: needsApplication
+                                  ? openApplyMerchantModal
+                                  : () => context.pushNamed('KYCPAGE'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black,
+                                foregroundColor:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.black
+                                        : Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              merchantStatus == 'rejected'
-                                  ? 'Update and resubmit details'
-                                  : 'Enter business details',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontWeight: FontWeight.bold,
+                              child: Text(
+                                needsKyc
+                                    ? 'Complete identity verification'
+                                    : merchantStatus == 'rejected'
+                                        ? 'Update and resubmit details'
+                                        : 'Enter business details',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -1391,12 +1409,38 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                           return ClipRRect(
                                             borderRadius:
                                                 BorderRadius.circular(14),
-                                            child: Image.memory(
-                                              Uint8List.fromList(qrBytes),
-                                              width: 210,
-                                              height: 210,
-                                              fit: BoxFit.contain,
-                                              filterQuality: FilterQuality.high,
+                                            child: ColorFiltered(
+                                              colorFilter:
+                                                  const ColorFilter.matrix([
+                                                -1,
+                                                0,
+                                                0,
+                                                0,
+                                                255,
+                                                0,
+                                                -1,
+                                                0,
+                                                0,
+                                                255,
+                                                0,
+                                                0,
+                                                -1,
+                                                0,
+                                                255,
+                                                0,
+                                                0,
+                                                0,
+                                                1,
+                                                0,
+                                              ]),
+                                              child: Image.memory(
+                                                Uint8List.fromList(qrBytes),
+                                                width: 210,
+                                                height: 210,
+                                                fit: BoxFit.contain,
+                                                filterQuality:
+                                                    FilterQuality.high,
+                                              ),
                                             ),
                                           );
                                         },

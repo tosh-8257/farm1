@@ -16,6 +16,7 @@ import '/services/transaction_authentication_service.dart';
 import '/services/transaction_authorization_service.dart';
 import '/services/transaction_receipt_service.dart';
 import '/utils/transaction_history_utils.dart';
+import '/widgets/searchable_crypto_picker.dart';
 
 class WithdrawpageWidget extends StatefulWidget {
   const WithdrawpageWidget({super.key});
@@ -59,25 +60,13 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   List<dynamic> history = [];
   final Set<int> _selectedWithdrawals = <int>{};
   Timer? _historyTimer;
-
-  final List<String> cryptoAssets = ['USDC', 'USDT'];
-
-  final Map<String, List<String>> cryptoNetworks = {
-    'USDC': [
-      'BNB Smart Chain (BEP20)',
-      'Polygon',
-      'Solana',
-      'Base',
-      'Starknet',
-      'Algorand',
-    ],
-    'USDT': [
-      'BNB Smart Chain (BEP20)',
-      'Polygon',
-      'Solana',
-      'Starknet',
-    ],
-  };
+  final Map<String, List<Map<String, String>>> _cryptoNetworkOptions = {};
+  final Set<String> _loadingCryptoNetworks = {};
+  final Map<String, String> _cryptoNetworkErrors = {};
+  double? _cryptoFarmUsdRate;
+  double? _cryptoMinimumFarm;
+  bool _loadingCryptoMinimum = false;
+  String? _cryptoMinimumError;
 
   // Fee rates per method
   final Map<String, double> _fees = {
@@ -89,36 +78,58 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   final Map<String, Map<String, double?>> _withdrawLimits = {
     'BANK': {'min': 4999, 'max': 999999},
     'MOBILE_MONEY': {'min': 1499, 'max': 249999},
-    'CRYPTO': {'min': 100, 'max': null},
+    'CRYPTO': {'min': 1, 'max': null},
   };
-  final double? _temporaryMinimumOverride = 10;
 
   double get amount => double.tryParse(_amountCtrl.text.trim()) ?? 0;
   double get feeRate => _fees[selectedMethod] ?? 0.015;
-  double get fee => amount * feeRate;
-  double get settlement => amount - fee;
+  double get _amountInFarm => selectedMethod == 'CRYPTO'
+      ? (_cryptoFarmUsdRate == null ? 0 : amount / _cryptoFarmUsdRate!)
+      : amount;
+  double get fee => _amountInFarm * feeRate;
+  double get settlement => _amountInFarm - fee;
 
   Map<String, double?> get _activeWithdrawLimits =>
       _withdrawLimits[selectedMethod] ?? _withdrawLimits['BANK']!;
-  double get _activeWithdrawMin =>
-      _temporaryMinimumOverride ?? _activeWithdrawLimits['min'] ?? 10;
+  double get _activeWithdrawMin => _activeWithdrawLimits['min'] ?? 10;
   double? get _activeWithdrawMax => _activeWithdrawLimits['max'];
-  bool get _hasValidWithdrawAmount =>
-      amount > 0 &&
-      amount >= _activeWithdrawMin &&
-      (_activeWithdrawMax == null || amount <= _activeWithdrawMax!);
+  bool get _hasValidWithdrawAmount {
+    if (selectedMethod == 'CRYPTO') {
+      return _cryptoFarmUsdRate != null &&
+          _cryptoMinimumFarm != null &&
+          amount >= 1 &&
+          _amountInFarm <= walletBalance;
+    }
+    return amount > 0 &&
+        amount >= _activeWithdrawMin &&
+        (_activeWithdrawMax == null || amount <= _activeWithdrawMax!);
+  }
 
   String _formatAmount(double value) {
     final formatter = RegExp(r'(\d)(?=(\d{3})+(?!\d))');
     return value
         .toStringAsFixed(value.truncateToDouble() == value ? 0 : 2)
-        .replaceAllMapped(
-          formatter,
-          (match) => '${match[1]},',
-        );
+        .replaceAllMapped(formatter, (match) => '${match[1]},');
   }
 
   String get _withdrawValidationMessage {
+    if (selectedMethod == 'CRYPTO') {
+      if (_loadingCryptoMinimum) return 'Loading crypto withdrawal minimum...';
+      if (_cryptoMinimumError != null) {
+        return 'Could not load crypto minimum: $_cryptoMinimumError';
+      }
+      final maxUsd = (_cryptoFarmUsdRate ?? 0) * walletBalance;
+      if (amount <= 0) {
+        return 'Range: USD 1.00+${maxUsd > 0 ? ' - USD ${maxUsd.toStringAsFixed(2)} max' : ''}';
+      }
+      if (amount < 1) {
+        return 'Minimum crypto withdrawal is USD 1.00';
+      }
+      if (_cryptoFarmUsdRate != null && _amountInFarm > walletBalance) {
+        return 'Amount exceeds your available balance (USD ${maxUsd.toStringAsFixed(2)} max)';
+      }
+      return 'Range: USD 1.00+${maxUsd > 0 ? ' - USD ${maxUsd.toStringAsFixed(2)} max' : ''}';
+    }
     if (amount <= 0) {
       return 'Range: FARM ${_formatAmount(_activeWithdrawMin)}${_activeWithdrawMax == null ? '+' : ' - FARM ${_formatAmount(_activeWithdrawMax!)}'}';
     }
@@ -138,6 +149,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     _fetchHistory();
     _fetchPaystackDestinations();
     _startHistoryPolling();
+    _fetchCryptoWithdrawalMinimum();
   }
 
   @override
@@ -165,9 +177,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     try {
       setState(() => _isBiometricChecking = true);
       final authResult = await TransactionAuthorizationService()
-          .authorizeTransaction(
-            localizedReason: 'Confirm withdrawal',
-          )
+          .authorizeTransaction(localizedReason: 'Confirm withdrawal')
           .then((r) => r.toTransactionAuthenticationResult());
 
       if (authResult.biometricUsed) {
@@ -210,6 +220,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       while (raw is Map && raw.containsKey('data')) {
         raw = raw['data'];
       }
+
       if (raw is! List) {
         throw const FormatException(
           'The server returned an invalid bank destination list.',
@@ -217,15 +228,22 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       }
       final banks = raw
           .whereType<Map>()
-          .map((item) => {
-                'name': item['name']?.toString() ?? '',
-                'code': item['code']?.toString() ?? '',
-              })
+          .map(
+            (item) => {
+              'name': item['name']?.toString() ?? '',
+              'code': (item['bank_code'] ?? item['code'])?.toString() ?? '',
+            },
+          )
           .where((item) => item['name']!.isNotEmpty && item['code']!.isNotEmpty)
           .toList(growable: false);
       if (mounted) {
         setState(() {
-          _paystackBanks = banks;
+          _paystackBanks = banks
+            ..sort((left, right) => left['name']!.compareTo(right['name']!));
+          if (_paystackBanks.isEmpty) {
+            _paystackDestinationError =
+                'Paystack returned no Kenyan bank destinations.';
+          }
           if (_selectedBank != null &&
               !_paystackBanks.any((bank) => bank['name'] == _selectedBank)) {
             _selectedBank = null;
@@ -238,12 +256,125 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       debugPrint('Could not load Paystack payout destinations: $error');
       if (mounted) {
         setState(() {
+          _paystackBanks = [];
+          _selectedBank = null;
+          _selectedBankCode = null;
           _paystackDestinationError =
-              'Could not load Paystack payout destinations. Tap to retry.';
+              'Could not load Paystack bank destinations: $error';
         });
       }
     } finally {
-      if (mounted) setState(() => _loadingPaystackDestinations = false);
+      if (mounted) {
+        setState(() => _loadingPaystackDestinations = false);
+      }
+    }
+  }
+
+  List<String> get _availableCryptoAssets =>
+      _cryptoNetworkOptions.keys.toList()..sort();
+
+  Future<void> _fetchCryptoNetworks() async {
+    const lookupKey = 'all';
+    if (_loadingCryptoNetworks.contains(lookupKey)) return;
+    setState(() {
+      _loadingCryptoNetworks.add(lookupKey);
+      _cryptoNetworkErrors.remove(lookupKey);
+    });
+    try {
+      final response = await ApiService.request(
+        method: 'GET',
+        path: '/withdraw/crypto/currencies',
+      );
+      final raw = response['data'];
+      if (raw is! List) {
+        throw const FormatException(
+          'The server returned an invalid NOWPayments currency list.',
+        );
+      }
+      final options = raw
+          .whereType<String>()
+          .map((currency) => currency.trim().toUpperCase())
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false);
+      if (options.isEmpty) {
+        throw Exception('No crypto currencies are enabled for this account.');
+      }
+      final groupedOptions = <String, List<Map<String, String>>>{};
+      for (final currency in options) {
+        groupedOptions[currency] = [
+          {'token': currency, 'network': currency, 'networkName': currency},
+        ];
+      }
+      if (!mounted) return;
+      setState(() {
+        _cryptoNetworkOptions
+          ..clear()
+          ..addAll(groupedOptions);
+        if (!_availableCryptoAssets.contains(selectedCryptoAsset)) {
+          selectedCryptoAsset = _availableCryptoAssets.first;
+        }
+        final defaultNetwork =
+            (_cryptoNetworkOptions[selectedCryptoAsset] ?? [])
+                .firstOrNull?['network'] ??
+            selectedCryptoAsset;
+        if (!(_cryptoNetworkOptions[selectedCryptoAsset] ?? []).any(
+          (option) => option['network'] == selectedCryptoNetwork,
+        )) {
+          selectedCryptoNetwork = defaultNetwork;
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _cryptoNetworkOptions.clear();
+        _cryptoNetworkErrors[lookupKey] = error.toString();
+        selectedCryptoNetwork = null;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loadingCryptoNetworks.remove(lookupKey));
+      }
+    }
+  }
+
+  Future<void> _fetchCryptoWithdrawalMinimum() async {
+    setState(() {
+      _loadingCryptoMinimum = true;
+      _cryptoMinimumError = null;
+    });
+    try {
+      final response = await ApiService.request(
+        method: 'GET',
+        path: '/withdraw/crypto/minimum',
+        requiresAuth: true,
+      );
+      final data = response['data'];
+      final farmUsdRate = data is Map
+          ? double.tryParse(data['farmUsdRate']?.toString() ?? '')
+          : null;
+      final minimumFarm = data is Map
+          ? double.tryParse(data['minimumFarm']?.toString() ?? '')
+          : null;
+      if (farmUsdRate == null ||
+          !farmUsdRate.isFinite ||
+          farmUsdRate <= 0 ||
+          minimumFarm == null ||
+          !minimumFarm.isFinite ||
+          minimumFarm <= 0) {
+        throw const FormatException(
+          'NOWPayments minimum conversion data is invalid.',
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _cryptoFarmUsdRate = farmUsdRate;
+        _cryptoMinimumFarm = minimumFarm;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _cryptoMinimumError = error.toString());
+    } finally {
+      if (mounted) setState(() => _loadingCryptoMinimum = false);
     }
   }
 
@@ -269,12 +400,13 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         // Support different backend shapes: { data: { available_balance } } or { balance }
         double bal = 0;
         if (body is Map<String, dynamic>) {
-          bal = (body['data']?['available_balance'] ??
-                  body['data']?['balance'] ??
-                  body['available_balance'] ??
-                  body['balance'] ??
-                  0)
-              .toDouble();
+          bal =
+              (body['data']?['available_balance'] ??
+                      body['data']?['balance'] ??
+                      body['available_balance'] ??
+                      body['balance'] ??
+                      0)
+                  .toDouble();
         } else {
           bal = 0;
         }
@@ -298,13 +430,17 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body);
         if (body is List) {
-          setState(() =>
-              history = body.where(isVisibleTransactionHistoryItem).toList());
+          setState(
+            () =>
+                history = body.where(isVisibleTransactionHistoryItem).toList(),
+          );
         } else if (body is Map<String, dynamic>) {
           final items = body['data'] ?? body['withdrawals'] ?? [];
-          setState(() => history = items is List
-              ? items.where(isVisibleTransactionHistoryItem).toList()
-              : []);
+          setState(
+            () => history = items is List
+                ? items.where(isVisibleTransactionHistoryItem).toList()
+                : [],
+          );
         }
       }
     } catch (_) {
@@ -340,14 +476,16 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     final withdrawal = response['withdrawal'] is Map
         ? Map<String, dynamic>.from(response['withdrawal'] as Map)
         : <String, dynamic>{};
-    final reference =
-        (response['reference'] ?? withdrawal['reference'] ?? '').toString();
+    final reference = (response['reference'] ?? withdrawal['reference'] ?? '')
+        .toString();
     final status = (withdrawal['status'] ?? response['status'] ?? 'PENDING')
         .toString()
         .toUpperCase();
     final destination = selectedMethod == 'MOBILE_MONEY'
         ? _mobileCtrl.text.trim()
-        : _selectedBank ?? selectedCryptoNetwork ?? 'Withdrawal destination';
+        : selectedMethod == 'CRYPTO'
+        ? _walletCtrl.text.trim()
+        : _selectedBank ?? 'Withdrawal destination';
 
     await showDialog<void>(
       context: context,
@@ -363,15 +501,28 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
             const SizedBox(height: 6),
             Text('Destination: $destination'),
             const SizedBox(height: 6),
-            Text('Total deduction: ${amount.toStringAsFixed(4)} FARM'),
+            Text(
+              'Total deduction: ${selectedMethod == 'CRYPTO' ? 'USD ${amount.toStringAsFixed(2)} (${_amountInFarm.toStringAsFixed(4)} FARM)' : '${amount.toStringAsFixed(4)} FARM'}',
+            ),
             Text('Transaction fee (1.5%): ${fee.toStringAsFixed(4)} FARM'),
             Text('Net amount: ${settlement.toStringAsFixed(4)} FARM'),
             const SizedBox(height: 8),
             Text(
               selectedMethod == 'CRYPTO'
-                  ? 'Your withdrawal is pending IvoryPay confirmation. Wallet funds are updated only after verification finishes.'
+                  ? 'Crypto withdrawals remain reserved until an administrator approves the payout and NOWPayments confirms it.'
                   : 'Your withdrawal is pending Paystack confirmation. Wallet funds are updated only after verification finishes.',
             ),
+            if (response['estimated_crypto_amount'] != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Estimated payout: ${response['estimated_crypto_amount']} ${response['currency'] ?? selectedCryptoAsset}',
+              ),
+            ],
+            if (response['estimated_network_fee'] != null) ...[
+              Text(
+                'Estimated network fee: ${response['estimated_network_fee']} ${response['currency'] ?? selectedCryptoAsset}',
+              ),
+            ],
           ],
         ),
         actions: [
@@ -395,8 +546,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         return _selectedMobileMoneyProvider != null &&
             _mobileCtrl.text.trim().isNotEmpty;
       case 'CRYPTO':
-        return selectedCryptoAsset.isNotEmpty &&
-            selectedCryptoNetwork != null &&
+        return _availableCryptoAssets.contains(selectedCryptoAsset) &&
             _walletCtrl.text.trim().isNotEmpty;
       default:
         return false;
@@ -404,16 +554,17 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   }
 
   // ── Submit withdrawal ─────────────────────────────────────────────────────
-  Future<void> _createWithdraw(
-      {bool skipConfirm = false,
-      TransactionAuthenticationResult? preAuthResult}) async {
+  Future<void> _createWithdraw({
+    bool skipConfirm = false,
+    TransactionAuthenticationResult? preAuthResult,
+  }) async {
     if (isLoading) return;
 
     if (!_hasValidWithdrawAmount) {
       _snack(_withdrawValidationMessage);
       return;
     }
-    if (amount > walletBalance) {
+    if (_amountInFarm > walletBalance) {
       _snack('Insufficient FARM balance');
       return;
     }
@@ -428,14 +579,17 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         builder: (c) => AlertDialog(
           title: const Text('Confirm Withdrawal'),
           content: Text(
-              'Withdraw ${amount.toStringAsFixed(4)} FARM via ${selectedMethod.replaceAll('_', ' ')}?'),
+            'Withdraw ${selectedMethod == 'CRYPTO' ? 'USD ${amount.toStringAsFixed(2)} (${_amountInFarm.toStringAsFixed(4)} FARM)' : '${amount.toStringAsFixed(4)} FARM'} via ${selectedMethod.replaceAll('_', ' ')}?',
+          ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.of(c).pop(false),
-                child: const Text('Cancel')),
+              onPressed: () => Navigator.of(c).pop(false),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
-                onPressed: () => Navigator.of(c).pop(true),
-                child: const Text('Confirm')),
+              onPressed: () => Navigator.of(c).pop(true),
+              child: const Text('Confirm'),
+            ),
           ],
         ),
       );
@@ -447,19 +601,18 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     try {
       print('[WITHDRAW] Submitting withdrawal request...');
 
-      final authResult = preAuthResult ??
+      final authResult =
+          preAuthResult ??
           _lastPinAuthResult ??
           await TransactionAuthorizationService()
-              .authorizeTransaction(
-                localizedReason: 'Confirm withdrawal',
-              )
+              .authorizeTransaction(localizedReason: 'Confirm withdrawal')
               .then((r) => r.toTransactionAuthenticationResult());
 
       final idempotencyKey = _ensureWithdrawalIdempotencyKey();
       final usedBiometric = authResult?.biometricUsed == true;
       if (usedBiometric) {
         final requestBody = {
-          'amount': amount,
+          'amount': _amountInFarm,
           'method': _methodToBackend(selectedMethod),
           'pin': null,
           'biometric_auth': true,
@@ -483,8 +636,11 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
             break;
         }
 
+        final endpoint = selectedMethod == 'CRYPTO'
+            ? '/withdraw/crypto'
+            : '/withdraw/create';
         final res = await http.post(
-          Uri.parse('${AppConfig.api}/withdraw/create'),
+          Uri.parse('${AppConfig.api}$endpoint'),
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ${FFAppState().accessToken}',
@@ -509,9 +665,11 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
             }
             _snack('Withdrawal request submitted successfully');
           } else {
-            _snack(decoded is Map && decoded['message'] != null
-                ? decoded['message'].toString()
-                : 'Withdrawal failed');
+            _snack(
+              decoded is Map && decoded['message'] != null
+                  ? decoded['message'].toString()
+                  : 'Withdrawal failed',
+            );
           }
         }
         return;
@@ -524,7 +682,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
       // Build request body with backend-expected field names
       final requestBody = {
-        'amount': amount,
+        'amount': _amountInFarm,
         'method': _methodToBackend(selectedMethod),
         'pin': _pinCtrl.text.trim(),
       };
@@ -547,8 +705,11 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
           break;
       }
 
+      final endpoint = selectedMethod == 'CRYPTO'
+          ? '/withdraw/crypto'
+          : '/withdraw/create';
       final res = await http.post(
-        Uri.parse('${AppConfig.api}/withdraw/create'),
+        Uri.parse('${AppConfig.api}$endpoint'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${FFAppState().accessToken}',
@@ -580,7 +741,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         await _fetchWallet();
         await _fetchHistory();
       } else {
-        final errorMsg = data['message'] ??
+        final errorMsg =
+            data['message'] ??
             data['error'] ??
             'common.transaction_failed'.tr();
         print('[WITHDRAW] Backend Error: $errorMsg');
@@ -596,8 +758,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   void _applyWithdrawalReservation() {
     if (!mounted) return;
     setState(() {
-      walletBalance =
-          (walletBalance - amount).clamp(0, double.infinity).toDouble();
+      walletBalance = (walletBalance - _amountInFarm)
+          .clamp(0, double.infinity)
+          .toDouble();
     });
   }
 
@@ -617,8 +780,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   }
 
   void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-      );
+    SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+  );
 
   // ── Convert frontend method names to backend format ───────────────────────
   String _methodToBackend(String method) {
@@ -655,7 +818,12 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     final subtitleColor = selected ? Colors.white70 : theme.secondaryText;
 
     return GestureDetector(
-      onTap: () => setState(() => selectedMethod = method),
+      onTap: () {
+        setState(() => selectedMethod = method);
+        if (method == 'CRYPTO') {
+          _fetchCryptoNetworks();
+        }
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(bottom: 12),
@@ -673,13 +841,21 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.bold, color: textColor)),
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(subtitle,
-                      style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12, color: subtitleColor)),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      color: subtitleColor,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -695,66 +871,78 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   // ── Destination fields ────────────────────────────────────────────────────
   Widget _buildDestinationFields() {
     final theme = FlutterFlowTheme.of(context);
-    final destinationError = _paystackDestinationError;
     switch (selectedMethod) {
       case 'BANK':
         return Column(
           children: [
             if (_loadingPaystackDestinations)
               const Padding(
-                padding: EdgeInsets.all(12),
-                child: CircularProgressIndicator(),
+                padding: EdgeInsets.only(bottom: 10),
+                child: LinearProgressIndicator(),
               )
-            else if (_paystackBanks.isEmpty)
-              InkWell(
-                onTap: _fetchPaystackDestinations,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
+            else if (_paystackDestinationError != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _paystackDestinationError!,
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _fetchPaystackDestinations,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.secondaryBackground,
+                border: Border.all(color: theme.secondaryText.withAlpha(90)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: DropdownButton<String>(
+                value: _selectedBank,
+                hint: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
-                    destinationError ??
-                        'Bank list could not be loaded. Tap to retry.',
+                    'Select Bank',
                     style: TextStyle(color: theme.secondaryText),
                   ),
                 ),
-              )
-            else
-              Container(
-                decoration: BoxDecoration(
-                  color: theme.secondaryBackground,
-                  border: Border.all(color: theme.secondaryText.withAlpha(90)),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: DropdownButton<String>(
-                  value: _selectedBankCode,
-                  hint: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('Select Bank',
-                        style: TextStyle(color: theme.secondaryText)),
-                  ),
-                  isExpanded: true,
-                  underline: const SizedBox(),
-                  items: _paystackBanks.map((bank) {
-                    return DropdownMenuItem(
-                      value: bank['code'],
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(bank['name']!,
-                            style: GoogleFonts.plusJakartaSans(
-                                color: theme.primaryText)),
+                isExpanded: true,
+                underline: const SizedBox(),
+                items: _paystackBanks.map((bank) {
+                  return DropdownMenuItem(
+                    value: bank['name'],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        bank['name']!,
+                        style: GoogleFonts.plusJakartaSans(
+                          color: theme.primaryText,
+                        ),
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (code) {
-                    if (code == null) return;
-                    setState(() {
-                      _selectedBankCode = code;
-                      _selectedBank = _paystackBanks.firstWhere(
-                        (bank) => bank['code'] == code,
-                      )['name'];
-                    });
-                  },
-                ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: _paystackBanks.isEmpty
+                    ? null
+                    : (name) {
+                        if (name == null) return;
+                        final bank = _paystackBanks.firstWhere(
+                          (item) => item['name'] == name,
+                        );
+                        setState(() {
+                          _selectedBank = name;
+                          _selectedBankCode = bank['code'];
+                        });
+                      },
               ),
+            ),
             const SizedBox(height: 12),
             _inputField(
               controller: _accountCtrl,
@@ -777,7 +965,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
               child: Text(
                 'M-Pesa',
                 style: GoogleFonts.plusJakartaSans(
-                    color: theme.primaryText, fontWeight: FontWeight.w600),
+                  color: theme.primaryText,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -792,72 +982,48 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: theme.secondaryBackground,
-                border: Border.all(color: theme.secondaryText.withAlpha(90)),
-                borderRadius: BorderRadius.circular(14),
+            SearchableCryptoPicker(
+              currencies: _availableCryptoAssets,
+              selectedCurrency:
+                  _availableCryptoAssets.contains(selectedCryptoAsset)
+                  ? selectedCryptoAsset
+                  : null,
+              label: 'Cryptocurrency',
+              onSelected: (value) {
+                setState(() {
+                  selectedCryptoAsset = value;
+                  selectedCryptoNetwork = null;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'The network is included in the selected currency ticker.',
+              style: TextStyle(color: theme.secondaryText, fontSize: 12),
+            ),
+            if (_loadingCryptoNetworks.contains('all'))
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: LinearProgressIndicator(),
               ),
-              child: DropdownButton<String>(
-                value: selectedCryptoAsset,
-                hint: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('Select Crypto Asset',
-                      style: TextStyle(color: theme.secondaryText)),
-                ),
-                isExpanded: true,
-                underline: const SizedBox(),
-                items: cryptoAssets.map((asset) {
-                  return DropdownMenuItem(
-                    value: asset,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(asset,
-                          style: GoogleFonts.plusJakartaSans(
-                              color: theme.primaryText)),
+            if (_cryptoNetworkErrors.containsKey('all'))
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Could not load payout networks: ${_cryptoNetworkErrors['all']}',
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
                     ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() {
-                    selectedCryptoAsset = value;
-                    selectedCryptoNetwork = null;
-                  });
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: theme.secondaryBackground,
-                border: Border.all(color: theme.secondaryText.withAlpha(90)),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: DropdownButton<String>(
-                value: selectedCryptoNetwork,
-                hint: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('Select Network',
-                      style: TextStyle(color: theme.secondaryText)),
+                    TextButton(
+                      onPressed: _fetchCryptoNetworks,
+                      child: const Text('Retry'),
+                    ),
+                  ],
                 ),
-                isExpanded: true,
-                underline: const SizedBox(),
-                items: cryptoNetworks[selectedCryptoAsset]!
-                    .map((network) => DropdownMenuItem(
-                          value: network,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(network,
-                                style: GoogleFonts.plusJakartaSans(
-                                    color: theme.primaryText)),
-                          ),
-                        ))
-                    .toList(),
-                onChanged: (value) =>
-                    setState(() => selectedCryptoNetwork = value),
               ),
-            ),
             const SizedBox(height: 12),
             _inputField(controller: _walletCtrl, hint: 'Wallet Address'),
           ],
@@ -876,19 +1042,23 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       controller: controller,
       keyboardType: type,
       style: GoogleFonts.plusJakartaSans(
-          color: FlutterFlowTheme.of(context).primaryText),
+        color: FlutterFlowTheme.of(context).primaryText,
+      ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: FlutterFlowTheme.of(context).secondaryText),
         filled: true,
         fillColor: FlutterFlowTheme.of(context).secondaryBackground,
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-                color:
-                    FlutterFlowTheme.of(context).secondaryText.withAlpha(90))),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: FlutterFlowTheme.of(context).secondaryText.withAlpha(90),
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }
@@ -896,10 +1066,14 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   // ── Fee row ───────────────────────────────────────────────────────────────
   Widget _feeRow(String label, String value, {bool bold = false}) {
     final style = GoogleFonts.plusJakartaSans(
-        fontWeight: bold ? FontWeight.bold : FontWeight.normal);
+      fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+    );
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [Text(label, style: style), Text(value, style: style)],
+      children: [
+        Text(label, style: style),
+        Text(value, style: style),
+      ],
     );
   }
 
@@ -914,7 +1088,10 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         key: scaffoldKey,
         backgroundColor: theme.primaryBackground,
         body: SafeArea(
-          child: KycRequiredWidget(feature: 'withdraw'),
+          child: KycRequiredWidget(
+            feature: 'withdraw',
+            onKycApproved: () => setState(() {}),
+          ),
         ),
       );
     }
@@ -933,11 +1110,14 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const BackChevron(),
-                  Text('Withdraw Funds',
-                      style: GoogleFonts.plusJakartaSans(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: theme.primaryText)),
+                  Text(
+                    'Withdraw Funds',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: theme.primaryText,
+                    ),
+                  ),
                   FlutterFlowIconButton(
                     icon: Icon(Icons.info_outline, color: theme.secondaryText),
                     onPressed: () => _snack(
@@ -962,23 +1142,29 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                     ),
                     child: loadingWallet
                         ? const Center(
-                            child:
-                                CircularProgressIndicator(color: Colors.white))
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
                         : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('AVAILABLE BALANCE',
-                                  style: GoogleFonts.plusJakartaSans(
-                                      color: Colors.white70,
-                                      fontSize: 11,
-                                      letterSpacing: 1)),
+                              Text(
+                                'AVAILABLE BALANCE',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  letterSpacing: 1,
+                                ),
+                              ),
                               const SizedBox(height: 8),
                               Text(
                                 '${walletBalance.toStringAsFixed(4)} FARM',
                                 style: GoogleFonts.plusJakartaSans(
-                                    color: Colors.white,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold),
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ],
                           ),
@@ -991,44 +1177,65 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(24),
-                      border:
-                          Border.all(color: theme.secondaryText.withAlpha(60)),
+                      border: Border.all(
+                        color: theme.secondaryText.withAlpha(60),
+                      ),
                     ),
                     child: Column(
                       children: [
-                        Text('Withdrawal Amount',
-                            style: GoogleFonts.plusJakartaSans(
-                                color: theme.secondaryText, fontSize: 13)),
+                        Text(
+                          'Withdrawal Amount',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: theme.secondaryText,
+                            fontSize: 13,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         TextField(
                           controller: _amountCtrl,
                           keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
+                            decimal: true,
+                          ),
                           textAlign: TextAlign.center,
                           onChanged: (_) => setState(() {}),
                           style: GoogleFonts.plusJakartaSans(
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                              color: theme.primaryText),
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: theme.primaryText,
+                          ),
                           decoration: InputDecoration(
-                              border: InputBorder.none,
-                              hintText: '0.00',
-                              hintStyle: TextStyle(color: theme.secondaryText)),
+                            prefixText: selectedMethod == 'CRYPTO'
+                                ? 'USD '
+                                : null,
+                            border: InputBorder.none,
+                            hintText: '0.00',
+                            hintStyle: TextStyle(color: theme.secondaryText),
+                          ),
                         ),
                         const Divider(),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                                'Min: FARM ${_formatAmount(_activeWithdrawMin)}',
-                                style: GoogleFonts.plusJakartaSans(
-                                    color: theme.secondaryText, fontSize: 12)),
+                              selectedMethod == 'CRYPTO'
+                                  ? 'Min: USD 1.00'
+                                  : 'Min: FARM ${_formatAmount(_activeWithdrawMin)}',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: theme.secondaryText,
+                                fontSize: 12,
+                              ),
+                            ),
                             Text(
-                                _activeWithdrawMax == null
-                                    ? 'Max: FARM no limit'
-                                    : 'Max: FARM ${_formatAmount(_activeWithdrawMax!)}',
-                                style: GoogleFonts.plusJakartaSans(
-                                    color: theme.secondaryText, fontSize: 12)),
+                              _activeWithdrawMax == null
+                                  ? selectedMethod == 'CRYPTO'
+                                        ? 'Max: USD ${(_cryptoFarmUsdRate == null ? 0 : walletBalance * _cryptoFarmUsdRate!).toStringAsFixed(2)}'
+                                        : 'Max: FARM no limit'
+                                  : 'Max: FARM ${_formatAmount(_activeWithdrawMax!)}',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: theme.secondaryText,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -1048,28 +1255,37 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                   const SizedBox(height: 28),
 
                   // Method selection
-                  Text('Select Method',
-                      style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: theme.primaryText)),
+                  Text(
+                    'Select Method',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: theme.primaryText,
+                    ),
+                  ),
                   const SizedBox(height: 14),
 
-                  _methodCard(context,
-                      method: 'BANK',
-                      icon: Icons.account_balance,
-                      title: 'Bank Transfer',
-                      subtitle: 'bank payout'),
-                  _methodCard(context,
-                      method: 'MOBILE_MONEY',
-                      icon: Icons.phone_android,
-                      title: 'Mobile Money',
-                      subtitle: 'M-Pesa payout'),
-                  _methodCard(context,
-                      method: 'CRYPTO',
-                      icon: Icons.currency_bitcoin,
-                      title: 'Crypto Wallet',
-                      subtitle: 'crypto payout'),
+                  _methodCard(
+                    context,
+                    method: 'BANK',
+                    icon: Icons.account_balance,
+                    title: 'Bank Transfer',
+                    subtitle: 'bank payout',
+                  ),
+                  _methodCard(
+                    context,
+                    method: 'MOBILE_MONEY',
+                    icon: Icons.phone_android,
+                    title: 'Mobile Money',
+                    subtitle: 'M-Pesa payout',
+                  ),
+                  _methodCard(
+                    context,
+                    method: 'CRYPTO',
+                    icon: Icons.currency_bitcoin,
+                    title: 'Crypto Wallet',
+                    subtitle: 'NOWPayments payout with admin approval',
+                  ),
 
                   const SizedBox(height: 20),
 
@@ -1099,14 +1315,16 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: BorderSide(
-                              color: theme.secondaryText.withAlpha(90)),
+                            color: theme.secondaryText.withAlpha(90),
+                          ),
                         ),
                         suffixIcon: _isBiometricChecking
                             ? const SizedBox(
                                 height: 24,
                                 width: 24,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : null,
                         counterText: '',
@@ -1119,16 +1337,21 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                       child: ElevatedButton(
                         onPressed: _promptBiometricForPinField,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              isDark ? const Color(0xFF1F1F1F) : Colors.black,
+                          backgroundColor: isDark
+                              ? const Color(0xFF1F1F1F)
+                              : Colors.black,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
-                        child: Text('Continue',
-                            style: GoogleFonts.plusJakartaSans(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16)),
+                        child: Text(
+                          'Continue',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
                     ),
 
@@ -1140,20 +1363,31 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                     decoration: BoxDecoration(
                       color: theme.secondaryBackground,
                       borderRadius: BorderRadius.circular(20),
-                      border:
-                          Border.all(color: theme.secondaryText.withAlpha(80)),
+                      border: Border.all(
+                        color: theme.secondaryText.withAlpha(80),
+                      ),
                     ),
                     child: Column(
                       children: [
                         _feeRow(
-                            'FARM Amount', '${amount.toStringAsFixed(4)} FARM'),
+                          selectedMethod == 'CRYPTO'
+                              ? 'Withdrawal Amount'
+                              : 'FARM Amount',
+                          selectedMethod == 'CRYPTO'
+                              ? 'USD ${amount.toStringAsFixed(2)} (${_amountInFarm.toStringAsFixed(4)} FARM)'
+                              : '${amount.toStringAsFixed(4)} FARM',
+                        ),
                         const SizedBox(height: 12),
-                        _feeRow('Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
-                            '${fee.toStringAsFixed(4)} FARM'),
+                        _feeRow(
+                          'Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
+                          '${fee.toStringAsFixed(4)} FARM',
+                        ),
                         const Divider(height: 24),
-                        _feeRow('You Receive',
-                            '${settlement.toStringAsFixed(4)} FARM',
-                            bold: true),
+                        _feeRow(
+                          'You Receive',
+                          '${settlement.toStringAsFixed(4)} FARM',
+                          bold: true,
+                        ),
                       ],
                     ),
                   ),
@@ -1166,22 +1400,28 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                       height: 58,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              isDark ? const Color(0xFF1F1F1F) : Colors.black,
+                          backgroundColor: isDark
+                              ? const Color(0xFF1F1F1F)
+                              : Colors.black,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                         onPressed: (isLoading || !_hasValidWithdrawAmount)
                             ? null
                             : _createWithdraw,
                         child: isLoading
                             ? const CircularProgressIndicator(
-                                color: Colors.white)
-                            : Text('Withdraw Funds',
+                                color: Colors.white,
+                              )
+                            : Text(
+                                'Withdraw Funds',
                                 style: GoogleFonts.plusJakartaSans(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16)),
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
                       ),
                     ),
                 ],
@@ -1193,18 +1433,25 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Recent Withdrawals',
-                      style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(
+                    'Recent Withdrawals',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                   if (_selectedWithdrawals.isNotEmpty)
                     OutlinedButton.icon(
                       icon: const Icon(Icons.download_rounded),
                       label: Text(
-                          'Download selected (${_selectedWithdrawals.length})'),
+                        'Download selected (${_selectedWithdrawals.length})',
+                      ),
                       onPressed: _downloadSelectedWithdrawals,
                     ),
                   TextButton(
-                      onPressed: _fetchHistory, child: const Text('Refresh')),
+                    onPressed: _fetchHistory,
+                    child: const Text('Refresh'),
+                  ),
                 ],
               ),
 
@@ -1219,13 +1466,18 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                   decoration: BoxDecoration(
                     color: theme.secondaryBackground,
                     borderRadius: BorderRadius.circular(18),
-                    border:
-                        Border.all(color: theme.secondaryText.withAlpha(70)),
+                    border: Border.all(
+                      color: theme.secondaryText.withAlpha(70),
+                    ),
                   ),
                   child: Center(
-                      child: Text('No withdrawal history',
-                          style: GoogleFonts.plusJakartaSans(
-                              color: theme.secondaryText))),
+                    child: Text(
+                      'No withdrawal history',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: theme.secondaryText,
+                      ),
+                    ),
+                  ),
                 )
               else
                 ...history.asMap().entries.map((entry) {
@@ -1263,7 +1515,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                         color: theme.secondaryBackground,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                            color: theme.secondaryText.withAlpha(70)),
+                          color: theme.secondaryText.withAlpha(70),
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -1305,20 +1558,26 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                                       w['description'] ??
                                       'Withdrawal',
                                   style: GoogleFonts.plusJakartaSans(
-                                      fontWeight: FontWeight.bold,
-                                      color: theme.primaryText),
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.primaryText,
+                                  ),
                                 ),
-                                Text(status.toUpperCase(),
-                                    style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 12,
-                                        color: theme.secondaryText)),
+                                Text(
+                                  status.toUpperCase(),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    color: theme.secondaryText,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                           Text(
                             '-${w['amount']} FARM',
                             style: GoogleFonts.plusJakartaSans(
-                                fontWeight: FontWeight.bold, color: Colors.red),
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
                           ),
                         ],
                       ),

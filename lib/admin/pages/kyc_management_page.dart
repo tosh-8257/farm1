@@ -324,21 +324,8 @@ class _KycManagementPageState extends State<KycManagementPage>
                   ]),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(children: [
-                Expanded(
-                    child: _docImg('Front ID', _imageUrl(doc, 'front_image'))),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: _docImg('Back ID', _imageUrl(doc, 'back_image'))),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: _docImg('Selfie', _imageUrl(doc, 'selfie_image'))),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: _docImg(
-                        'Address proof', _imageUrl(doc, 'address_document'))),
-              ]),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: _documentImagesSection(doc),
             ),
             Padding(
               padding: const EdgeInsets.all(14),
@@ -461,7 +448,7 @@ class _KycManagementPageState extends State<KycManagementPage>
                     _detailRow('City', d['city']?.toString()),
                     _detailRow('Address', d['physical_address']?.toString()),
                     _detailRow('Postal code', d['postal_code']?.toString()),
-                    finalImgsSection(d),
+                    _documentImagesSection(d),
                     if (d['additional_documents'] != null &&
                         d['additional_documents'] is List)
                       Padding(
@@ -529,67 +516,28 @@ class _KycManagementPageState extends State<KycManagementPage>
     );
   }
 
-  Widget finalImgsSection(Map<String, dynamic> d) {
+  Widget _documentImagesSection(Map<dynamic, dynamic> d) {
     final images = <MapEntry<String, String?>>[
       MapEntry('Front ID', _imageUrl(d, 'front_image')),
       MapEntry('Back ID', _imageUrl(d, 'back_image')),
       MapEntry('Selfie', _imageUrl(d, 'selfie_image')),
       MapEntry('Address proof', _imageUrl(d, 'address_document')),
     ];
-    final urls = images
-        .where((image) => image.value != null)
-        .map((image) => image.value!)
-        .toList();
 
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Document images',
+        Text('Submitted images',
             style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.w600, fontSize: 13)),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 142,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: images.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, i) {
-              final image = images[i];
-              final url = image.value;
-              return GestureDetector(
-                onTap: url == null
-                    ? null
-                    : () => _openImageGallery(urls, urls.indexOf(url)),
-                child: SizedBox(
-                  width: 160,
-                  child: Column(children: [
-                    Container(
-                      height: 110,
-                      decoration: BoxDecoration(
-                        color: context.surface,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: url == null
-                          ? const Center(child: Text('Not uploaded'))
-                          : Image.network(
-                              url,
-                              width: 160,
-                              height: 110,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Center(
-                                  child: Text('Image unavailable')),
-                            ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(image.key,
-                        style: GoogleFonts.plusJakartaSans(fontSize: 12)),
-                  ]),
-                ),
-              );
-            },
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 12,
+          children: [
+            for (final image in images)
+              _docImg(image.key, image.value, document: d),
+          ],
         )
       ]),
     );
@@ -686,29 +634,72 @@ class _KycManagementPageState extends State<KycManagementPage>
     }
   }
 
-  Widget _docImg(String label, String? url) => Column(children: [
-        Container(
-          height: 70,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: context.surface,
-            borderRadius: BorderRadius.circular(10),
-          ),
+  Widget _docImg(
+    String label,
+    String? url, {
+    required Map<dynamic, dynamic> document,
+  }) {
+    final imageUrls = [
+      for (final field in [
+        'front_image',
+        'back_image',
+        'selfie_image',
+        'address_document',
+      ])
+        if (_imageUrl(document, field) case final imageUrl?) imageUrl,
+    ];
+
+    return SizedBox(
+      width: 160,
+      child: Column(children: [
+        Material(
+          color: context.surface,
+          borderRadius: BorderRadius.circular(10),
           clipBehavior: Clip.antiAlias,
-          child: url == null
-              ? const Center(child: Text('Not uploaded'))
-              : Image.network(
-                  url,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
-                      const Center(child: Text('Image unavailable')),
-                ),
+          child: InkWell(
+            onTap: url == null
+                ? null
+                : () => _openImageGallery(imageUrls, imageUrls.indexOf(url)),
+            child: SizedBox(
+              width: 160,
+              height: 110,
+              child: url == null
+                  ? _imagePlaceholder('Not uploaded')
+                  : Image.network(
+                      url,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return _imagePlaceholder('Loading image...');
+                      },
+                      errorBuilder: (_, __, ___) =>
+                          _imagePlaceholder('Image unavailable'),
+                    ),
+            ),
+          ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(label,
+            textAlign: TextAlign.center,
             style: GoogleFonts.plusJakartaSans(
-                fontSize: 10, color: context.textSecondary)),
-      ]);
+                fontSize: 12, color: context.textSecondary)),
+      ]),
+    );
+  }
+
+  Widget _imagePlaceholder(String message) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.image_outlined, size: 24),
+              const SizedBox(height: 4),
+              Text(message, textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      );
 
   Widget _detailRow(String label, String? value) {
     if (value == null || value.toString().trim().isEmpty)

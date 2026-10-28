@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -30,6 +31,37 @@ const kTransitionInfoKey = '__transition_info__';
 
 GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
+String? _merchantPaymentLocationFromAppLink(GoRouterState state) {
+  if (state.uri.path != '/pay') return null;
+
+  final query = state.uri.queryParameters;
+  final merchantId = query['merchantId']?.trim() ?? '';
+  if (merchantId.isEmpty) return null;
+
+  var qrPayload = query['qrPayload']?.trim() ?? '';
+  final encodedPayload = query['qr']?.trim() ?? '';
+  if (qrPayload.isEmpty && encodedPayload.isNotEmpty) {
+    try {
+      qrPayload = utf8.decode(
+        base64Url.decode(base64Url.normalize(encodedPayload)),
+      );
+    } on FormatException {
+      qrPayload = '';
+    }
+  }
+
+  return Uri(
+    path: '/merchantPayment',
+    queryParameters: {
+      'merchantId': merchantId,
+      'businessName': query['businessName']?.trim().isNotEmpty == true
+          ? query['businessName']!.trim()
+          : 'Merchant',
+      'qrPayload': qrPayload,
+    },
+  ).toString();
+}
+
 class AppStateNotifier extends ChangeNotifier {
   AppStateNotifier._();
 
@@ -58,7 +90,12 @@ GoRouter createRouter(
       redirect: (context, state) {
         final authState = FFAppState();
         final path = state.uri.path;
-        if (path == '/pay/success' || path.startsWith('/pay/')) {
+        if (path == '/pay/success') return null;
+        final appPaymentLocation = _merchantPaymentLocationFromAppLink(state);
+        if (appPaymentLocation != null) return appPaymentLocation;
+        if (path.startsWith('/pay/')) return null;
+        if (path == '/merchantPayment' &&
+            authState.authStartupState == AuthStartupState.initializing) {
           return null;
         }
         final publicRoute = RouteGuardService().isPublicRoute(path);
@@ -150,6 +187,48 @@ GoRouter createRouter(
                 .firstWhere((value) => value.isNotEmpty, orElse: () => '');
             return PaymentSuccessPage(
               reference: reference.isEmpty ? null : reference,
+            );
+          },
+        ),
+        FFRoute(
+          name: 'MerchantAppPaymentLink',
+          path: '/pay',
+          builder: (context, params) {
+            final queryParameters = params.state.uri.queryParameters;
+            return MerchantPaymentWidget(
+              merchantId: queryParameters['merchantId'] ?? '',
+              businessName: queryParameters['businessName'] ?? 'Merchant',
+              qrPayload:
+                  queryParameters['qrPayload'] ?? queryParameters['qr'] ?? '',
+            );
+          },
+        ),
+        FFRoute(
+          name: 'LegacyMerchantCheckoutRedirect',
+          path: '/merchant-payment',
+          builder: (context, params) {
+            final queryParameters = params.state.uri.queryParameters;
+            final reference = [
+              'farm_reference',
+              'reference',
+              'trxref',
+              'tx_ref',
+              'transaction_reference',
+              'transaction_id',
+              'payment_reference',
+              'provider_reference',
+              'provider_transaction_id',
+              'id',
+            ]
+                .map((key) => queryParameters[key])
+                .whereType<String>()
+                .map((value) => value.trim())
+                .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+            if (reference.isNotEmpty) {
+              return PaymentSuccessPage(reference: reference);
+            }
+            return LegacyMerchantQrRedirectPage(
+              qrPayload: queryParameters['qr'],
             );
           },
         ),

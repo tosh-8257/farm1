@@ -1,4 +1,3 @@
-
 import '/backend/services/api_service.dart';
 import '/backend/api_requests/user_api_service.dart';
 import '/backend/api_requests/payment_request_api_service.dart';
@@ -158,6 +157,19 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         : favorite['phone_number']?.trim() ?? '';
   }
 
+  String _favoriteDisplayLabel(Map<String, String> favorite) {
+    final username = favorite['username']?.trim() ?? '';
+    if (username.isNotEmpty) return username;
+
+    final phoneNumber = favorite['phone_number']?.trim() ?? '';
+    if (phoneNumber.isNotEmpty) return phoneNumber;
+
+    final legacyName = favorite['name']?.trim() ?? '';
+    if (legacyName.isNotEmpty) return legacyName;
+
+    return _favoriteIdentifier(favorite);
+  }
+
   String _userIdentifier(dynamic user) {
     final username = _parseStringValue(user['username']);
     return username.isNotEmpty
@@ -177,15 +189,15 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     return {
       'username': username,
       'phone_number': phoneNumber,
-      'name': name,
+      'name': username.isNotEmpty ? '' : name,
     };
   }
 
   bool _isFavorite(dynamic user) {
     final identifier = _userIdentifier(user);
     return identifier.isNotEmpty &&
-        _favoriteRecipients.any(
-            (favorite) => _favoriteIdentifier(favorite) == identifier);
+        _favoriteRecipients
+            .any((favorite) => _favoriteIdentifier(favorite) == identifier);
   }
 
   Future<void> _toggleFavorite(dynamic user) async {
@@ -194,8 +206,8 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     if (identifier.isEmpty) return;
 
     final updated = List<Map<String, String>>.from(_favoriteRecipients);
-    final existingIndex = updated.indexWhere(
-        (item) => _favoriteIdentifier(item) == identifier);
+    final existingIndex =
+        updated.indexWhere((item) => _favoriteIdentifier(item) == identifier);
     if (existingIndex >= 0) {
       updated.removeAt(existingIndex);
     } else {
@@ -247,10 +259,10 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
             runSpacing: 8,
             children: _favoriteRecipients.map((favorite) {
               final identifier = _favoriteIdentifier(favorite);
-              final name = favorite['name']?.trim() ?? '';
+              final displayLabel = _favoriteDisplayLabel(favorite);
               return InputChip(
                 avatar: const Icon(Icons.person_rounded, size: 18),
-                label: Text(name.isEmpty ? '@$identifier' : name),
+                label: Text(displayLabel.isEmpty ? '@$identifier' : displayLabel),
                 onPressed: () => _selectFavorite(favorite),
                 onDeleted: () => _toggleFavorite(favorite),
                 deleteIcon: const Icon(Icons.star_rounded, color: Colors.amber),
@@ -1713,13 +1725,10 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
       ),
       title: Text('@$username'),
       trailing: IconButton(
-        tooltip: _isFavorite(user)
-            ? 'Remove from favourites'
-            : 'Add to favourites',
+        tooltip:
+            _isFavorite(user) ? 'Remove from favourites' : 'Add to favourites',
         icon: Icon(
-          _isFavorite(user)
-              ? Icons.star_rounded
-              : Icons.star_border_rounded,
+          _isFavorite(user) ? Icons.star_rounded : Icons.star_border_rounded,
           color: _isFavorite(user) ? Colors.amber.shade700 : null,
         ),
         onPressed: () => _toggleFavorite(user),
@@ -1739,11 +1748,10 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final selectedTabBackground =
-        isDark ? const Color(0xFF1F1F1F) : Colors.black;
-    final selectedTabTextColor = Colors.white;
-    final unselectedTabBackground = theme.primaryBackground;
-    final unselectedTabTextColor = theme.primaryText;
+    final selectedTabBackground = isDark ? Colors.grey.shade800 : Colors.black;
+    const selectedTabTextColor = Colors.white;
+    final unselectedTabBackground = isDark ? Colors.black : Colors.white;
+    final unselectedTabTextColor = isDark ? Colors.white : Colors.black;
 
     return GestureDetector(
       onTap: () {
@@ -1754,7 +1762,10 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         backgroundColor: theme.primaryBackground,
         body: SafeArea(
           child: !isKycApproved
-              ? const KycRequiredWidget(feature: 'send & receive')
+              ? KycRequiredWidget(
+                  feature: 'send & receive',
+                  onKycApproved: () => setState(() {}),
+                )
               : isLoading
                   ? const Center(
                       child: CircularProgressIndicator(),
@@ -1875,8 +1886,8 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                               18,
                                             ),
                                             color: !showReceive
-                                                ? unselectedTabBackground
-                                                : selectedTabBackground,
+                                                ? selectedTabBackground
+                                                : unselectedTabBackground,
                                             border: Border.all(
                                               color: theme.secondaryText
                                                   .withAlpha(51),
@@ -1895,8 +1906,8 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                               'Send',
                                               style: TextStyle(
                                                 color: !showReceive
-                                                    ? unselectedTabTextColor
-                                                    : selectedTabTextColor,
+                                                    ? selectedTabTextColor
+                                                    : unselectedTabTextColor,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
@@ -1925,8 +1936,8 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                               18,
                                             ),
                                             color: showReceive
-                                                ? unselectedTabBackground
-                                                : selectedTabBackground,
+                                                ? selectedTabBackground
+                                                : unselectedTabBackground,
                                             border: Border.all(
                                               color: theme.secondaryText
                                                   .withAlpha(51),
@@ -1945,8 +1956,8 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                               'Receive',
                                               style: TextStyle(
                                                 color: showReceive
-                                                    ? unselectedTabTextColor
-                                                    : selectedTabTextColor,
+                                                    ? selectedTabTextColor
+                                                    : unselectedTabTextColor,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),

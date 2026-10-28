@@ -7,6 +7,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/services/app_session_manager.dart';
 import '/widgets/common/back_chevron.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/widgets/searchable_crypto_picker.dart';
 
 class MerchantPaymentWidget extends StatefulWidget {
   const MerchantPaymentWidget({
@@ -34,22 +35,99 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
   bool isLoading = false;
   bool _pinEntryEnabled = false;
   bool _isBiometricChecking = false;
+  bool _loadingQrPayload = false;
+  List<String> _cryptoTokens = [];
   String error = '';
+  late String _qrPayload;
   TransactionAuthenticationResult? _lastPinAuthResult;
 
+  @override
+  void initState() {
+    super.initState();
+    _qrPayload = widget.qrPayload.trim();
+    if (_qrPayload.isEmpty) {
+      _loadingQrPayload = true;
+      _loadMerchantQrPayload();
+    }
+  }
+
+  Future<void> _loadMerchantQrPayload() async {
+    try {
+      final response = await ApiService.request(
+        method: 'GET',
+        path: '/merchants/public/${Uri.encodeComponent(widget.merchantId)}',
+        requiresAuth: false,
+      );
+      final data = response['data'];
+      final merchant = data is Map ? Map<String, dynamic>.from(data) : response;
+      final payload =
+          (merchant['qrPayload'] ?? merchant['qr_payload'])?.toString().trim();
+      if (payload == null || payload.isEmpty) {
+        throw StateError('This merchant QR code is missing its payment data.');
+      }
+      if (!mounted) return;
+      setState(() {
+        _qrPayload = payload;
+        _loadingQrPayload = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        error = 'Could not load merchant QR details: $e';
+        _loadingQrPayload = false;
+      });
+    }
+  }
+
   Future<void> _startExternalPayment(String paymentMethod) async {
+    if (paymentMethod == 'CRYPTO') {
+      try {
+        final response = await ApiService.request(
+          method: 'GET',
+          path: '/qr-payments/crypto-options',
+          requiresAuth: false,
+        );
+        final data = response['data'];
+        final rawTokens = data is Map ? data['tokens'] : null;
+        if (rawTokens is! List) {
+          throw const FormatException(
+            'The server returned an invalid NOWPayments currency list.',
+          );
+        }
+        _cryptoTokens = rawTokens
+            .whereType<String>()
+            .map((token) => token.trim().toLowerCase())
+            .where((token) => token.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+        if (_cryptoTokens.isEmpty) {
+          throw const FormatException(
+            'No cryptocurrencies are currently available through NOWPayments.',
+          );
+        }
+      } catch (error) {
+        _showSnack('Could not load NOWPayments currencies: $error');
+        return;
+      }
+    }
+
+    if (_qrPayload.isEmpty) {
+      _showSnack('Merchant payment details are still loading. Please retry.');
+      return;
+    }
+
     final kesController = TextEditingController();
     final emailController = TextEditingController();
-    final phoneController = TextEditingController();
-    var crypto = 'USDT';
-    var chain = 'BSC';
+    String? selectedCrypto =
+        _cryptoTokens.isNotEmpty ? _cryptoTokens.first : null;
     Map<String, String>? details;
 
     try {
       details = await showDialog<Map<String, String>>(
         context: context,
         builder: (dialogContext) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
+          builder: (dialogContext, setDialogState) => AlertDialog(
             title: Text('Pay ${widget.businessName}'),
             content: SingleChildScrollView(
               child: Column(
@@ -67,54 +145,16 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
                     controller: emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
-                      labelText: 'Email (optional)',
+                      labelText: 'Email for payment receipt',
                     ),
                   ),
-                  if (paymentMethod == 'MOBILE_MONEY')
-                    TextField(
-                      controller: phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone number with country code',
-                      ),
-                    ),
                   if (paymentMethod == 'CRYPTO') ...[
-                    DropdownButtonFormField<String>(
-                      initialValue: crypto,
-                      decoration: const InputDecoration(labelText: 'Token'),
-                      items: const ['USDT', 'USDC']
-                          .map((token) => DropdownMenuItem(
-                                value: token,
-                                child: Text(token),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setDialogState(() => crypto = value);
-                        }
-                      },
-                    ),
-                    DropdownButtonFormField<String>(
-                      initialValue: chain,
-                      decoration: const InputDecoration(labelText: 'Network'),
-                      items: const [
-                        'BSC',
-                        'POLYGON',
-                        'SOL',
-                        'BASE',
-                        'STARKNET',
-                        'ALGORAND',
-                      ]
-                          .map((network) => DropdownMenuItem(
-                                value: network,
-                                child: Text(network),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setDialogState(() => chain = value);
-                        }
-                      },
+                    const SizedBox(height: 12),
+                    SearchableCryptoPicker(
+                      currencies: _cryptoTokens,
+                      selectedCurrency: selectedCrypto,
+                      onSelected: (token) =>
+                          setDialogState(() => selectedCrypto = token),
                     ),
                   ],
                 ],
@@ -129,9 +169,7 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
                 onPressed: () => Navigator.pop(dialogContext, {
                   'amount': kesController.text.trim(),
                   'email': emailController.text.trim(),
-                  'phone': phoneController.text.trim(),
-                  'crypto': crypto,
-                  'chain': chain,
+                  if (selectedCrypto != null) 'crypto': selectedCrypto!,
                 }),
                 child: const Text('Continue'),
               ),
@@ -142,7 +180,6 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
     } finally {
       kesController.dispose();
       emailController.dispose();
-      phoneController.dispose();
     }
 
     if (details == null) return;
@@ -151,8 +188,9 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
       _showSnack('Enter an amount greater than 0');
       return;
     }
-    if (paymentMethod == 'CRYPTO' && (details['email'] ?? '').trim().isEmpty) {
-      _showSnack('Enter an email address for crypto payment');
+    final email = (details['email'] ?? '').trim();
+    if (email.isEmpty) {
+      _showSnack('Enter an email address for the payment receipt');
       return;
     }
 
@@ -163,15 +201,11 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
         path: '/qr/checkout/payment',
         requiresAuth: false,
         body: {
-          'qr_payload': widget.qrPayload,
+          'qr_payload': _qrPayload,
           'amount_kes': amountKes,
           'payment_method': paymentMethod,
-          if ((details['email'] ?? '').isNotEmpty) 'email': details['email'],
-          if ((details['phone'] ?? '').isNotEmpty) 'phone': details['phone'],
-          if (paymentMethod == 'CRYPTO') ...{
-            'crypto': details['crypto'],
-            'chain': details['chain'],
-          },
+          'email': email,
+          if (paymentMethod == 'CRYPTO') 'crypto': details['crypto'],
         },
       );
       final data = response['data'];
@@ -236,6 +270,10 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
 
   Future<void> _submitPayment() async {
     if (isLoading) return;
+    if (_qrPayload.isEmpty) {
+      _showSnack('Merchant payment details are still loading. Please retry.');
+      return;
+    }
     final amount = double.tryParse(amountController.text.trim()) ?? 0;
     final pin = pinController.text.trim();
 
@@ -259,7 +297,7 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
 
       if (authResult?.biometricUsed == true) {
         await ApiService.merchantPay(
-          qrPayload: widget.qrPayload,
+          qrPayload: _qrPayload,
           amount: amount,
           pin: null,
           biometricAuth: true,
@@ -287,7 +325,7 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
       }
 
       await ApiService.merchantPay(
-        qrPayload: widget.qrPayload,
+        qrPayload: _qrPayload,
         amount: amount,
         pin: pin,
         biometricAuth: null,
@@ -436,10 +474,10 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
                         {'label': 'Card', 'method': 'CARD'},
                         {'label': 'Mobile money', 'method': 'MOBILE_MONEY'},
                         {'label': 'Bank transfer', 'method': 'BANK_TRANSFER'},
-                        {'label': 'Crypto', 'method': 'CRYPTO'},
+                        {'label': 'Crypto (NOWPayments)', 'method': 'CRYPTO'},
                       ])
                         OutlinedButton(
-                          onPressed: isLoading
+                          onPressed: isLoading || _loadingQrPayload
                               ? null
                               : () => _startExternalPayment(option['method']!),
                           child: Text(option['label']!),
@@ -453,7 +491,8 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _promptBiometricForPinField,
+                  onPressed:
+                      _loadingQrPayload ? null : _promptBiometricForPinField,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isDark ? Colors.white : theme.primary,
                     shape: RoundedRectangleBorder(
@@ -472,12 +511,18 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
                 child: Text(error,
                     style: const TextStyle(color: Colors.redAccent)),
               ),
+            if (_loadingQrPayload)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: LinearProgressIndicator(),
+              ),
             if (_pinEntryEnabled)
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: isLoading ? null : _submitPayment,
+                  onPressed:
+                      isLoading || _loadingQrPayload ? null : _submitPayment,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isDark ? Colors.white : theme.primary,
                     shape: RoundedRectangleBorder(

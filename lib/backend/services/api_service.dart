@@ -154,8 +154,12 @@ class ApiService {
     bool requiresAuth = true,
     bool isRetry = false,
     int timeoutSeconds = 20,
+    bool useUnversionedApi = false,
   }) async {
-    final uri = Uri.parse('${AppConfig.api}$path');
+    final apiBase = useUnversionedApi
+        ? AppConfig.api.replaceFirst(RegExp(r'/api/v\d+$'), '/api')
+        : AppConfig.api;
+    final uri = Uri.parse('$apiBase$path');
     // Ensure we resolve a valid access token from persisted/session state.
     String token = await FFAppState().getActiveAccessToken();
     // If this request requires auth and we don't have a token in memory,
@@ -247,6 +251,7 @@ class ApiService {
           requiresAuth: requiresAuth,
           isRetry: true,
           timeoutSeconds: timeoutSeconds,
+          useUnversionedApi: useUnversionedApi,
         );
       }
     }
@@ -848,6 +853,14 @@ class ApiService {
       );
 
   // ── KYC ───────────────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> createDiditSession() => _request(
+        method: 'POST',
+        path: '/verify/create-session',
+        body: const {},
+        timeoutSeconds: 20,
+        useUnversionedApi: true,
+      );
+
   static Future<Map<String, dynamic>> submitKyc({
     required String documentType,
     required String frontImageUrl,

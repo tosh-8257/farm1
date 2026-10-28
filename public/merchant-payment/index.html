@@ -4,6 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#123b2a" />
+    <script>
+      if (
+        ['farmapp-e2145.web.app', 'farmapp-e2145.firebaseapp.com'].includes(
+          window.location.hostname,
+        )
+      ) {
+        window.location.replace(
+          `https://farmpay.africa${window.location.pathname}${window.location.search}${window.location.hash}`,
+        );
+      }
+    </script>
     <title>Pay a FARM merchant</title>
     <style>
       :root {
@@ -134,6 +145,18 @@
           <option value="BANK_TRANSFER">Bank transfer</option>
           <option value="CRYPTO">Cryptocurrency</option>
         </select>
+
+        <div id="crypto-field" class="hidden">
+          <label for="crypto">Cryptocurrency</label>
+          <input
+            id="crypto-search"
+            type="search"
+            placeholder="Search cryptocurrencies"
+            aria-label="Search cryptocurrencies"
+            autocomplete="off"
+          />
+          <select id="crypto" name="crypto"></select>
+        </div>
 
         <label for="email">Email for payment receipt</label>
         <input
@@ -289,16 +312,93 @@
         document.getElementById("app-pay").addEventListener("click", () => {
           const appPayload =
             qrPayload ||
-            `${location.origin}/pay/${encodeURIComponent(merchantId)}`;
+            `${location.origin}/checkout/${encodeURIComponent(merchantId)}`;
           const encodedPayload = btoa(unescape(encodeURIComponent(appPayload)))
             .replace(/\+/g, "-")
             .replace(/\//g, "_")
             .replace(/=+$/, "");
-          // Android intent filters and iOS universal-link association for /pay/* can open this directly in a future release.
+          // Android intent filters and iOS universal-link association can open this directly in a future release.
           location.href = `farm://farm.com/pay?qr=${encodeURIComponent(encodedPayload)}`;
         });
 
         const method = document.getElementById("method");
+        const cryptoField = document.getElementById("crypto-field");
+        const cryptoSelect = document.getElementById("crypto");
+        const cryptoSearch = document.getElementById("crypto-search");
+        let cryptoTokens = [];
+        let selectedCryptoToken = "";
+        let cryptoCurrenciesPromise;
+
+        const renderCryptoOptions = () => {
+          const query = cryptoSearch.value.trim().toLowerCase();
+          const matches = cryptoTokens.filter((token) =>
+            token.toUpperCase().includes(query.toUpperCase()),
+          );
+          const selectedToken = selectedCryptoToken.toLowerCase();
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = "Choose a cryptocurrency";
+          placeholder.disabled = true;
+          placeholder.selected = !matches.some(
+            (token) => token.toLowerCase() === selectedToken,
+          );
+          cryptoSelect.replaceChildren(
+            placeholder,
+            ...matches.map((token) => {
+              const option = document.createElement("option");
+              option.value = token.toLowerCase();
+              option.textContent = token.toUpperCase();
+              option.selected = token.toLowerCase() === selectedToken;
+              return option;
+            }),
+          );
+        };
+        cryptoSearch.addEventListener("input", renderCryptoOptions);
+        cryptoSelect.addEventListener("change", () => {
+          selectedCryptoToken = cryptoSelect.value.toLowerCase();
+        });
+
+        const loadCryptoCurrencies = async () => {
+          if (!cryptoCurrenciesPromise) {
+            cryptoCurrenciesPromise = fetch(`${api}/qr-payments/crypto-options`)
+              .then(async (response) => {
+                const result = await response.json();
+                if (!response.ok) {
+                  throw new Error(
+                    result.message || "Could not load crypto currencies.",
+                  );
+                }
+                const tokens = result.data?.tokens;
+                if (!Array.isArray(tokens) || tokens.length === 0) {
+                  throw new Error(
+                    "No cryptocurrencies are currently available through NOWPayments.",
+                  );
+                }
+                cryptoTokens = tokens.map((token) =>
+                  String(token).toUpperCase(),
+                );
+                renderCryptoOptions();
+              })
+              .catch((error) => {
+                cryptoCurrenciesPromise = null;
+                throw error;
+              });
+          }
+          return cryptoCurrenciesPromise;
+        };
+
+        method.addEventListener("change", async () => {
+          const isCrypto = method.value === "CRYPTO";
+          cryptoField.classList.toggle("hidden", !isCrypto);
+          if (isCrypto) {
+            try {
+              await loadCryptoCurrencies();
+              message.textContent = "";
+            } catch (error) {
+              message.textContent = error.message;
+            }
+          }
+        });
 
         const loadMerchant = async () => {
           if (merchantId) {
@@ -346,6 +446,10 @@
             }
             const paymentMethod = method.value;
             const email = document.getElementById("email").value.trim();
+            if (paymentMethod === "CRYPTO" && !cryptoSelect.value) {
+              message.textContent = "Choose a cryptocurrency to continue.";
+              return;
+            }
             if (!merchantId) {
               message.textContent =
                 "Merchant details are still loading. Please try again.";
@@ -373,6 +477,9 @@
                       CRYPTO: "crypto",
                     }[paymentMethod],
                     guestEmail: email,
+                    ...(paymentMethod === "CRYPTO"
+                      ? { crypto: cryptoSelect.value }
+                      : {}),
                   }),
                 },
               );
