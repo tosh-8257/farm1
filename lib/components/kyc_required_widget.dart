@@ -151,7 +151,12 @@ class _KycRequiredWidgetState extends State<KycRequiredWidget>
               child: ElevatedButton(
                 onPressed: _isApproved
                     ? () => Navigator.of(context).maybePop()
-                    : () => context.pushNamed('KYCPAGE'),
+                    : () => context.pushNamed(
+                        'KYCPAGE',
+                        queryParameters: _isPending
+                            ? const {}
+                            : const {'startDidit': 'true'},
+                      ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: buttonColor,
                   foregroundColor: buttonTextColor,

@@ -137,10 +137,12 @@ export 'kycpage_model.dart';
 /// The page should feel like a modern fintech KYC onboarding experience
 /// similar to Revolut, Wise, Stripe, or Paystack.
 class KycpageWidget extends StatefulWidget {
-  const KycpageWidget({super.key});
+  const KycpageWidget({super.key, this.startDiditVerification = false});
 
   static String routeName = 'KYCPAGE';
   static String routePath = '/kycpage';
+
+  final bool startDiditVerification;
 
   @override
   State<KycpageWidget> createState() => _KycpageWidgetState();
@@ -439,6 +441,11 @@ class _KycpageWidgetState extends State<KycpageWidget> {
     _model = createModel(context, () => KycpageModel());
     _loadExistingSubmission();
     _refreshDiditKycStatus();
+    if (widget.startDiditVerification) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _startDiditVerification();
+      });
+    }
     _submissionRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       _refreshExistingSubmission();
       _refreshDiditKycStatus();

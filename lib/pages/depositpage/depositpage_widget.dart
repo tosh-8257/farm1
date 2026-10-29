@@ -35,6 +35,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   bool _loadingCryptoTokens = false;
   bool _cryptoTokensLoaded = false;
   String? _cryptoTokensError;
+  double? _cryptoMinimumAmount;
   double? _cryptoMinimumUsd;
   bool _loadingCryptoMinimum = false;
   String? _cryptoMinimumError;
@@ -69,7 +70,9 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   Map<String, double?> get _activeDepositLimits =>
       _depositLimits[selectedMethod] ?? _depositLimits['MOBILE_MONEY']!;
   double get _activeDepositMin => selectedMethod == 'CRYPTO'
-      ? (_cryptoMinimumUsd ?? 0)
+      ? (_cryptoMinimumUsd == null
+            ? 0
+            : (_cryptoMinimumUsd! * 100).ceilToDouble() / 100)
       : (_activeDepositLimits['min'] ?? 10);
   double? get _activeDepositMax => _activeDepositLimits['max'];
   String get _amountCurrency =>
@@ -99,13 +102,14 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
           'The server returned an invalid NOWPayments currency list.',
         );
       }
-      final tokens = rawCurrencies
-          .whereType<String>()
-          .map((currency) => currency.trim().toUpperCase())
-          .where((currency) => currency.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
+      final tokens =
+          rawCurrencies
+              .whereType<String>()
+              .map((currency) => currency.trim().toUpperCase())
+              .where((currency) => currency.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort();
       if (tokens.isEmpty) {
         throw const FormatException(
           'No cryptocurrencies are currently available through NOWPayments.',
@@ -133,6 +137,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   Future<void> _fetchCryptoMinimum(String currency) async {
     setState(() {
       _loadingCryptoMinimum = true;
+      _cryptoMinimumAmount = null;
       _cryptoMinimumUsd = null;
       _cryptoMinimumError = null;
     });
@@ -144,16 +149,27 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
         requiresAuth: true,
       );
       final data = response['data'];
-      final minimum = data is Map
+      final minimumAmount = data is Map
+          ? double.tryParse(data['minimumAmount']?.toString() ?? '')
+          : null;
+      final minimumUsd = data is Map
           ? double.tryParse(data['minimumUsd']?.toString() ?? '')
           : null;
-      if (minimum == null || !minimum.isFinite || minimum <= 0) {
+      if (minimumAmount == null ||
+          !minimumAmount.isFinite ||
+          minimumAmount <= 0 ||
+          minimumUsd == null ||
+          !minimumUsd.isFinite ||
+          minimumUsd <= 0) {
         throw const FormatException(
           'NOWPayments returned an invalid minimum for this currency.',
         );
       }
       if (!mounted || _selectedCryptoToken != currency) return;
-      setState(() => _cryptoMinimumUsd = minimum);
+      setState(() {
+        _cryptoMinimumAmount = minimumAmount;
+        _cryptoMinimumUsd = minimumUsd;
+      });
     } catch (error) {
       if (!mounted || _selectedCryptoToken != currency) return;
       setState(() => _cryptoMinimumError = error.toString());
@@ -174,6 +190,14 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
       ..minimumFractionDigits = 2;
     return formatter.format(value);
   }
+
+  String _formatMinimumCrypto(double value) {
+    return NumberFormat('#,##0.##################', 'en_US').format(value);
+  }
+
+  double get _cryptoMinimumUsdToEnter => _cryptoMinimumUsd == null
+      ? 0
+      : (_cryptoMinimumUsd! * 100).ceilToDouble() / 100;
 
   String get _depositValidationMessage {
     final currency = _amountCurrency;
@@ -234,8 +258,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
       final resp = await ApiService.getWallet();
       if (!mounted) return;
       final data = resp['data'] as Map<String, dynamic>? ?? resp;
-      final bal =
-          (data['balance'] ?? data['available_balance'] ?? 0).toString();
+      final bal = (data['balance'] ?? data['available_balance'] ?? 0)
+          .toString();
       setState(() => walletBalance = double.tryParse(bal) ?? 0);
     } catch (e) {
       debugPrint('fetchWallet error: $e');
@@ -283,15 +307,19 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   }
 
   Map<String, dynamic> _depositReceipt(
-      Map<String, dynamic> deposit, Map<String, dynamic> metadata) {
+    Map<String, dynamic> deposit,
+    Map<String, dynamic> metadata,
+  ) {
     final receipt = Map<String, dynamic>.from(deposit);
     final farmAmount =
         deposit['amount_farm'] ?? metadata['amount_farm'] ?? deposit['amount'];
-    final reference = deposit['reference'] ??
+    final reference =
+        deposit['reference'] ??
         deposit['transaction_reference'] ??
         metadata['reference'];
     final method = _depositMethodLabel(deposit, metadata);
-    final provider = deposit['payment_provider'] ??
+    final provider =
+        deposit['payment_provider'] ??
         deposit['provider'] ??
         metadata['provider'];
 
@@ -312,19 +340,21 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   }
 
   List<Map<String, dynamic>> get _selectedDepositReceipts => _selectedDeposits
-          .where((index) => index >= 0 && index < recentDeposits.length)
-          .map((index) {
+      .where((index) => index >= 0 && index < recentDeposits.length)
+      .map((index) {
         final deposit = Map<String, dynamic>.from(recentDeposits[index] as Map);
         final metadata = deposit['metadata'] is Map
             ? Map<String, dynamic>.from(deposit['metadata'] as Map)
             : <String, dynamic>{};
         return _depositReceipt(deposit, metadata);
-      }).toList();
+      })
+      .toList();
 
   Future<void> _downloadSelectedDeposits() async {
     try {
       await TransactionReceiptService.downloadReceipts(
-          _selectedDepositReceipts);
+        _selectedDepositReceipts,
+      );
       if (!mounted) return;
       setState(() => _selectedDeposits.clear());
       _snack('Selected receipts saved to gallery');
@@ -412,9 +442,10 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
             address: address,
             amount: payAmount.toString(),
             currency: payCurrency.toUpperCase(),
-            expirationEstimate: (payment['expiration_estimate'] ??
-                    payment['expiration_estimate_date'])
-                ?.toString(),
+            expirationEstimate:
+                (payment['expiration_estimate'] ??
+                        payment['expiration_estimate_date'])
+                    ?.toString(),
           ),
         );
         if (!mounted) return;
@@ -471,14 +502,16 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
 
       // ApiService.request returns a non-null map on success; handle unexpected types elsewhere.
 
-      final paymentUrl = (data['authorization_url'] ??
-              data['payment_url'] ??
-              data['data']?['authorization_url'] ??
-              data['data']?['payment_url'])
-          ?.toString();
+      final paymentUrl =
+          (data['authorization_url'] ??
+                  data['payment_url'] ??
+                  data['data']?['authorization_url'] ??
+                  data['data']?['payment_url'])
+              ?.toString();
       final paystackAccessCode =
           (data['access_code'] ?? data['data']?['access_code'])?.toString();
-      final depositRef = data['data']?['reference'] ??
+      final depositRef =
+          data['data']?['reference'] ??
           data['data']?['transaction_reference'] ??
           data['reference'] ??
           data['transaction_reference'];
@@ -487,7 +520,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
         final reference = depositRef?.toString();
         if (reference == null || reference.isEmpty) {
           throw const FormatException(
-              'The payment server did not return a transaction reference.');
+            'The payment server did not return a transaction reference.',
+          );
         }
 
         final checkoutResult = await PaystackInlineCheckout.show(
@@ -505,8 +539,9 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
             requiresAuth: true,
           );
           final result = verification['data'];
-          final status =
-              result is Map ? result['status']?.toString().toUpperCase() : null;
+          final status = result is Map
+              ? result['status']?.toString().toUpperCase()
+              : null;
           final credited = result is Map && result['credited'] == true;
           if (status == 'SUCCESS' || credited) {
             await _fetchHistory();
@@ -566,7 +601,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
           }
 
           // Fallback to latest if no specific reference found
-          final deposit = targetDeposit ??
+          final deposit =
+              targetDeposit ??
               (recentDeposits.isNotEmpty ? recentDeposits.first : null);
 
           if (deposit != null) {
@@ -630,13 +666,16 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                              'Gross amount: ${grossAmount.toStringAsFixed(2)} FARM'),
+                            'Gross amount: ${grossAmount.toStringAsFixed(2)} FARM',
+                          ),
                           const SizedBox(height: 8),
                           Text(
-                              'Platform fee: ${platformFee.toStringAsFixed(2)} FARM (1%)'),
+                            'Platform fee: ${platformFee.toStringAsFixed(2)} FARM (1%)',
+                          ),
                           const SizedBox(height: 8),
                           Text(
-                              'Net credited to merchant: ${net.toStringAsFixed(2)} FARM'),
+                            'Net credited to merchant: ${net.toStringAsFixed(2)} FARM',
+                          ),
                         ],
                       ),
                       actions: [
@@ -644,10 +683,12 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                           onPressed: () {
                             Navigator.of(context).pop();
                             // Short delay to allow dialog to close smoothly, then navigate
-                            Future.delayed(const Duration(milliseconds: 300),
-                                () {
-                              if (mounted) context.go('/dashboard');
-                            });
+                            Future.delayed(
+                              const Duration(milliseconds: 300),
+                              () {
+                                if (mounted) context.go('/dashboard');
+                              },
+                            );
                           },
                           child: const Text('OK'),
                         ),
@@ -705,7 +746,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     Map<String, dynamic> deposit,
     Map<String, dynamic> metadata,
   ) {
-    final rawMethod = metadata['method'] ??
+    final rawMethod =
+        metadata['method'] ??
         deposit['paymentMethod'] ??
         deposit['payment_method'] ??
         metadata['payment_method'] ??
@@ -729,7 +771,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   }
 
   String _depositDateLabel(Map<String, dynamic> deposit) {
-    final rawDate = deposit['created_at'] ??
+    final rawDate =
+        deposit['created_at'] ??
         deposit['createdAt'] ??
         deposit['deposited_at'] ??
         deposit['timestamp'] ??
@@ -791,13 +834,13 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     final textColor = !enabled
         ? theme.secondaryText
         : selected
-            ? Colors.white
-            : theme.primaryText;
+        ? Colors.white
+        : theme.primaryText;
     final subtitleColor = !enabled
         ? theme.secondaryText
         : selected
-            ? Colors.white70
-            : theme.secondaryText;
+        ? Colors.white70
+        : theme.secondaryText;
 
     return GestureDetector(
       onTap: () {
@@ -825,17 +868,21 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: GoogleFonts.plusJakartaSans(
-                        color: textColor,
-                        fontWeight: FontWeight.bold,
-                      )),
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: textColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(subtitle,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        color: subtitleColor,
-                      )),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      color: subtitleColor,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -882,11 +929,14 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                     icon: const Icon(Icons.arrow_back_ios_new),
                     onPressed: () => context.goNamed('Dashboard'),
                   ),
-                  Text('Deposit Funds',
-                      style: GoogleFonts.plusJakartaSans(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: theme.primaryText)),
+                  Text(
+                    'Deposit Funds',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: theme.primaryText,
+                    ),
+                  ),
                   Icon(Icons.help_outline, color: theme.secondaryText),
                 ],
               ),
@@ -903,13 +953,18 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 ),
                 child: loadingWallet
                     ? const Center(
-                        child: CircularProgressIndicator(color: Colors.white))
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Wallet Balance',
-                              style: GoogleFonts.plusJakartaSans(
-                                  color: Colors.white70, fontSize: 12)),
+                          Text(
+                            'Wallet Balance',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
                           const SizedBox(height: 6),
                           Text(
                             '${walletBalance.toStringAsFixed(4)} FARM',
@@ -929,19 +984,23 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
               Center(
                 child: TextField(
                   controller: amountController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   onChanged: (_) => setState(() {}),
                   style: GoogleFonts.plusJakartaSans(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: theme.primaryText),
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: theme.primaryText,
+                  ),
                   decoration: InputDecoration(
                     prefixText: '$_amountCurrency  ',
                     border: InputBorder.none,
                     hintText: '0.00',
                     hintStyle: GoogleFonts.plusJakartaSans(
-                        fontSize: 36, color: theme.secondaryText),
+                      fontSize: 36,
+                      color: theme.secondaryText,
+                    ),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -961,11 +1020,14 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
               const SizedBox(height: 24),
 
               // Payment method
-              Text('Payment Method',
-                  style: GoogleFonts.plusJakartaSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: theme.primaryText)),
+              Text(
+                'Payment Method',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: theme.primaryText,
+                ),
+              ),
               const SizedBox(height: 12),
 
               _methodCard(
@@ -1000,7 +1062,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
               if (selectedMethod == 'CRYPTO') ...[
                 const SizedBox(height: 4),
                 Text(
-                  'Cryptocurrency${_cryptoMinimumUsd == null ? '' : ' (minimum USD ${_formatMinimumUsd(_cryptoMinimumUsd!)})'}',
+                  'Cryptocurrency',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -1038,11 +1100,72 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                     onSelected: (token) {
                       setState(() {
                         _selectedCryptoToken = token;
+                        _cryptoMinimumAmount = null;
                         _cryptoMinimumUsd = null;
                         _cryptoMinimumError = null;
                       });
                       _fetchCryptoMinimum(token);
                     },
+                  ),
+                if (_loadingCryptoMinimum)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Loading ${_selectedCryptoToken?.toUpperCase() ?? ''} minimum...',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: theme.secondaryText,
+                      ),
+                    ),
+                  )
+                else if (_cryptoMinimumError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Could not load the minimum payment for ${_selectedCryptoToken?.toUpperCase() ?? 'this currency'}.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                  )
+                else if (_cryptoMinimumAmount != null &&
+                    _cryptoMinimumUsd != null &&
+                    _selectedCryptoToken != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'NOWPayments minimum: ${_formatMinimumCrypto(_cryptoMinimumAmount!)} ${_selectedCryptoToken!.toUpperCase()}',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            color: theme.secondaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Enter at least USD ${_cryptoMinimumUsdToEnter.toStringAsFixed(2)} to meet this coin minimum.',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: theme.primaryText,
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              amountController.text = _cryptoMinimumUsdToEnter
+                                  .toStringAsFixed(2);
+                              setState(() {});
+                            },
+                            child: const Text('Use minimum amount'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 const SizedBox(height: 16),
               ],
@@ -1059,15 +1182,21 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 ),
                 child: Column(
                   children: [
-                    _feeRow('Amount',
-                        '$_amountCurrency ${amount.toStringAsFixed(2)}'),
+                    _feeRow(
+                      'Amount',
+                      '$_amountCurrency ${amount.toStringAsFixed(2)}',
+                    ),
                     const SizedBox(height: 10),
-                    _feeRow('Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
-                        '$_amountCurrency ${fee.toStringAsFixed(2)}'),
+                    _feeRow(
+                      'Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
+                      '$_amountCurrency ${fee.toStringAsFixed(2)}',
+                    ),
                     const Divider(height: 20),
                     _feeRow(
-                        'Total', '$_amountCurrency ${total.toStringAsFixed(2)}',
-                        bold: true),
+                      'Total',
+                      '$_amountCurrency ${total.toStringAsFixed(2)}',
+                      bold: true,
+                    ),
                   ],
                 ),
               ),
@@ -1080,21 +1209,26 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 height: 56,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isDark ? const Color(0xFF1F1F1F) : Colors.black,
+                    backgroundColor: isDark
+                        ? const Color(0xFF1F1F1F)
+                        : Colors.black,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   onPressed: (isLoading || !_hasValidDepositAmount)
                       ? null
                       : _createDeposit,
                   child: isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : Text('Deposit Funds',
+                      : Text(
+                          'Deposit Funds',
                           style: GoogleFonts.plusJakartaSans(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16)),
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                 ),
               ),
 
@@ -1104,9 +1238,13 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Recent Deposits',
-                      style: GoogleFonts.plusJakartaSans(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Recent Deposits',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   if (_selectedDeposits.isNotEmpty)
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1131,9 +1269,12 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Text('No deposits yet',
-                        style: GoogleFonts.plusJakartaSans(
-                            color: theme.secondaryText)),
+                    child: Text(
+                      'No deposits yet',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: theme.secondaryText,
+                      ),
+                    ),
                   ),
                 )
               else
@@ -1174,7 +1315,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                       decoration: BoxDecoration(
                         color: theme.secondaryBackground,
                         border: Border.all(
-                            color: theme.secondaryText.withAlpha(70)),
+                          color: theme.secondaryText.withAlpha(70),
+                        ),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(
@@ -1223,13 +1365,16 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                                 Text(
                                   _depositAmountLabel(deposit, meta),
                                   style: GoogleFonts.plusJakartaSans(
-                                      fontWeight: FontWeight.bold,
-                                      color: theme.primaryText),
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.primaryText,
+                                  ),
                                 ),
                                 Text(
                                   '≈ ${d['amount']} FARM • $status',
                                   style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12, color: theme.secondaryText),
+                                    fontSize: 12,
+                                    color: theme.secondaryText,
+                                  ),
                                 ),
                               ],
                             ),
@@ -1250,8 +1395,10 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
 
               const SizedBox(height: 20),
               Center(
-                child: Text('Secured by FARM 🔒',
-                    style: TextStyle(color: theme.secondaryText, fontSize: 12)),
+                child: Text(
+                  'Secured by FARM 🔒',
+                  style: TextStyle(color: theme.secondaryText, fontSize: 12),
+                ),
               ),
             ],
           ),
@@ -1262,10 +1409,14 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
 
   Widget _feeRow(String label, String value, {bool bold = false}) {
     final style = GoogleFonts.plusJakartaSans(
-        fontWeight: bold ? FontWeight.bold : FontWeight.normal);
+      fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+    );
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [Text(label, style: style), Text(value, style: style)],
+      children: [
+        Text(label, style: style),
+        Text(value, style: style),
+      ],
     );
   }
 }
@@ -1307,12 +1458,9 @@ class _NowpaymentsDepositDialogState extends State<_NowpaymentsDepositDialog> {
       (_) => _checkStatus(),
     );
     if (_expiresAt != null) {
-      _countdownTimer = Timer.periodic(
-        const Duration(seconds: 1),
-        (_) {
-          if (mounted) setState(() {});
-        },
-      );
+      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
     }
   }
 
@@ -1410,9 +1558,7 @@ class _NowpaymentsDepositDialogState extends State<_NowpaymentsDepositDialog> {
                 IconButton(
                   tooltip: 'Copy amount',
                   onPressed: () async {
-                    await Clipboard.setData(
-                      ClipboardData(text: widget.amount),
-                    );
+                    await Clipboard.setData(ClipboardData(text: widget.amount));
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Amount copied')),

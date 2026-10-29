@@ -93,19 +93,18 @@ class _PublicPayPageState extends State<PublicPayPage> {
     });
 
     try {
-      final response = await QrPublicPaymentApi.post(
-        '/qr-payments/initialize',
-        {
-          'merchantId': widget.merchantId,
-          'amount': amount,
-          'method': _method,
-          'guestEmail': _emailController.text.trim(),
-          if (_method == 'crypto') 'crypto': _selectedCryptoToken,
-        },
-      );
+      final response =
+          await QrPublicPaymentApi.post('/qr-payments/initialize', {
+            'merchantId': widget.merchantId,
+            'amount': amount,
+            'method': _method,
+            'guestEmail': _emailController.text.trim(),
+            if (_method == 'crypto') 'crypto': _selectedCryptoToken,
+          });
       final data = response['data'];
-      final paymentUrl =
-          data is Map ? data['authorization_url']?.toString() : null;
+      final paymentUrl = data is Map
+          ? data['authorization_url']?.toString()
+          : null;
       final uri = paymentUrl == null ? null : Uri.tryParse(paymentUrl);
       if (uri == null ||
           !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -125,8 +124,9 @@ class _PublicPayPageState extends State<PublicPayPage> {
       _error = null;
     });
     try {
-      final response =
-          await QrPublicPaymentApi.get('/qr-payments/crypto-options');
+      final response = await QrPublicPaymentApi.get(
+        '/qr-payments/crypto-options',
+      );
       final data = response['data'];
       final rawTokens = data is Map ? data['tokens'] : null;
       if (rawTokens is! List) {
@@ -134,13 +134,14 @@ class _PublicPayPageState extends State<PublicPayPage> {
           'The server returned an invalid NOWPayments currency list.',
         );
       }
-      final tokens = rawTokens
-          .whereType<String>()
-          .map((token) => token.trim().toLowerCase())
-          .where((token) => token.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
+      final tokens =
+          rawTokens
+              .whereType<String>()
+              .map((token) => token.trim().toLowerCase())
+              .where((token) => token.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort();
       if (tokens.isEmpty) {
         throw const FormatException(
           'No cryptocurrencies are currently available through NOWPayments.',
@@ -164,15 +165,16 @@ class _PublicPayPageState extends State<PublicPayPage> {
     final qrPayload = storedQrPayload != null && storedQrPayload.isNotEmpty
         ? storedQrPayload
         : 'https://farmpay.africa/checkout/'
-            '${Uri.encodeComponent(widget.merchantId)}';
+              '${Uri.encodeComponent(widget.merchantId)}';
     final deepLink = Uri(
       scheme: 'farm',
       host: 'farm.com',
       path: '/pay',
       queryParameters: {
         'merchantId': widget.merchantId,
-        'businessName':
-            farmName == null || farmName.isEmpty ? 'Merchant' : farmName,
+        'businessName': farmName == null || farmName.isEmpty
+            ? 'Merchant'
+            : farmName,
         'qrPayload': qrPayload,
       },
     );
@@ -219,188 +221,195 @@ class _PublicPayPageState extends State<PublicPayPage> {
                 child: _loadingMerchant
                     ? const Center(child: CircularProgressIndicator())
                     : _error != null && _merchant == null
-                        ? _ErrorMessage(message: _error!)
-                        : Form(
-                            key: _formKey,
-                            child: ListView(
-                              shrinkWrap: true,
-                              children: [
-                                Text(
-                                  'Pay $farmName',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text('Securely pay this FARM merchant.'),
-                                const SizedBox(height: 16),
-                                if (!_showWebCheckout) ...[
-                                  OutlinedButton.icon(
-                                    onPressed:
-                                        _openingFarmApp ? null : _openFarmApp,
-                                    icon: _openingFarmApp
-                                        ? const SizedBox(
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : const Icon(Icons.open_in_new),
-                                    label: const Text('I have the FARM app'),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  const Divider(),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    'No app? Pay securely here with a payment provider.',
-                                  ),
-                                  const SizedBox(height: 16),
-                                  FilledButton(
-                                    onPressed: () => setState(
-                                      () => _showWebCheckout = true,
-                                    ),
-                                    child: const Text('Continue on web'),
-                                  ),
-                                ] else ...[
-                                  OutlinedButton.icon(
-                                    onPressed:
-                                        _openingFarmApp ? null : _openFarmApp,
-                                    icon: const Icon(Icons.open_in_new),
-                                    label: const Text('Open in the FARM app'),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  const Divider(),
-                                  const SizedBox(height: 8),
-                                  const Text('Pay securely on the web.'),
-                                  const SizedBox(height: 24),
-                                  TextFormField(
-                                    controller: _amountController,
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      labelText: 'Amount (KES)',
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    validator: (value) {
-                                      final amount =
-                                          double.tryParse(value?.trim() ?? '');
-                                      if (amount == null ||
-                                          !amount.isFinite ||
-                                          amount <= 0) {
-                                        return 'Enter an amount greater than 0.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 16),
-                                  DropdownButtonFormField<String>(
-                                    initialValue: _method,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Payment method',
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(
-                                        value: 'mpesa',
-                                        child: Text('M-Pesa'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'card',
-                                        child: Text('Bank card'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'bank',
-                                        child: Text('Bank transfer'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'crypto',
-                                        child: Text('Crypto (NOWPayments)'),
-                                      ),
-                                    ],
-                                    onChanged: _submitting
-                                        ? null
-                                        : (value) {
-                                            if (value != null) {
-                                              setState(() => _method = value);
-                                              if (value == 'crypto') {
-                                                _loadCryptoTokens();
-                                              }
-                                            }
-                                          },
-                                  ),
-                                  if (_method == 'crypto') ...[
-                                    const SizedBox(height: 16),
-                                    if (_loadingCryptoTokens)
-                                      const Center(
-                                        child: CircularProgressIndicator(),
-                                      )
-                                    else if (_cryptoTokens.isNotEmpty)
-                                      SearchableCryptoPicker(
-                                        currencies: _cryptoTokens,
-                                        selectedCurrency: _selectedCryptoToken,
-                                        enabled: !_submitting,
-                                        onSelected: (token) => setState(
-                                          () => _selectedCryptoToken = token,
+                    ? _ErrorMessage(message: _error!)
+                    : Form(
+                        key: _formKey,
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: [
+                            Text(
+                              'Pay $farmName',
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text('Securely pay this FARM merchant.'),
+                            const SizedBox(height: 16),
+                            if (!_showWebCheckout) ...[
+                              OutlinedButton.icon(
+                                onPressed: _openingFarmApp
+                                    ? null
+                                    : _openFarmApp,
+                                icon: _openingFarmApp
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
                                         ),
                                       )
-                                    else
-                                      TextButton(
-                                        onPressed: _loadCryptoTokens,
-                                        child: const Text(
-                                            'Retry cryptocurrency list'),
-                                      ),
-                                  ],
-                                  const SizedBox(height: 16),
-                                  TextFormField(
-                                    controller: _emailController,
-                                    keyboardType: TextInputType.emailAddress,
-                                    validator: (value) {
-                                      final email = value?.trim() ?? '';
-                                      if (email.isEmpty ||
-                                          !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                              .hasMatch(email)) {
-                                        return 'Enter a valid email address.';
-                                      }
-                                      return null;
-                                    },
-                                    decoration: const InputDecoration(
-                                      labelText: 'Email for payment receipt',
-                                      hintText: 'you@example.com',
-                                      border: OutlineInputBorder(),
+                                    : const Icon(Icons.open_in_new),
+                                label: const Text('I have the FARM app'),
+                              ),
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'No app? Pay securely here with a payment provider.',
+                              ),
+                              const SizedBox(height: 16),
+                              FilledButton(
+                                onPressed: () =>
+                                    setState(() => _showWebCheckout = true),
+                                child: const Text('Continue on web'),
+                              ),
+                            ] else ...[
+                              OutlinedButton.icon(
+                                onPressed: _openingFarmApp
+                                    ? null
+                                    : _openFarmApp,
+                                icon: const Icon(Icons.open_in_new),
+                                label: const Text('Open in the FARM app'),
+                              ),
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              const Text('Pay securely on the web.'),
+                              const SizedBox(height: 24),
+                              TextFormField(
+                                controller: _amountController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
                                     ),
+                                decoration: const InputDecoration(
+                                  labelText: 'Amount (KES)',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (value) {
+                                  final amount = double.tryParse(
+                                    value?.trim() ?? '',
+                                  );
+                                  if (amount == null ||
+                                      !amount.isFinite ||
+                                      amount <= 0) {
+                                    return 'Enter an amount greater than 0.';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              DropdownButtonFormField<String>(
+                                initialValue: _method,
+                                decoration: const InputDecoration(
+                                  labelText: 'Payment method',
+                                  border: OutlineInputBorder(),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'mpesa',
+                                    child: Text('M-Pesa'),
                                   ),
-                                  if (_error != null) ...[
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      _error!,
-                                      style: TextStyle(
-                                        color:
-                                            Theme.of(context).colorScheme.error,
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 20),
-                                  FilledButton(
-                                    onPressed:
-                                        _submitting ? null : _startPayment,
-                                    child: _submitting
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : const Text('Continue to payment'),
+                                  DropdownMenuItem(
+                                    value: 'card',
+                                    child: Text('Bank card'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'bank',
+                                    child: Text('Bank transfer'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'crypto',
+                                    child: Text('Crypto (NOWPayments)'),
                                   ),
                                 ],
+                                onChanged: _submitting
+                                    ? null
+                                    : (value) {
+                                        if (value != null) {
+                                          setState(() => _method = value);
+                                          if (value == 'crypto') {
+                                            _loadCryptoTokens();
+                                          }
+                                        }
+                                      },
+                              ),
+                              if (_method == 'crypto') ...[
+                                const SizedBox(height: 16),
+                                if (_loadingCryptoTokens)
+                                  const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
+                                else if (_cryptoTokens.isNotEmpty) ...[
+                                  SearchableCryptoPicker(
+                                    currencies: _cryptoTokens,
+                                    selectedCurrency: _selectedCryptoToken,
+                                    enabled: !_submitting,
+                                    label: 'Preferred cryptocurrency',
+                                    onSelected: (token) => setState(
+                                      () => _selectedCryptoToken = token,
+                                    ),
+                                  ),
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 8),
+                                    child: Text(
+                                      'NOWPayments will show its full currency list at checkout, where you can choose or change your coin.',
+                                    ),
+                                  ),
+                                ] else
+                                  TextButton(
+                                    onPressed: _loadCryptoTokens,
+                                    child: const Text(
+                                      'Retry cryptocurrency list',
+                                    ),
+                                  ),
                               ],
-                            ),
-                          ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                validator: (value) {
+                                  final email = value?.trim() ?? '';
+                                  if (email.isEmpty ||
+                                      !RegExp(
+                                        r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                                      ).hasMatch(email)) {
+                                    return 'Enter a valid email address.';
+                                  }
+                                  return null;
+                                },
+                                decoration: const InputDecoration(
+                                  labelText: 'Email for payment receipt',
+                                  hintText: 'you@example.com',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              if (_error != null) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  _error!,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 20),
+                              FilledButton(
+                                onPressed: _submitting ? null : _startPayment,
+                                child: _submitting
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text('Continue to payment'),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
               ),
             ),
           ),
@@ -451,8 +460,9 @@ class _LegacyMerchantQrRedirectPageState
         '/qr/checkout/merchant?qr_payload=${Uri.encodeComponent(payload)}',
       );
       final data = response['data'];
-      final merchantId =
-          data is Map ? data['merchant_id']?.toString().trim() : null;
+      final merchantId = data is Map
+          ? data['merchant_id']?.toString().trim()
+          : null;
       if (merchantId == null || merchantId.isEmpty) {
         throw const FormatException('Merchant details were not returned.');
       }
@@ -464,31 +474,29 @@ class _LegacyMerchantQrRedirectPageState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: const Color(0xFFF3F6F4),
-        body: SafeArea(
-          child: Center(
-            child: _error == null
-                ? const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Opening secure merchant checkout…'),
-                    ],
-                  )
-                : Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ),
-          ),
-        ),
-      );
+    backgroundColor: const Color(0xFFF3F6F4),
+    body: SafeArea(
+      child: Center(
+        child: _error == null
+            ? const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Opening secure merchant checkout…'),
+                ],
+              )
+            : Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+      ),
+    ),
+  );
 }
 
 class _ErrorMessage extends StatelessWidget {
@@ -498,10 +506,10 @@ class _ErrorMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
-        ),
-      );
+    child: Text(
+      message,
+      textAlign: TextAlign.center,
+      style: TextStyle(color: Theme.of(context).colorScheme.error),
+    ),
+  );
 }
