@@ -1,5 +1,7 @@
 import '/pages/mkulima/mkulima_pages.dart';
 import '/pages/security/sessions_page.dart';
+import '/pages/security/change_password_page.dart';
+import '/pages/verify_email_page/verify_email_page_widget.dart';
 import 'dart:async';
 
 import '/backend/services/api_service.dart';
@@ -897,6 +899,39 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                   label: 'Wallet address',
                                 ),
                               ),
+                              // CHANGE PASSWORD
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (_) => const ChangePasswordPage()));
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.lock_reset_outlined,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Change password',
+                                ),
+                              ),
+                              // VERIFY EMAIL (only while unverified)
+                              if (!FFAppState().emailVerified &&
+                                  FFAppState().email.isNotEmpty)
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.of(context).push(MaterialPageRoute(
+                                        builder: (_) =>
+                                            const VerifyEmailPageWidget()));
+                                  },
+                                  child: SettingsActionTileWidget(
+                                    icon: Icon(
+                                      Icons.mark_email_unread_outlined,
+                                      color: FlutterFlowTheme.of(context)
+                                          .primaryText,
+                                    ),
+                                    label: 'Verify email',
+                                  ),
+                                ),
                               // DEVICES & SESSIONS
                               GestureDetector(
                                 onTap: () {

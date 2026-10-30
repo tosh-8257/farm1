@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
-import '/services/auth/auth_service.dart';
-import '/flutter_flow/flutter_flow_theme.dart';
-import '/flutter_flow/flutter_flow_widgets.dart';
-import '/widgets/common/back_chevron.dart';
+import '/app_state.dart';
+import '/backend/services/api_service.dart';
+import '/pages/business/ops/ops_ui.dart';
+import '/pages/security/account_security_logic.dart';
 
+enum _VerifyState { idle, verifying, verified, failed }
+
+/// Email verification. Opens from the emailed link (?token=...) and verifies
+/// automatically, or lets the user request a new single-use link.
+/// Black/white/grey only.
 class VerifyEmailPageWidget extends StatefulWidget {
-  const VerifyEmailPageWidget({super.key});
+  const VerifyEmailPageWidget({super.key, this.initialToken});
+
+  /// For tests and deep links; defaults to the `token` query parameter.
+  final String? initialToken;
 
   static String routeName = 'verify_email_page';
   static String routePath = '/verify-email';
@@ -15,177 +23,150 @@ class VerifyEmailPageWidget extends StatefulWidget {
 }
 
 class _VerifyEmailPageWidgetState extends State<VerifyEmailPageWidget> {
-  bool isLoading = false;
-  bool verified = false;
-  String? resultMessage;
-  final emailController = TextEditingController();
+  _VerifyState _state = _VerifyState.idle;
+  bool _sending = false;
+  String? _message;
+  late final TextEditingController _email;
 
   @override
   void initState() {
     super.initState();
-    final token = Uri.base.queryParameters['token'] ?? '';
-    if (token.isNotEmpty) {
-      _verifyEmail(token);
-    }
+    _email = TextEditingController(text: FFAppState().email);
+    final token = extractVerificationToken(
+        widget.initialToken ?? Uri.base.queryParameters['token'] ?? '');
+    if (token != null) _verify(token);
   }
 
-  Future<void> _verifyEmail(String token) async {
+  @override
+  void dispose() {
+    _email.dispose();
+    super.dispose();
+  }
+
+  Future<void> _verify(String token) async {
     setState(() {
-      isLoading = true;
-      resultMessage = null;
-      verified = false;
+      _state = _VerifyState.verifying;
+      _message = null;
     });
-
     try {
-      await AuthService().verifyEmail(token: token);
-      setState(() {
-        verified = true;
-        resultMessage = 'Your email has been verified. You can now log in.';
-      });
-    } catch (e) {
-      setState(() {
-        resultMessage = 'Email verification failed. ${e.toString()}';
-      });
-    } finally {
-      if (mounted) setState(() => isLoading = false);
+      await ApiService.verifyEmail(token: token);
+      FFAppState().emailVerified = true;
+      if (mounted) setState(() => _state = _VerifyState.verified);
+    } on ApiServiceException catch (e) {
+      if (mounted) {
+        setState(() {
+          _state = _VerifyState.failed;
+          _message = e.statusCode == 400
+              ? 'This link is invalid, expired or already used. Request a new one below.'
+              : friendlyAuthError(e.statusCode, e.message);
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _state = _VerifyState.failed;
+          _message = 'Could not reach the server. Check your connection and try again.';
+        });
+      }
     }
   }
 
-  Future<void> _resendVerification() async {
-    final email = emailController.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid email address to resend verification.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+  Future<void> _resend() async {
+    final email = _email.text.trim();
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      setState(() => _message = 'Enter a valid email address.');
       return;
     }
-
     setState(() {
-      isLoading = true;
-      resultMessage = null;
+      _sending = true;
+      _message = null;
     });
-
     try {
-      await AuthService().resendEmailVerification(email: email);
-      setState(() {
-        resultMessage = 'Verification email resent. Check your inbox.';
-      });
-    } catch (e) {
-      setState(() {
-        resultMessage = 'Unable to resend verification email. ${e.toString()}';
-      });
+      await ApiService.resendEmailVerification(email: email);
+      if (mounted) {
+        setState(() => _message =
+            'If this address belongs to an unverified account, a new link is on its way. It expires in 24 hours.');
+      }
+    } on ApiServiceException catch (e) {
+      if (mounted) setState(() => _message = friendlyAuthError(e.statusCode, e.message));
+    } catch (_) {
+      if (mounted) setState(() => _message = 'Could not reach the server. Check your connection and try again.');
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) setState(() => _sending = false);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: const BackChevron(),
-        title: const Text('Verify Email'),
-        backgroundColor: FlutterFlowTheme.of(context).primary,
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 24.0),
-              Text(
-                'Email Verification',
-                style: FlutterFlowTheme.of(context).titleLarge,
-              ),
-              const SizedBox(height: 16.0),
-              Text(
-                'If you clicked a verification link, this page will confirm your email with the backend. If the link has expired, you can request a new one below.',
-                style: FlutterFlowTheme.of(context).bodyMedium,
-              ),
-              const SizedBox(height: 24.0),
-              if (isLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (verified)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Icon(Icons.check_circle_outline, size: 64.0, color: Colors.green),
-                    const SizedBox(height: 16.0),
-                    Text(resultMessage ?? '', style: FlutterFlowTheme.of(context).bodyLarge),
-                    const SizedBox(height: 24.0),
-                    FFButtonWidget(
-                      onPressed: () => Navigator.pushReplacementNamed(context, 'loginpage'),
-                      text: 'Go to Login',
-                      options: FFButtonOptions(
-                        width: double.infinity,
-                        height: 50.0,
-                        color: FlutterFlowTheme.of(context).primary,
-                        textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                        elevation: 3.0,
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                    ),
-                  ],
-                )
-              else ...[
-                if (resultMessage != null) ...[
-                  Text(resultMessage!, style: FlutterFlowTheme.of(context).bodyMedium.override(color: Colors.red)),
-                  const SizedBox(height: 20.0),
-                ],
-                TextFormField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email address',
-                    hintText: 'Enter your email to resend verification',
-                  ),
-                ),
-                const SizedBox(height: 16.0),
-                FFButtonWidget(
-                  onPressed: isLoading ? null : _resendVerification,
-                  text: 'Resend Verification Email',
-                  options: FFButtonOptions(
-                    width: double.infinity,
-                    height: 50.0,
-                    color: FlutterFlowTheme.of(context).primary,
-                    textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                    elevation: 3.0,
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                ),
-                const SizedBox(height: 16.0),
-                FFButtonWidget(
-                  onPressed: isLoading
-                      ? null
-                      : () => Navigator.pushReplacementNamed(context, 'loginpage'),
-                  text: 'Back to Login',
-                  options: FFButtonOptions(
-                    width: double.infinity,
-                    height: 50.0,
-                    color: FlutterFlowTheme.of(context).secondaryBackground,
-                    textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                          color: FlutterFlowTheme.of(context).primaryText,
-                          fontWeight: FontWeight.w600,
-                        ),
-                    elevation: 0.0,
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                ),
-              ],
-            ],
+  Widget build(BuildContext c) {
+    final fg = fgColor(c), muted = mutedColor(c);
+    Widget body;
+    switch (_state) {
+      case _VerifyState.verifying:
+        body = Column(key: const Key('ve-loading'), children: [
+          const SizedBox(height: 48),
+          CircularProgressIndicator(color: fg),
+          const SizedBox(height: 16),
+          Text('Verifying your email…', style: TextStyle(color: muted)),
+        ]);
+        break;
+      case _VerifyState.verified:
+        body = Column(key: const Key('ve-success'), crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const SizedBox(height: 32),
+          Icon(Icons.mark_email_read_outlined, size: 64, color: fg),
+          const SizedBox(height: 12),
+          Text('Email verified', textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fg)),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            style: primaryButtonStyle(c),
+            onPressed: () => Navigator.of(c).maybePop(),
+            child: const Text('Continue'),
           ),
-        ),
-      ),
+        ]);
+        break;
+      case _VerifyState.idle:
+      case _VerifyState.failed:
+        body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Icon(Icons.mail_outline, size: 48, color: fg),
+          const SizedBox(height: 12),
+          Text(
+            _state == _VerifyState.failed ? 'Verification failed' : 'Verify your email',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fg),
+          ),
+          const SizedBox(height: 8),
+          Text('We will email you a single-use link that expires in 24 hours.',
+              textAlign: TextAlign.center, style: TextStyle(color: muted)),
+          const SizedBox(height: 20),
+          TextField(
+            key: const Key('ve-email'),
+            controller: _email,
+            enabled: !_sending,
+            keyboardType: TextInputType.emailAddress,
+            decoration: bizInput(c, 'Email address'),
+          ),
+          if (_message != null) ...[
+            const SizedBox(height: 12),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(_state == _VerifyState.failed ? Icons.error_outline : Icons.info_outline, size: 18, color: fg),
+              const SizedBox(width: 8),
+              Expanded(child: Text(_message!, key: const Key('ve-message'), style: TextStyle(color: fg))),
+            ]),
+          ],
+          const SizedBox(height: 16),
+          ElevatedButton(
+            key: const Key('ve-resend'),
+            style: primaryButtonStyle(c),
+            onPressed: _sending ? null : _resend,
+            child: _sending
+                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Send verification link'),
+          ),
+        ]);
+    }
+    return BizScaffold(
+      title: 'Verify email',
+      body: SafeArea(child: ListView(padding: const EdgeInsets.all(16), children: [body])),
     );
   }
 }

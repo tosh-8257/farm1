@@ -632,8 +632,9 @@ class ApiService {
     required String token,
   }) =>
       _request(
-        method: 'GET',
-        path: '/auth/verify-email/$token',
+        method: 'POST',
+        path: '/auth/verify-email',
+        body: {'token': token},
         requiresAuth: false,
       );
 
