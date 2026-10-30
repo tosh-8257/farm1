@@ -884,7 +884,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                   ),
                                 ),
                               ),
-                              // WALLET ADDRESS (Algorand, receive USDC)
+                              // RECEIVE ON ALGORAND (ALGO, USDC, FARM)
                               GestureDetector(
                                 onTap: () {
                                   Navigator.of(context).push(MaterialPageRoute(
@@ -896,7 +896,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                     color: FlutterFlowTheme.of(context)
                                         .primaryText,
                                   ),
-                                  label: 'Wallet address',
+                                  label: 'Receive on Algorand',
                                 ),
                               ),
                               // CHANGE PASSWORD

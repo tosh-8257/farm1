@@ -3,21 +3,23 @@ import 'package:flutter/services.dart';
 import '/backend/api_requests/chain_wallet_api.dart';
 import '/pages/business/ops/ops_ui.dart';
 import '/pages/investments/investment_pages.dart' show openDoc;
+import 'package:qr_flutter/qr_flutter.dart';
 
 const _depositLabels = {
-  'detected': 'Received',
+  'detected': 'Confirming',
   'pending_rate': 'Waiting for rate',
   'credited': 'Credited',
   'failed': 'Failed',
 };
 
-/// Profile settings > Wallet address. Receive-only: copy it to receive USDC or FARM on Algorand.
+/// Receive on Algorand: the user's on-chain receiving address (ALGO, USDC, FARM).
+/// Not a deposit method — it is reachable from the Receive panel and Profile.
 class WalletAddressPage extends StatelessWidget {
   const WalletAddressPage({super.key});
 
   @override
   Widget build(BuildContext context) => BizScaffold(
-        title: 'Wallet address',
+        title: 'Receive on Algorand',
         body: BizAsync<Map<String, dynamic>>(
           load: ChainWalletApi.mine,
           isEmpty: (r) => r['data'] is! Map,
@@ -37,6 +39,26 @@ class WalletAddressPage extends StatelessWidget {
                             style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)))),
                     StatusChip(net == 'testnet' ? 'TestNet' : net, filled: net != 'testnet'),
                   ]),
+                  const SizedBox(height: 6),
+                  Text('Receive ALGO, USDC and FARM to this address on the Algorand network.',
+                      style: TextStyle(fontSize: 13, color: fgColor(c))),
+                  const SizedBox(height: 12),
+                  if (ready)
+                    Center(
+                      child: Container(
+                        color: Colors.white,
+                        padding: const EdgeInsets.all(10),
+                        child: QrImageView(
+                          data: '${w['address']}',
+                          size: 200,
+                          backgroundColor: Colors.white,
+                          eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
+                          dataModuleStyle: const QrDataModuleStyle(
+                              dataModuleShape: QrDataModuleShape.square, color: Colors.black),
+                          semanticsLabel: 'QR code of your Algorand address',
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 10),
                   SelectableText('${w['address']}',
                       style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: fgColor(c))),
@@ -65,7 +87,7 @@ class WalletAddressPage extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     ready
-                        ? 'This address can only receive. Send only on the Algorand network:\n• USDC (asset ${w['usdc_asa_id']}) is converted to FARM at the live KSh rate.\n• FARM (asset ${w['farm_asa_id']}) is credited 1:1 (1 FARM = 1 KSh).\nOther tokens or networks may be lost.'
+                        ? 'Only send on the Algorand network. Tokens sent from other networks, or tokens other than ALGO, USDC (asset ${w['usdc_asa_id']}) and FARM (asset ${w['farm_asa_id']}), may be lost.\n• ALGO and USDC are converted to FARM automatically at the live KSh rate.\n• FARM is credited 1:1 (1 FARM = 1 KSh).'
                         : 'Setting up your address. Do not send funds until this finishes.',
                     style: TextStyle(fontSize: 12, color: mutedColor(c)),
                   ),
@@ -74,7 +96,7 @@ class WalletAddressPage extends StatelessWidget {
                 ]),
               ),
               const SizedBox(height: 16),
-              Text('Deposits', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+              Text('Received', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
               const SizedBox(height: 8),
               SizedBox(
                 height: 320,
@@ -82,8 +104,8 @@ class WalletAddressPage extends StatelessWidget {
                   load: ChainWalletApi.deposits,
                   isEmpty: (l) => l.isEmpty,
                   emptyIcon: Icons.south_west,
-                  emptyTitle: 'No deposits yet',
-                  emptyMessage: 'USDC or FARM you send to this address shows here.',
+                  emptyTitle: 'Nothing received yet',
+                  emptyMessage: 'ALGO, USDC or FARM sent to this address shows here.',
                   builder: (c2, l, _) => ListView(children: [
                     for (final d in l)
                       BizTile(

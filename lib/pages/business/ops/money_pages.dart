@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/backend/api_requests/business_ops_api.dart';
 import 'ops_ui.dart';
+import '/backend/api_requests/chain_wallet_api.dart';
+import '/pages/chain_wallet/wallet_address_page.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class BusinessWalletPage extends StatelessWidget {
   const BusinessWalletPage({super.key});
@@ -19,10 +22,11 @@ class BusinessWalletPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 KeyValue('Total balance', money(w['balance'])),
                 KeyValue('Locked in escrow', money(w['locked_balance'])),
-                KeyValue('Wallet address', '${w['wallet_address'] ?? '—'}'),
                 if (w['is_frozen'] == true) const KeyValue('Status', 'Frozen — contact support'),
               ]),
             ),
+            const SizedBox(height: 12),
+            const _AlgorandAddressCard(),
             const SizedBox(height: 12),
             Text(
               'Your business wallet is the settlement wallet of the account owner. '
@@ -30,6 +34,69 @@ class BusinessWalletPage extends StatelessWidget {
               style: TextStyle(color: mutedColor(c), height: 1.5),
             ),
           ]),
+        ),
+      );
+}
+
+/// The owner's on-chain receiving address (ALGO, USDC, FARM on Algorand).
+class _AlgorandAddressCard extends StatelessWidget {
+  const _AlgorandAddressCard();
+  @override
+  Widget build(BuildContext context) => BizCard(
+        child: SizedBox(
+          height: 330,
+          child: BizAsync<Map<String, dynamic>>(
+            load: ChainWalletApi.mine,
+            isEmpty: (r) => r['data'] is! Map,
+            emptyIcon: Icons.qr_code_2,
+            emptyTitle: 'Algorand address not available yet',
+            emptyMessage: 'It appears here once on-chain receiving is switched on.',
+            builder: (c, r, reload) {
+              final w = Map<String, dynamic>.from(r['data'] as Map);
+              final ready = w['ready'] == true;
+              final addr = '${w['address']}';
+              return ListView(children: [
+                Text('Receive on Algorand', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+                const SizedBox(height: 4),
+                Text('Receive ALGO, USDC and FARM to this address on the Algorand network.',
+                    style: TextStyle(fontSize: 12, color: mutedColor(c))),
+                const SizedBox(height: 8),
+                if (ready)
+                  Center(
+                    child: Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.all(6),
+                      child: QrImageView(data: addr, size: 120, backgroundColor: Colors.white),
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                SelectableText(addr, style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: fgColor(c))),
+                Text(
+                  ready
+                      ? 'Only send on Algorand; other networks or tokens may be lost. ALGO and USDC convert to FARM at the live rate; FARM is credited 1:1.'
+                      : 'Setting up this address. Do not send funds yet.',
+                  style: TextStyle(fontSize: 11, color: mutedColor(c)),
+                ),
+                Row(children: [
+                  TextButton.icon(
+                    onPressed: ready
+                        ? () async {
+                            await Clipboard.setData(ClipboardData(text: addr));
+                            if (c.mounted) bizSnack(c, 'Address copied');
+                          }
+                        : null,
+                    icon: Icon(Icons.copy, size: 16, color: fgColor(c)),
+                    label: Text('Copy', style: TextStyle(color: fgColor(c))),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(c)
+                        .push(MaterialPageRoute(builder: (_) => const WalletAddressPage())),
+                    child: Text('Open', style: TextStyle(color: fgColor(c))),
+                  ),
+                ]),
+              ]);
+            },
+          ),
         ),
       );
 }
