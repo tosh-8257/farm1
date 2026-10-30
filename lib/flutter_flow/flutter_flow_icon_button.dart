@@ -62,7 +62,7 @@ class _FlutterFlowIconButtonState extends State<FlutterFlowIconButton> {
   void _updateIcon() {
     if (widget.icon is FaIcon) {
       final FaIcon icon = widget.icon as FaIcon;
-      effectiveIcon = FaIcon(icon.icon, size: icon.size, color: icon.color);
+      effectiveIcon = icon;
       iconSize = icon.size;
       iconColor = icon.color;
     } else if (widget.icon is Icon) {
