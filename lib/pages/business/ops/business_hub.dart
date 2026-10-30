@@ -8,6 +8,7 @@ import 'escrow_pages.dart';
 import 'team_pages.dart';
 import 'project_pages.dart';
 import '/pages/agent_payments/agent_payments_pages.dart';
+import '/pages/x402/x402_pages.dart';
 
 /// Approved-business home: real summary numbers plus the tools the
 /// signed-in user's role is allowed to use.
@@ -34,6 +35,7 @@ class _BusinessHubState extends State<BusinessHub> {
       ('transactions:read', Icons.swap_vert_rounded, 'Transactions', () => const BusinessTransactionsPage()),
       ('links:read', Icons.link_rounded, 'Payment links', () => const PaymentLinksPage()),
       ('links:read', Icons.request_page_outlined, 'Payment requests', () => const BusinessIntentsPage()),
+      ('links:read', Icons.api_outlined, 'Paid APIs (x402)', () => const X402ResourcesPage()),
       ('invoices:read', Icons.receipt_long_outlined, 'Invoices', () => const InvoicesPage()),
       ('customers:read', Icons.people_outline, 'Customers', () => const CustomersPage()),
       ('payouts:read', Icons.north_east_rounded, 'Payouts', () => const PayoutsPage()),
