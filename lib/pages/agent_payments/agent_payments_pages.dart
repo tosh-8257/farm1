@@ -420,6 +420,7 @@ class _NewIntentPageState extends State<_NewIntentPage> {
   final _amount = TextEditingController();
   final _desc = TextEditingController();
   final _ref = TextEditingController();
+  final _key = AgentPaymentsApi.newKey();
   @override
   void dispose() {
     _amount.dispose();
@@ -437,7 +438,7 @@ class _NewIntentPageState extends State<_NewIntentPage> {
               'amount': a,
               if (_desc.text.trim().isNotEmpty) 'description': _desc.text.trim(),
               if (_ref.text.trim().isNotEmpty) 'reference': _ref.text.trim(),
-            }),
+            }, _key),
         success: 'Request created');
     if (r != null && mounted) Navigator.pop(context);
   }
@@ -554,9 +555,10 @@ class BusinessIntentPage extends StatelessWidget {
       bizSnack(c, 'Enter an amount up to ${money(max)}');
       return false;
     }
+    final key = AgentPaymentsApi.newKey();
     final pin = await confirmWithPin(c, title: 'Confirm refund', message: 'Refund ${money(a)} FARM from the business wallet?');
     if (pin == null || !c.mounted) return false;
-    final r = await runBusy(c, () => AgentPaymentsApi.refund(id, {'amount': a, if (why.isNotEmpty) 'reason': why, 'pin': pin}),
+    final r = await runBusy(c, () => AgentPaymentsApi.refund(id, {'amount': a, if (why.isNotEmpty) 'reason': why, 'pin': pin}, key),
         success: 'Refunded');
     return r != null;
   }

@@ -1,3 +1,4 @@
+import 'dart:math';
 import '/backend/api_requests/business_ops_api.dart';
 import '/backend/services/api_service.dart';
 
@@ -7,6 +8,12 @@ class AgentPaymentsApi {
       r['data'] is Map ? Map<String, dynamic>.from(r['data'] as Map) : r;
   static Future<Map<String, dynamic>> _r(String m, String p, [Map<String, dynamic>? b]) =>
       ApiService.request(method: m, path: p, body: b);
+
+  /// Random idempotency key (keep one per form so retries never double-create).
+  static String newKey() {
+    final r = Random.secure();
+    return List.generate(32, (_) => r.nextInt(36).toRadixString(36)).join();
+  }
 
   static Future<Map<String, dynamic>> status() async => _d(await _r('GET', '/agent-payments/status'));
   // Payer
@@ -28,15 +35,15 @@ class AgentPaymentsApi {
   // Business dashboard
   static Future<List<Map<String, dynamic>>> businessIntents({String? status}) async => BusinessOpsApi.list(
       await _r('GET', '/business/payment-intents${status == null ? '' : '?status=$status'}'));
-  static Future<Map<String, dynamic>> createIntent(Map<String, dynamic> body) async =>
-      _d(await _r('POST', '/business/payment-intents', body));
+  static Future<Map<String, dynamic>> createIntent(Map<String, dynamic> body, String idempotencyKey) async =>
+      _d(await _r('POST', '/business/payment-intents', {...body, 'idempotency_key': idempotencyKey}));
   static Future<Map<String, dynamic>> businessIntent(String id) async => _d(await _r('GET', '/business/payment-intents/$id'));
   static Future<Map<String, dynamic>> cancelIntent(String id) async =>
       _d(await _r('POST', '/business/payment-intents/$id/cancel'));
   static Future<List<Map<String, dynamic>>> refunds(String id) async =>
       BusinessOpsApi.list(await _r('GET', '/business/payment-intents/$id/refunds'));
-  static Future<Map<String, dynamic>> refund(String id, Map<String, dynamic> body) async =>
-      _d(await _r('POST', '/business/payment-intents/$id/refunds', body));
+  static Future<Map<String, dynamic>> refund(String id, Map<String, dynamic> body, String idempotencyKey) async =>
+      _d(await _r('POST', '/business/payment-intents/$id/refunds', {...body, 'idempotency_key': idempotencyKey}));
   static Future<List<Map<String, dynamic>>> businessMandates() async =>
       BusinessOpsApi.list(await _r('GET', '/business/agent-authorizations'));
 }
