@@ -65,7 +65,7 @@ class MkulimaActivityPage extends StatelessWidget {
             KeyValue('Agent action', '${a['agent_action']}'),
             if (a['category'] != null) KeyValue('Category', '${a['category']}'),
             KeyValue('Provider', '${a['provider'] ?? '-'}'),
-            KeyValue('Amount', '${money(a['amount'])} FARM'),
+            KeyValue('Amount', '${money(a['amount'])}'),
             KeyValue('Payment method', '${a['payment_method']}'),
             KeyValue('Status', '${a['status']}'),
             KeyValue('Time', shortDate(a['timestamp'])),
@@ -95,7 +95,7 @@ class MkulimaActivityPage extends StatelessWidget {
               for (final a in l)
                 BizTile(
                   leading: Icons.bolt_outlined,
-                  title: '${a['agent_action']} · ${money(a['amount'])} FARM',
+                  title: '${a['agent_action']} · ${money(a['amount'])}',
                   subtitle: '${a['provider'] ?? ''} · ${shortDate(a['timestamp'])}${a['booking_ref'] != null ? ' · ${a['booking_ref']}' : ''}',
                   trailing: StatusChip('${a['status']}', filled: _statusFilled.contains(a['status'])),
                   onTap: () => _open(c, a),

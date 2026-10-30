@@ -96,7 +96,7 @@ extension on _ActionCard {
           StatusChip(status == 'executed' ? 'Booked' : (_actionLabels[status] ?? status), filled: status == 'executed'),
         ]),
         const SizedBox(height: 8),
-        KeyValue('Price', '${money(a['amount'])} FARM'),
+        KeyValue('Price', '${money(a['amount'])}'),
         if (a['description'] != null) KeyValue('Flight', '${a['description']}'),
         if (pending && offerId.isNotEmpty) ...[
           const SizedBox(height: 10),
@@ -610,7 +610,7 @@ extension on _ActionCard {
           StatusChip(_actionLabels[status] ?? status, filled: status == 'executed'),
         ]),
         const SizedBox(height: 8),
-        KeyValue('Amount', '${money(a['amount'])} FARM'),
+        KeyValue('Amount', '${money(a['amount'])}'),
         if (a['description'] != null) KeyValue('For', '${a['description']}'),
         if (a['transaction_ref'] != null) KeyValue('Reference', '${a['transaction_ref']}'),
         if (pending && a['failure_reason'] != null)
@@ -638,7 +638,7 @@ extension on _ActionCard {
                 onPressed: () async {
                   final pin = await confirmWithPin(c,
                       title: 'Confirm payment',
-                      message: 'Pay ${money(a['amount'])} FARM${a['description'] != null ? ' for "${a['description']}"' : ''}?\n\nMkulima proposed this. Only your PIN sends it.');
+                      message: 'Pay ${money(a['amount'])}${a['description'] != null ? ' for "${a['description']}"' : ''}?\n\nMkulima proposed this. Only your PIN sends it.');
                   if (pin == null || !c.mounted) return;
                   final r = await runBusy(c, () => AiApi.confirm('${a['id']}', pin), success: 'Payment sent');
                   if (r != null) onChanged();

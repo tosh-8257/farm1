@@ -6,16 +6,20 @@ import '/pages/business/ops/ops_ui.dart';
 /// Hotels (LiteAPI): search -> prebook (price check) -> PIN book -> my trips / cancel.
 /// Shown only when the server reports hotels.enabled; prices and holds are computed server-side.
 
-String hotelTitle(Map<String, dynamic> s) => 'Hotel · ${s['checkin'] ?? '-'} → ${s['checkout'] ?? '-'}';
+String hotelTitle(Map<String, dynamic> s) {
+  final name = '${s['hotel_name'] ?? ''}'.trim();
+  final dates = '${s['checkin'] ?? '-'} → ${s['checkout'] ?? '-'}';
+  return name.isEmpty ? 'Hotel · $dates' : '$name · $dates';
+}
 
 String _key() {
   final r = Random.secure();
   return List.generate(24, (_) => r.nextInt(36).toRadixString(36)).join();
 }
 
-String _policies(dynamic list) {
+String cancellationText(dynamic list, [dynamic refundable]) {
   final l = (list as List? ?? []).cast<Map>().where((p) => (p['amount'] as num? ?? 0) > 0).toList();
-  if (l.isEmpty) return 'Free cancellation';
+  if (l.isEmpty) return refundable == false ? 'Non-refundable' : 'Free cancellation';
   return l.map((p) => 'From ${p['cancel_time']}: ${p['currency']} ${p['amount']}').join('\n');
 }
 
@@ -112,7 +116,7 @@ class HotelResultsPage extends StatelessWidget {
                 leading: Icons.hotel_outlined,
                 title: '${h['hotel_name']}${h['stars'] != null ? '  ${h['stars']}★' : ''}',
                 subtitle: '${h['room_name']}${h['board'] != null ? ' · ${h['board']}' : ''}\n'
-                    '${h['bookable'] == true ? '${money(h['price_farm'])} FARM' : '${h['total_currency']} ${h['total_amount']} (not bookable in FARM)'}'
+                    '${h['bookable'] == true ? '${money(h['price_farm'])}' : '${h['total_currency']} ${h['total_amount']} (not bookable in FARM)'}'
                     '${h['refundable'] == true ? ' · Refundable' : h['refundable'] == false ? ' · Non-refundable' : ''}',
                 onTap: h['bookable'] == true ? () => pushPage(c, HotelCheckoutPage(offer: h)) : null,
               );
@@ -152,7 +156,7 @@ class _CheckoutState extends State<_Checkout> {
     if (!_email.text.contains('@')) return bizSnack(context, 'Enter a valid email');
     if (!RegExp(r'^\+\d{8,15}$').hasMatch(_phone.text.trim())) return bizSnack(context, 'Phone must be in +254… format');
     final pin = await confirmWithPin(context,
-        title: 'Pay ${money(pb['price_farm'])} FARM',
+        title: 'Pay ${money(pb['price_farm'])}',
         message: 'Book ${widget.offer['hotel_name']} (${pb['checkin']} → ${pb['checkout']})?\n\n'
             'The amount is held from your FARM wallet and refunded in full if the hotel does not confirm.');
     if (pin == null || !mounted) return;
@@ -185,9 +189,9 @@ class _CheckoutState extends State<_Checkout> {
           if (o['board'] != null) KeyValue('Board', '${o['board']}'),
           KeyValue('Dates', '${pb['checkin']} → ${pb['checkout']}'),
           KeyValue('Hotel price', '${pb['total_currency']} ${pb['total_amount']}'),
-          KeyValue('You pay', pb['bookable'] == true ? '${money(pb['price_farm'])} FARM' : 'Not bookable in FARM'),
+          KeyValue('You pay', pb['bookable'] == true ? '${money(pb['price_farm'])}' : 'Not bookable in FARM'),
           KeyValue('Refundable', pb['refundable'] == true ? 'Yes' : pb['refundable'] == false ? 'No' : '-'),
-          KeyValue('Cancellation', _policies(pb['cancel_policies'])),
+          KeyValue('Cancellation', cancellationText(pb['cancel_policies'], pb['refundable'])),
         ]),
       ),
       if (pb['bookable'] == true) ...[
@@ -236,7 +240,7 @@ class HotelBookingView extends StatelessWidget {
     final s = Map<String, dynamic>.from(b['summary'] as Map? ?? {});
     final ok = await confirmAction(c,
         title: 'Cancel this booking?',
-        message: 'Cancellation terms:\n${_policies(s['cancel_policies'])}\n\nYou get back FARM for whatever the hotel refunds.',
+        message: 'Cancellation terms:\n${cancellationText(s['cancel_policies'], s['refundable'])}\n\nYou get back FARM for whatever the hotel refunds.',
         confirm: 'Cancel booking');
     if (!ok || !c.mounted) return;
     final r = await runBusy(c, () => TravelApi.hotelCancel('${b['id']}'));
@@ -267,9 +271,9 @@ class HotelBookingView extends StatelessWidget {
           const Divider(),
           if (b['booking_reference'] != null) KeyValue('Confirmation', '${b['booking_reference']}'),
           for (final p in (b['passengers'] as List? ?? []).cast<Map>()) KeyValue('Guest', '${p['given_name']} ${p['family_name']}'),
-          KeyValue('Paid', '${money(b['total_farm'])} FARM'),
+          KeyValue('Paid', '${money(b['total_farm'])}'),
           KeyValue('Hotel price', '${b['offer_currency']} ${b['offer_amount']}'),
-          KeyValue('Cancellation', _policies(s['cancel_policies'])),
+          KeyValue('Cancellation', cancellationText(s['cancel_policies'], s['refundable'])),
           if (b['live_mode'] == false) KeyValue('Mode', 'Test (no real room)'),
         ]),
       ),

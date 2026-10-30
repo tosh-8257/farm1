@@ -125,8 +125,8 @@ class _ProjectsReviewPageState extends State<ProjectsReviewPage> {
                     const SizedBox(height: 6),
                     KeyValue('Business', '${(p['business'] as Map?)?['trading_name'] ?? (p['business'] as Map?)?['legal_name'] ?? '-'}'),
                     KeyValue('Business status', '${(p['business'] as Map?)?['status'] ?? '-'}'),
-                    KeyValue('Target', '${money(p['target_amount'])} FARM'),
-                    KeyValue('Raised', '${money(p['raised_amount'])} FARM'),
+                    KeyValue('Target', '${money(p['target_amount'])}'),
+                    KeyValue('Raised', '${money(p['raised_amount'])}'),
                     KeyValue('Sector', '${p['sector'] ?? '-'}'),
                     if (p['review_notes'] != null) KeyValue('Review notes', '${p['review_notes']}'),
                     const SizedBox(height: 8),
@@ -181,7 +181,7 @@ class _TokenizationReviewPageState extends State<TokenizationReviewPage> {
                     const SizedBox(height: 6),
                     KeyValue('Asset', '${t['asset_name'] ?? '-'} (${t['unit_name'] ?? '-'})'),
                     KeyValue('Units', '${t['total_units'] ?? '-'}'),
-                    KeyValue('Unit price', '${money(t['unit_price'])} FARM'),
+                    KeyValue('Unit price', '${money(t['unit_price'])}'),
                     KeyValue('Network', '${t['network'] ?? '-'}'),
                     if (t['asset_id'] != null) KeyValue('Asset id', '${t['asset_id']}'),
                     if (t['error'] != null) KeyValue('Error', '${t['error']}'),
@@ -263,7 +263,7 @@ class _PaymentsMonitorPageState extends State<PaymentsMonitorPage> {
                 for (final p in rows)
                   BizTile(
                     leading: Icons.payments_outlined,
-                    title: _f == 'x402' ? '${p['amount']} ${p['asset']}' : '${money(p['amount'])} FARM',
+                    title: _f == 'x402' ? '${p['amount']} ${p['asset']}' : '${money(p['amount'])}',
                     subtitle: [
                       shortDate(p['created_at']),
                       'business ${'${p['business_id'] ?? '-'}'.split('-').first}',

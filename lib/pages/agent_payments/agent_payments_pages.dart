@@ -119,7 +119,7 @@ class PayIntentPage extends StatelessWidget {
                     StatusChip(_l(i['status']), filled: i['status'] == 'succeeded'),
                   ]),
                   const Divider(),
-                  KeyValue('Amount', '${money(i['amount'])} FARM'),
+                  KeyValue('Amount', '${money(i['amount'])}'),
                   if (i['description'] != null) KeyValue('For', '${i['description']}'),
                   if (i['reference'] != null) KeyValue('Reference', '${i['reference']}'),
                   KeyValue('Expires', shortDate(i['expires_at'])),
@@ -132,7 +132,7 @@ class PayIntentPage extends StatelessWidget {
                   onPressed: () async {
                     final pin = await confirmWithPin(c,
                         title: 'Confirm payment',
-                        message: 'Pay ${money(i['amount'])} FARM to ${i['business_name']}?');
+                        message: 'Pay ${money(i['amount'])} to ${i['business_name']}?');
                     if (pin == null || !c.mounted) return;
                     final r = await runBusy(c, () => AgentPaymentsApi.pay(id, pin), success: 'Payment sent');
                     if (r != null) reload();
@@ -185,7 +185,7 @@ class _RequestCard extends StatelessWidget {
             StatusChip(_l(r['status']), filled: r['status'] == 'confirmed'),
           ]),
           const SizedBox(height: 6),
-          KeyValue('Amount', '${money(r['amount'])} FARM'),
+          KeyValue('Amount', '${money(r['amount'])}'),
           if (r['description'] != null) KeyValue('For', '${r['description']}'),
           KeyValue('Asked', shortDate(r['created_at'])),
           if (r['transaction_reference'] != null) KeyValue('Reference', '${r['transaction_reference']}'),
@@ -211,7 +211,7 @@ class _RequestCard extends StatelessWidget {
                   onPressed: () async {
                     final pin = await confirmWithPin(c,
                         title: 'Approve payment',
-                        message: 'Pay ${money(r['amount'])} FARM to ${r['business_name']}?\n\nAn agent asked for this. Only your PIN sends it.');
+                        message: 'Pay ${money(r['amount'])} to ${r['business_name']}?\n\nAn agent asked for this. Only your PIN sends it.');
                     if (pin == null || !c.mounted) return;
                     final ok = await runBusy(c, () => AgentPaymentsApi.confirmRequest('${r['id']}', pin), success: 'Payment sent');
                     if (ok != null) reload();
@@ -327,7 +327,7 @@ class _NewMandatePageState extends State<_NewMandatePage> {
     if (days == null || days < 1 || days > 365) return bizSnack(context, 'Duration must be 1–365 days');
     final pin = await confirmWithPin(context,
         title: 'Allow agent payments',
-        message: 'Let this business’s agent ask you for up to ${money(tx)} FARM per payment. You still approve each one with your PIN.');
+        message: 'Let this business’s agent ask you for up to ${money(tx)} per payment. You still approve each one with your PIN.');
     if (pin == null || !mounted) return;
     final r = await runBusy(
         context,
@@ -395,7 +395,7 @@ class BusinessIntentsPage extends StatelessWidget {
             for (final i in list)
               BizTile(
                 leading: Icons.request_page_outlined,
-                title: '${money(i['amount'])} FARM${i['description'] != null ? ' · ${i['description']}' : ''}',
+                title: '${money(i['amount'])}${i['description'] != null ? ' · ${i['description']}' : ''}',
                 subtitle: '${shortDate(i['created_at'])}${i['live_mode'] == false ? ' · Test' : ''}',
                 trailing: StatusChip(_l(i['status']), filled: i['status'] == 'succeeded'),
                 onTap: () async {
@@ -480,7 +480,7 @@ class BusinessIntentPage extends StatelessWidget {
                 padding: const EdgeInsets.all(14),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
-                    Expanded(child: Text('${money(i['amount'])} FARM', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)))),
+                    Expanded(child: Text('${money(i['amount'])}', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)))),
                     StatusChip(_l(status), filled: status == 'succeeded'),
                   ]),
                   const Divider(),
@@ -556,7 +556,7 @@ class BusinessIntentPage extends StatelessWidget {
       return false;
     }
     final key = AgentPaymentsApi.newKey();
-    final pin = await confirmWithPin(c, title: 'Confirm refund', message: 'Refund ${money(a)} FARM from the business wallet?');
+    final pin = await confirmWithPin(c, title: 'Confirm refund', message: 'Refund ${money(a)} from the business wallet?');
     if (pin == null || !c.mounted) return false;
     final r = await runBusy(c, () => AgentPaymentsApi.refund(id, {'amount': a, if (why.isNotEmpty) 'reason': why, 'pin': pin}, key),
         success: 'Refunded');

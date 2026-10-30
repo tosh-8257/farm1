@@ -31,7 +31,7 @@ class _TravelReviewPageState extends State<TravelReviewPage> {
           Text(
               action == 'confirm'
                   ? 'Only confirm if the order exists in the Duffel dashboard.'
-                  : 'Refund ${money(b['total_farm'])} FARM to the user. Only do this if no order exists in Duffel.',
+                  : 'Refund ${money(b['total_farm'])} to the user. Only do this if no order exists in Duffel.',
               style: TextStyle(color: mutedColor(d))),
           const SizedBox(height: 10),
           if (action == 'confirm') ...[
@@ -103,7 +103,7 @@ class _TravelReviewPageState extends State<TravelReviewPage> {
                           StatusChip('${b['status']}', filled: b['status'] == 'confirmed'),
                         ]),
                         const SizedBox(height: 6),
-                        KeyValue('Held', '${money(b['total_farm'])} FARM'),
+                        KeyValue('Held', '${money(b['total_farm'])}'),
                         KeyValue('Airline price', '${b['offer_currency']} ${b['offer_amount']}'),
                         KeyValue('Offer', '${b['provider_offer_id'] ?? '-'}'),
                         if (b['provider_order_id'] != null) KeyValue('Order', '${b['provider_order_id']}'),

@@ -250,7 +250,7 @@ class _OfferCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Expanded(child: Text('${o['owner']}', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)))),
-            Text(o['bookable'] == true ? '${money(o['price_farm'])} FARM' : 'Not bookable',
+            Text(o['bookable'] == true ? '${money(o['price_farm'])}' : 'Not bookable',
                 style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
           ]),
           const SizedBox(height: 6),
@@ -326,7 +326,7 @@ class _OfferDetailsState extends State<_OfferDetails> {
       });
     }
     final pin = await confirmWithPin(context,
-        title: 'Pay ${money(o['price_farm'])} FARM',
+        title: 'Pay ${money(o['price_farm'])}',
         message: 'Book ${_route(o)} with ${o['owner']}?\n\nThe amount is held from your FARM wallet and refunded in full if the airline does not confirm.');
     if (pin == null || !mounted) return;
     final r = await runBusy(
@@ -360,8 +360,8 @@ class _OfferDetailsState extends State<_OfferDetails> {
               KeyValue('${g['flight_number']}  ${g['origin']} → ${g['destination']}', '${_time(g['departing_at'])} – ${_time(g['arriving_at'])}'),
           const Divider(),
           KeyValue('Airline price', '${o['total_currency']} ${o['total_amount']}'),
-          if (o['service_fee_farm'] != null && (o['service_fee_farm'] as num) > 0) KeyValue('Service fee', '${money(o['service_fee_farm'])} FARM'),
-          KeyValue('You pay', o['bookable'] == true ? '${money(o['price_farm'])} FARM' : 'Not bookable in FARM'),
+          if (o['service_fee_farm'] != null && (o['service_fee_farm'] as num) > 0) KeyValue('Service fee', '${money(o['service_fee_farm'])}'),
+          KeyValue('You pay', o['bookable'] == true ? '${money(o['price_farm'])}' : 'Not bookable in FARM'),
           if (o['refundable'] != null) KeyValue('Refundable', o['refundable'] == true ? 'Yes' : 'No'),
           if (o['expires_at'] != null) KeyValue('Price held until', _time(o['expires_at'])),
         ]),
@@ -445,7 +445,7 @@ class TravelBookingsPage extends StatelessWidget {
                   title: b['kind'] == 'hotel'
                       ? hotelTitle(Map<String, dynamic>.from(b['summary'] as Map? ?? {}))
                       : _route(Map<String, dynamic>.from(b['summary'] as Map? ?? {})),
-                  subtitle: '${money(b['total_farm'])} FARM · ${shortDate(b['created_at'])}',
+                  subtitle: '${money(b['total_farm'])} · ${shortDate(b['created_at'])}',
                   trailing: StatusChip(_bookingLabels['${b['status']}'] ?? '${b['status']}', filled: b['status'] == 'confirmed'),
                   onTap: () => pushPage(c, TravelBookingPage(id: '${b['id']}')),
                 ),
@@ -490,7 +490,7 @@ class TravelBookingPage extends StatelessWidget {
                     for (final g in (sl['segments'] as List? ?? []).cast<Map>())
                       KeyValue('${g['flight_number']}  ${g['origin']} → ${g['destination']}', _time(g['departing_at'])),
                   for (final p in (b['passengers'] as List? ?? []).cast<Map>()) KeyValue('Passenger', '${p['given_name']} ${p['family_name']}'),
-                  KeyValue('Paid', '${money(b['total_farm'])} FARM'),
+                  KeyValue('Paid', '${money(b['total_farm'])}'),
                   KeyValue('Airline price', '${b['offer_currency']} ${b['offer_amount']}'),
                   if (b['live_mode'] == false) KeyValue('Mode', 'Test (no real ticket)'),
                   KeyValue('Booked', _time(b['created_at'])),
