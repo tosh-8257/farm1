@@ -922,6 +922,23 @@ class ApiService {
         useUnversionedApi: true,
       );
 
+  // ── KYB (Didit business verification) ─────────────────────────────────────
+  /// Returns `{url, session_id}`. 503 when the backend has no KYB workflow.
+  static Future<Map<String, dynamic>> createDiditKybSession() => _request(
+        method: 'POST',
+        path: '/verify/business/create-session',
+        body: const {},
+        timeoutSeconds: 20,
+        useUnversionedApi: true,
+      );
+
+  /// Returns `{data: {configured, status, entity_status, ...}}`.
+  static Future<Map<String, dynamic>> getDiditKybStatus() => _request(
+        method: 'GET',
+        path: '/verify/business/status',
+        useUnversionedApi: true,
+      );
+
   // Manual KYC submission (/kyc/submit) was removed: KYC is Didit-only.
 
   static Future<Map<String, dynamic>> getMyKyc() =>

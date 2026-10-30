@@ -7,6 +7,7 @@ import '/backend/api_requests/business_api_service.dart';
 import '/components/step_indicator/step_indicator_widget.dart';
 import 'business_ui.dart';
 import 'business_status_page.dart';
+import 'business_kyb_step.dart';
 
 const _sectors = <String, String>{
   'agriculture': 'Agriculture',
@@ -50,6 +51,7 @@ class _BusinessOnboardingPageState extends State<BusinessOnboardingPage> {
     'Directors',
     'Beneficial owners',
     'Documents',
+    'Verify business',
     'Review & submit',
   ];
 
@@ -59,6 +61,7 @@ class _BusinessOnboardingPageState extends State<BusinessOnboardingPage> {
   String? _loadError;
   String? _status;
   String? _reviewNotes;
+  String? _kybStatus;
 
   final _c = <String, TextEditingController>{
     for (final k in [
@@ -135,6 +138,7 @@ class _BusinessOnboardingPageState extends State<BusinessOnboardingPage> {
     _sector = b['sector']?.toString();
     _status = b['status']?.toString();
     _reviewNotes = b['review_notes']?.toString();
+    _kybStatus = b['didit_kyb_status']?.toString();
     _persons = (b['persons'] as List? ?? [])
         .map((p) => Map<String, dynamic>.from(p as Map))
         .toList();
@@ -440,6 +444,8 @@ class _BusinessOnboardingPageState extends State<BusinessOnboardingPage> {
         );
       case 4:
         return _documentsStep(context);
+      case 5:
+        return BusinessKybStep(initialStatus: _kybStatus);
       default:
         return _reviewStep(context);
     }

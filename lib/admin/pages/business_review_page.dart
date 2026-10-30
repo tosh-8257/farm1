@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/backend/api_requests/business_ops_api.dart';
+import '/pages/business/business_kyb_logic.dart';
 
 /// Admin KYB review for Business accounts. Black/white/grey only.
 class BusinessReviewPage extends StatefulWidget {
@@ -270,6 +271,12 @@ class _DetailState extends State<_BusinessReviewDetail> {
                     _kv('Review notes', b['review_notes']),
                     _kv('Merchant', (b['merchant'] as Map?)?['business_name']),
                     _kv('Merchant status', (b['merchant'] as Map?)?['status']),
+                  ]),
+                  _section('Didit KYB (advisory — approve manually)', [
+                    for (final e in kybAdminSummary(
+                      b['didit_kyb'] is Map ? Map<String, dynamic>.from(b['didit_kyb'] as Map) : null,
+                    ).entries)
+                      _kv(e.key, e.value),
                   ]),
                   _section('Business', [
                     for (final k in const [
