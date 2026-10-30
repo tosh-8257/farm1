@@ -17,6 +17,12 @@ String _key() {
   return List.generate(24, (_) => r.nextInt(36).toRadixString(36)).join();
 }
 
+/// Only confirmed, refundable bookings offer a cancel button.
+bool canCancelHotel(Map<String, dynamic> b) {
+  final s = b['summary'] is Map ? b['summary'] as Map : const {};
+  return '${b['status']}' == 'confirmed' && s['refundable'] != false;
+}
+
 String cancellationText(dynamic list, [dynamic refundable]) {
   final l = (list as List? ?? []).cast<Map>().where((p) => (p['amount'] as num? ?? 0) > 0).toList();
   if (l.isEmpty) return refundable == false ? 'Non-refundable' : 'Free cancellation';
@@ -277,7 +283,7 @@ class HotelBookingView extends StatelessWidget {
           if (b['live_mode'] == false) KeyValue('Mode', 'Test (no real room)'),
         ]),
       ),
-      if (status == 'confirmed') ...[
+      if (canCancelHotel(b)) ...[
         const SizedBox(height: 16),
         OutlinedButton(onPressed: () => _cancel(c), child: const Text('Cancel booking')),
       ],

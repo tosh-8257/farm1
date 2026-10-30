@@ -8,6 +8,7 @@ import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/pages/loginpage/loginpage_widget.dart' show kDefaultLoginCountry;
 import 'registerpage_model.dart';
 export 'registerpage_model.dart';
 
@@ -52,9 +53,9 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
 
   final TextEditingController referralController = TextEditingController();
 
-  String _selectedCountry = 'United States';
-  String _selectedCountryIsoCode = 'US';
-  String _selectedCountryCode = '+1';
+  String _selectedCountry = kDefaultLoginCountry['name']!;
+  String _selectedCountryIsoCode = kDefaultLoginCountry['iso']!;
+  String _selectedCountryCode = kDefaultLoginCountry['code']!;
   _RegistrationAvailability _usernameAvailability =
       _RegistrationAvailability.idle;
   _RegistrationAvailability _phoneAvailability = _RegistrationAvailability.idle;

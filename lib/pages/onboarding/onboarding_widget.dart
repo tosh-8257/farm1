@@ -12,7 +12,7 @@ import '/admin/pages/admin_shell.dart';
 import '/pages/superadmin/superadmin_dashboard_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
+import '/components/growth_loop_art.dart';
 import 'onboarding_model.dart';
 export 'onboarding_model.dart';
 
@@ -279,12 +279,9 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
                         Container(
                           height: 300.0,
                           alignment: const AlignmentDirectional(0.0, 0.0),
-                          child: Lottie.network(
-                            'https://dimg.dreamflow.cloud/v1/lottie/minimalist+abstract+growing+loop+animation+grayscale',
-                            width: 280.0,
-                            height: 280.0,
-                            fit: BoxFit.contain,
-                            animate: true,
+                          child: GrowthLoopArt(
+                            size: 280.0,
+                            color: primaryTextColor,
                           ),
                         ),
                         Column(

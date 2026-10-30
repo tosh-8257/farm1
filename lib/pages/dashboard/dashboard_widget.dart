@@ -31,6 +31,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/core/utils/activity_label.dart';
 import 'dashboard_model.dart';
 export 'dashboard_model.dart';
 
@@ -2056,7 +2057,11 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                         ? '$peerUsername ($merchantName)'
                                         : peerUsername;
 
-                                    final String title = isMerchantPayment
+                                    final ActivityLabel? sysLabel =
+                                        systemActivityLabel(tx);
+                                    final String title = sysLabel != null
+                                        ? sysLabel.title
+                                        : isMerchantPayment
                                         ? (isOutgoing
                                               ? 'Sent to $peerWithMerchant'
                                               : 'Received from $peerWithMerchant')
@@ -2065,7 +2070,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                               : 'Received from $peerUsername');
 
                                     final String subtitle =
-                                        '${isMerchantPayment ? 'merchant_payment' : txType} • ${_formatTransactionDate(tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp'] ?? tx['date'])}';
+                                        '${sysLabel?.type ?? (isMerchantPayment ? 'merchant_payment' : txType)} • ${_formatTransactionDate(tx['created_at'] ?? tx['createdAt'] ?? tx['timestamp'] ?? tx['date'])}';
 
                                     return Padding(
                                       padding: const EdgeInsets.only(

@@ -17,4 +17,9 @@ void main() {
     expect(cancellationText(const [{'cancel_time': '2026-11-12', 'currency': 'USD', 'amount': 57.27}], true),
         'From 2026-11-12: USD 57.27');
   });
+  test('cancel is hidden for non-refundable or unconfirmed bookings', () {
+    expect(canCancelHotel({'status': 'confirmed', 'summary': {'refundable': true}}), isTrue);
+    expect(canCancelHotel({'status': 'confirmed', 'summary': {'refundable': false}}), isFalse);
+    expect(canCancelHotel({'status': 'cancelled', 'summary': {'refundable': true}}), isFalse);
+  });
 }

@@ -25,6 +25,13 @@ import '/pages/otppage/otppage_widget.dart';
 /// spacing and typography  Important:  * Design should feel like a secure
 /// banking app * Professional and trustworthy UI * Keep layout simple and
 /// elegant TAKE TIME AND DO IT IN DETAIL
+const Map<String, String> kDefaultLoginCountry = {
+  'name': 'Kenya',
+  'iso': 'KE',
+  'code': '+254',
+  'flag': '🇰🇪',
+};
+
 class LoginpageWidget extends StatefulWidget {
   const LoginpageWidget({super.key});
 
@@ -45,12 +52,8 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   bool isLoading = false;
   bool _biometricAvailable = false;
   String _biometricButtonLabel = 'Login with Biometric';
-  Map<String, String> _selectedCountry = {
-    'name': 'Algeria',
-    'iso': 'DZ',
-    'code': '+213',
-    'flag': '🇩🇿',
-  };
+  // Kenya is the primary market; users can still pick any country.
+  Map<String, String> _selectedCountry = Map.of(kDefaultLoginCountry);
 
   final List<Map<String, String>> _africanCountries = [
     {'name': 'Algeria', 'iso': 'DZ', 'code': '+213', 'flag': '🇩🇿'},
