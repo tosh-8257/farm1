@@ -197,6 +197,7 @@ class ProjectDetailPage extends StatelessWidget {
               section('Use of funds', p['use_of_funds']),
               section('Risks', p['risk_factors']),
               section('Team', p['team']),
+              MilestoneList(p),
               if (docs.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Text('Documents', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
@@ -240,13 +241,10 @@ Future<bool?> startInvest(BuildContext c, Map<String, dynamic> p) async {
   final el = await runBusy(c, InvestmentsApi.eligibility);
   if (el == null || !c.mounted) return null;
   if (el['eligible'] != true) {
-    final req = await confirmAction(c,
+    await confirmAction(c,
         title: 'Not eligible yet',
-        message: '${el['reason'] ?? 'Your investor profile must be approved before you can invest.'}',
-        confirm: el['status'] == 'restricted' ? 'OK' : 'Request review');
-    if (req && el['status'] != 'restricted' && c.mounted) {
-      await runBusy(c, InvestmentsApi.requestEligibility, success: 'Review requested. We will let you know.');
-    }
+        message: '${el['reason'] ?? 'Complete identity verification (KYC) to invest.'}',
+        confirm: 'OK');
     return null;
   }
   final disc = (p['disclosure'] as Map?) ?? const {};
@@ -430,4 +428,36 @@ class PortfolioPage extends StatelessWidget {
           ]),
         ),
       );
+}
+
+
+/// Read-only milestone plan. Funds are released by FARM one milestone at a time.
+class MilestoneList extends StatelessWidget {
+  const MilestoneList(this.p, {super.key, this.trailing});
+  final Map<String, dynamic> p;
+  final Widget? Function(Map m)? trailing;
+  @override
+  Widget build(BuildContext c) {
+    final ms = ((p['milestones'] as List?) ?? const []).whereType<Map>().toList();
+    if (ms.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Milestones', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+        const SizedBox(height: 4),
+        Text('Released to the business: ${money(p['released_amount'] ?? 0)}. Funds are released in stages as milestones are approved by FARM.',
+            style: TextStyle(fontSize: 12, color: mutedColor(c))),
+        const SizedBox(height: 8),
+        for (final m in ms)
+          BizTile(
+            title: '${m['position']}. ${m['title']}',
+            subtitle: '${money(m['amount'])}'
+                '${m['released_amount'] != null ? ' · released ${money(m['released_amount'])}' : ''}'
+                '${(m['release_notes'] ?? '').toString().isNotEmpty ? ' · ${m['release_notes']}' : ''}',
+            trailing: trailing?.call(m) ??
+                StatusChip(milestoneStatusLabels['${m['status']}'] ?? '${m['status']}', filled: m['status'] == 'released'),
+          ),
+      ]),
+    );
+  }
 }

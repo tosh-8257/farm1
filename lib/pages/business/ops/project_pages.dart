@@ -2,7 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '/backend/api_requests/investments_api.dart';
 import '/backend/services/api_service.dart';
-import '/pages/investments/investment_pages.dart' show openDoc;
+import '/pages/investments/investment_pages.dart' show openDoc, MilestoneList;
 import 'ops_ui.dart';
 
 String _lbl(Map<String, String> m, dynamic k) => m['$k'] ?? '${k ?? '—'}';
@@ -275,6 +275,34 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
     if (r != null) _reload();
   }
 
+  Future<void> _requestRelease(Map m) async {
+    final ev = TextEditingController();
+    final url = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Request release: ${m['title']}'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: ev, minLines: 3, maxLines: 8, decoration: bizInput(ctx, 'What was completed?')),
+          const SizedBox(height: 10),
+          TextField(controller: url, decoration: bizInput(ctx, 'Evidence link (https, optional)')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Request')),
+        ],
+      ),
+    );
+    final e = ev.text.trim(), u = url.text.trim();
+    ev.dispose();
+    url.dispose();
+    if (ok != true || e.isEmpty || !mounted) return;
+    final r = await runBusy(context,
+        () => InvestmentsApi.requestMilestone(widget.id, '${m['id']}', evidence: e, evidenceUrl: u),
+        success: 'Release requested. FARM will review it.');
+    if (r != null) _reload();
+  }
+
   @override
   Widget build(BuildContext context) => BizScaffold(
         title: 'Project',
@@ -349,6 +377,26 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
                           })
                       : null,
                 ),
+              MilestoneList(p, trailing: (m) {
+                if (!['funded', 'closed'].contains(status)) return null;
+                if (!['planned', 'returned'].contains('${m['status']}')) return null;
+                return TextButton(
+                    onPressed: () => _requestRelease(m),
+                    child: Text('Request', style: TextStyle(color: fgColor(c))));
+              }),
+              if (editable)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      final r = await pushPage<bool>(c, MilestoneEditorPage(project: p));
+                      if (r == true) reload();
+                    },
+                    icon: Icon(Icons.flag_outlined, color: fgColor(c)),
+                    label: Text(((p['milestones'] as List?) ?? const []).isEmpty ? 'Set milestones (required)' : 'Edit milestones',
+                        style: TextStyle(color: fgColor(c))),
+                  ),
+                ),
               const SizedBox(height: 16),
               if (editable) ...[
                 OutlinedButton(
@@ -391,4 +439,120 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
           },
         ),
       );
+}
+
+
+/// Define how raised funds are released. Amounts must add up to the target.
+class MilestoneEditorPage extends StatefulWidget {
+  const MilestoneEditorPage({super.key, required this.project});
+  final Map<String, dynamic> project;
+  @override
+  State<MilestoneEditorPage> createState() => _MilestoneEditorPageState();
+}
+
+class _MilestoneEditorPageState extends State<MilestoneEditorPage> {
+  final _form = GlobalKey<FormState>();
+  final List<(TextEditingController, TextEditingController)> _rows = [];
+
+  @override
+  void initState() {
+    super.initState();
+    final ms = ((widget.project['milestones'] as List?) ?? const []).whereType<Map>();
+    for (final m in ms) {
+      _rows.add((TextEditingController(text: '${m['title']}'), TextEditingController(text: '${m['amount']}')));
+    }
+    if (_rows.isEmpty) _add();
+  }
+
+  void _add() => setState(() => _rows.add((TextEditingController(), TextEditingController())));
+
+  @override
+  void dispose() {
+    for (final r in _rows) {
+      r.$1.dispose();
+      r.$2.dispose();
+    }
+    super.dispose();
+  }
+
+  double get _sum => _rows.fold(0, (t, r) => t + (double.tryParse(r.$2.text) ?? 0));
+
+  Future<void> _save() async {
+    if (!_form.currentState!.validate()) return;
+    final r = await runBusy(
+        context,
+        () => InvestmentsApi.setMilestones('${widget.project['id']}', [
+              for (final r in _rows) {'title': r.$1.text.trim(), 'amount': double.parse(r.$2.text)},
+            ]),
+        success: 'Milestones saved');
+    if (r != null && mounted) Navigator.pop(context, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final target = (widget.project['target_amount'] as num?)?.toDouble() ??
+        double.tryParse('${widget.project['target_amount']}') ?? 0;
+    return BizScaffold(
+      title: 'Milestones',
+      body: Form(
+        key: _form,
+        child: ListView(padding: const EdgeInsets.all(20), children: [
+          Text('Raised funds are released to you in stages. FARM releases each milestone after you request it with evidence.',
+              style: TextStyle(color: mutedColor(context))),
+          const SizedBox(height: 16),
+          for (var i = 0; i < _rows.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(
+                  flex: 3,
+                  child: TextFormField(
+                    controller: _rows[i].$1,
+                    decoration: bizInput(context, 'Milestone ${i + 1}'),
+                    validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: TextFormField(
+                    controller: _rows[i].$2,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(() {}),
+                    decoration: bizInput(context, 'Amount'),
+                    validator: (v) => (double.tryParse(v ?? '') ?? 0) > 0 ? null : '> 0',
+                  ),
+                ),
+                if (_rows.length > 1)
+                  IconButton(
+                    icon: Icon(Icons.close, color: mutedColor(context)),
+                    onPressed: () => setState(() {
+                      final r = _rows.removeAt(i);
+                      r.$1.dispose();
+                      r.$2.dispose();
+                    }),
+                  ),
+              ]),
+            ),
+          if (_rows.length < 12)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _add,
+                icon: Icon(Icons.add, color: fgColor(context)),
+                label: Text('Add milestone', style: TextStyle(color: fgColor(context))),
+              ),
+            ),
+          const SizedBox(height: 8),
+          KeyValue('Total', money(_sum)),
+          KeyValue('Target', money(target)),
+          if ((_sum - target).abs() > 0.005)
+            Text('Milestone amounts must add up to the target before you submit.',
+                style: TextStyle(fontSize: 12, color: mutedColor(context))),
+          const SizedBox(height: 20),
+          ElevatedButton(style: primaryButtonStyle(context), onPressed: _save, child: const Text('Save milestones')),
+        ]),
+      ),
+    );
+  }
 }

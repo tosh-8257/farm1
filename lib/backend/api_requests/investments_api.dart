@@ -65,7 +65,22 @@ class InvestmentsApi {
       _d(await _call('POST', '/business/projects/$id/submit'));
   static Future<Map<String, dynamic>> postUpdate(String id, String title, String body) async =>
       _d(await _call('POST', '/business/projects/$id/updates', {'title': title, 'body': body}));
+  static Future<Map<String, dynamic>> setMilestones(String id, List<Map<String, dynamic>> items) async =>
+      _d(await _call('PATCH', '/business/projects/$id/milestones', {'milestones': items}));
+  static Future<Map<String, dynamic>> requestMilestone(String id, String mid,
+          {required String evidence, String? evidenceUrl}) async =>
+      _d(await _call('POST', '/business/projects/$id/milestones/$mid/request', {
+        'evidence': evidence,
+        if (evidenceUrl != null && evidenceUrl.isNotEmpty) 'evidence_url': evidenceUrl,
+      }));
 }
+
+const milestoneStatusLabels = {
+  'planned': 'Planned',
+  'requested': 'Release requested',
+  'returned': 'Returned',
+  'released': 'Released',
+};
 
 const sectorLabels = {
   'agriculture': 'Agriculture',
