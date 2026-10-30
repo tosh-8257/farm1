@@ -23,7 +23,7 @@ class AiApi {
         'enabled': enabled,
         'per_tx_cap': perTxCap,
         'daily_cap': dailyCap,
-        'allowed_actions': enabled ? ['send_farm', 'book_flight', 'pay_intent'] : <String>[],
+        'allowed_actions': enabled ? ['send_farm', 'book_flight', 'book_hotel', 'pay_intent'] : <String>[],
         if (categories != null) 'spend_categories': categories,
       }));
   static Future<Map<String, dynamic>> revoke() async =>

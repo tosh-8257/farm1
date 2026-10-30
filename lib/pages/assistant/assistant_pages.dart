@@ -12,6 +12,7 @@ const _actionLabels = {
   'rejected': 'Rejected',
   'expired': 'Expired',
   'cancelled': 'Cancelled',
+  'failed': 'Failed',
 };
 
 /// Confirms a pending AI payment with the transaction PIN. Returns true when sent.
@@ -35,6 +36,7 @@ class _ActionCard extends StatelessWidget {
     final pending = status == 'pending';
     if (a['action'] == 'book_flight') return _flightCard(c, status, pending);
     if (a['action'] == 'pay_intent') return _intentCard(c, status, pending);
+    if (a['action'] == 'book_hotel') return _hotelCard(c, status, pending);
     return BizCard(
       padding: const EdgeInsets.all(14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -84,8 +86,74 @@ class _ActionCard extends StatelessWidget {
   }
 }
 
+/// Confirms a Mkulima hotel proposal in chat. The server re-prices, checks the PIN and books.
+Future<bool> confirmAiHotel(BuildContext c, Map<String, dynamic> a) async {
+  final p = (a['payload'] as Map?) ?? const {};
+  final pin = await confirmWithPin(c,
+      title: 'Confirm hotel booking',
+      message: 'Book ${a['recipient_identifier']} (${p['checkin'] ?? ''} to ${p['checkout'] ?? ''}) for ${money(a['amount'])}?'
+          '${p['refundable'] == false ? '\nThis rate is non-refundable.' : ''}'
+          '${p['sandbox'] == true ? '\nSandbox booking (test only).' : ''}'
+          '\n\nGuest details come from your profile. Only your PIN books it.');
+  if (pin == null || !c.mounted) return false;
+  final r = await runBusy(c, () => AiApi.confirm('${a['id']}', pin), success: 'Booking processed');
+  return r != null;
+}
+
 /// Mkulima chat. Disabled state when the server has no AI provider configured.
 extension on _ActionCard {
+  Widget _hotelCard(BuildContext c, String status, bool pending) {
+    final p = (a['payload'] as Map?) ?? const {};
+    return BizCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text('Hotel booking request', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)))),
+          StatusChip(status == 'executed' ? 'Booked' : (_actionLabels[status] ?? status), filled: status == 'executed'),
+        ]),
+        const SizedBox(height: 8),
+        KeyValue('Hotel', '${a['recipient_identifier']}'),
+        if (p['room_name'] != null) KeyValue('Room', '${p['room_name']}'),
+        if (p['checkin'] != null) KeyValue('Dates', '${p['checkin']} to ${p['checkout']}'),
+        KeyValue('Price', money(a['amount'])),
+        if (p['refundable'] != null) KeyValue('Refundable', p['refundable'] == true ? 'Yes' : 'No'),
+        if (p['sandbox'] == true) KeyValue('Mode', 'Sandbox (test)'),
+        if (a['transaction_ref'] != null) KeyValue('Confirmation', '${a['transaction_ref']}'),
+        if (a['failure_reason'] != null && status != 'executed')
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(status == 'failed' ? 'Failed: ${a['failure_reason']}' : 'Last attempt: ${a['failure_reason']}',
+                style: TextStyle(color: mutedColor(c), fontSize: 12)),
+          ),
+        if (pending) ...[
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                style: secondaryButtonStyle(c),
+                onPressed: () async {
+                  final ok = await runBusy(c, () => AiApi.reject('${a['id']}').then((_) => true), success: 'Rejected');
+                  if (ok == true) onChanged();
+                },
+                child: const Text('Reject'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                style: primaryButtonStyle(c),
+                onPressed: () async {
+                  if (await confirmAiHotel(c, a)) onChanged();
+                },
+                child: const Text('Book with PIN'),
+              ),
+            ),
+          ]),
+        ],
+      ]),
+    );
+  }
+
   Widget _flightCard(BuildContext c, String status, bool pending) {
     final offerId = '${(a['payload'] as Map?)?['offer_id'] ?? ''}';
     return BizCard(
