@@ -17,3 +17,13 @@ class TravelApi {
   static Future<Map<String, dynamic>> booking(String id) async =>
       _d(await ApiService.request(method: 'GET', path: '/travel/bookings/$id'));
 }
+
+/// Admin: review travel bookings whose provider outcome was unknown.
+class AdminTravelApi {
+  static Future<List<Map<String, dynamic>>> bookings({String? status}) async => BusinessOpsApi.list(await ApiService.request(
+      method: 'GET', path: '/admin/travel/bookings${status == null ? '' : '?status=$status'}'));
+  static Future<Map<String, dynamic>> resolve(String id, Map<String, dynamic> body) async {
+    final r = await ApiService.request(method: 'POST', path: '/admin/travel/bookings/$id/resolve', body: body);
+    return r['data'] is Map ? Map<String, dynamic>.from(r['data'] as Map) : r;
+  }
+}
