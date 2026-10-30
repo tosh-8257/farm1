@@ -7,6 +7,7 @@ import 'commerce_pages.dart';
 import 'escrow_pages.dart';
 import 'team_pages.dart';
 import 'project_pages.dart';
+import '/pages/agent_payments/agent_payments_pages.dart';
 
 /// Approved-business home: real summary numbers plus the tools the
 /// signed-in user's role is allowed to use.
@@ -32,6 +33,7 @@ class _BusinessHubState extends State<BusinessHub> {
       ('wallet:read', Icons.account_balance_wallet_outlined, 'Wallet', () => const BusinessWalletPage()),
       ('transactions:read', Icons.swap_vert_rounded, 'Transactions', () => const BusinessTransactionsPage()),
       ('links:read', Icons.link_rounded, 'Payment links', () => const PaymentLinksPage()),
+      ('links:read', Icons.request_page_outlined, 'Payment requests', () => const BusinessIntentsPage()),
       ('invoices:read', Icons.receipt_long_outlined, 'Invoices', () => const InvoicesPage()),
       ('customers:read', Icons.people_outline, 'Customers', () => const CustomersPage()),
       ('payouts:read', Icons.north_east_rounded, 'Payouts', () => const PayoutsPage()),
@@ -132,7 +134,7 @@ class _BusinessHubState extends State<BusinessHub> {
               for (final p in recent.whereType<Map>())
                 BizTile(
                   title: money(p['amount']),
-                  subtitle: '${p['source'] == 'invoice' ? 'Invoice' : 'Payment link'} · ${shortDate(p['created_at'])}',
+                  subtitle: '${p['source'] == 'invoice' ? 'Invoice' : p['source'] == 'payment_intent' ? 'Payment request' : 'Payment link'} · ${shortDate(p['created_at'])}',
                   trailing: const StatusChip('Successful'),
                 ),
           ],

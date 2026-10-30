@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '/backend/api_requests/ai_api.dart';
 import '/pages/business/ops/ops_ui.dart';
 import '/pages/travel/travel_pages.dart';
+import '/pages/agent_payments/agent_payments_pages.dart';
 
 const _actionLabels = {
   'pending': 'Waiting for you',
@@ -33,6 +34,7 @@ class _ActionCard extends StatelessWidget {
     final status = '${a['status']}';
     final pending = status == 'pending';
     if (a['action'] == 'book_flight') return _flightCard(c, status, pending);
+    if (a['action'] == 'pay_intent') return _intentCard(c, status, pending);
     return BizCard(
       padding: const EdgeInsets.all(14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -568,4 +570,63 @@ class AssistantAuditPage extends StatelessWidget {
           ),
         ),
       );
+}
+
+extension on _ActionCard {
+  Widget _intentCard(BuildContext c, String status, bool pending) {
+    final intentId = '${(a['payload'] as Map?)?['payment_intent_id'] ?? ''}';
+    return BizCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text('Business payment', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)))),
+          StatusChip(_actionLabels[status] ?? status, filled: status == 'executed'),
+        ]),
+        const SizedBox(height: 8),
+        KeyValue('Amount', '${money(a['amount'])} FARM'),
+        if (a['description'] != null) KeyValue('For', '${a['description']}'),
+        if (a['transaction_ref'] != null) KeyValue('Reference', '${a['transaction_ref']}'),
+        if (pending && a['failure_reason'] != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text('Last attempt: ${a['failure_reason']}', style: TextStyle(color: mutedColor(c), fontSize: 12)),
+          ),
+        if (pending) ...[
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                style: secondaryButtonStyle(c),
+                onPressed: () async {
+                  final ok = await runBusy(c, () => AiApi.reject('${a['id']}').then((_) => true), success: 'Rejected');
+                  if (ok == true) onChanged();
+                },
+                child: const Text('Reject'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                style: primaryButtonStyle(c),
+                onPressed: () async {
+                  final pin = await confirmWithPin(c,
+                      title: 'Confirm payment',
+                      message: 'Pay ${money(a['amount'])} FARM${a['description'] != null ? ' for "${a['description']}"' : ''}?\n\nMkulima proposed this. Only your PIN sends it.');
+                  if (pin == null || !c.mounted) return;
+                  final r = await runBusy(c, () => AiApi.confirm('${a['id']}', pin), success: 'Payment sent');
+                  if (r != null) onChanged();
+                },
+                child: const Text('Pay with PIN'),
+              ),
+            ),
+          ]),
+          if (intentId.isNotEmpty)
+            TextButton(
+              onPressed: () => pushPage(c, PayIntentPage(id: intentId)),
+              child: Text('View request', style: TextStyle(color: mutedColor(c))),
+            ),
+        ],
+      ]),
+    );
+  }
 }

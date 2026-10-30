@@ -23,7 +23,7 @@ class AiApi {
         'enabled': enabled,
         'per_tx_cap': perTxCap,
         'daily_cap': dailyCap,
-        'allowed_actions': enabled ? ['send_farm', 'book_flight'] : <String>[],
+        'allowed_actions': enabled ? ['send_farm', 'book_flight', 'pay_intent'] : <String>[],
       }));
   static Future<Map<String, dynamic>> revoke() async =>
       _d(await ApiService.request(method: 'POST', path: '/ai/permissions/revoke'));

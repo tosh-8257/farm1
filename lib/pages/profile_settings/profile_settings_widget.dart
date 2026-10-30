@@ -22,6 +22,7 @@ import 'profile_settings_model.dart';
 import '/pages/chain_wallet/wallet_address_page.dart';
 import '/pages/assistant/assistant_pages.dart';
 import '/pages/travel/travel_pages.dart';
+import '/pages/agent_payments/agent_payments_pages.dart';
 export 'profile_settings_model.dart';
 
 class ProfileSettingsWidget extends StatefulWidget {
@@ -923,6 +924,21 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                         .primaryText,
                                   ),
                                   label: 'Travel',
+                                ),
+                              ),
+                              // AGENT PAYMENTS
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (_) => const AgentPaymentsHomePage()));
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.verified_user_outlined,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Agent payments',
                                 ),
                               ),
                               // NOTIFICATIONS
