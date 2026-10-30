@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/backend/api_requests/ai_api.dart';
 import '/pages/business/ops/ops_ui.dart';
+import '/pages/travel/travel_pages.dart';
 
 const _actionLabels = {
   'pending': 'Waiting for you',
@@ -31,6 +32,7 @@ class _ActionCard extends StatelessWidget {
   Widget build(BuildContext c) {
     final status = '${a['status']}';
     final pending = status == 'pending';
+    if (a['action'] == 'book_flight') return _flightCard(c, status, pending);
     return BizCard(
       padding: const EdgeInsets.all(14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -81,6 +83,50 @@ class _ActionCard extends StatelessWidget {
 }
 
 /// Mkulima chat. Disabled state when the server has no AI provider configured.
+extension on _ActionCard {
+  Widget _flightCard(BuildContext c, String status, bool pending) {
+    final offerId = '${(a['payload'] as Map?)?['offer_id'] ?? ''}';
+    return BizCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text('Flight booking request', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)))),
+          StatusChip(status == 'executed' ? 'Booked' : (_actionLabels[status] ?? status), filled: status == 'executed'),
+        ]),
+        const SizedBox(height: 8),
+        KeyValue('Price', '${money(a['amount'])} FARM'),
+        if (a['description'] != null) KeyValue('Flight', '${a['description']}'),
+        if (pending && offerId.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                style: secondaryButtonStyle(c),
+                onPressed: () async {
+                  final ok = await runBusy(c, () => AiApi.reject('${a['id']}').then((_) => true), success: 'Rejected');
+                  if (ok == true) onChanged();
+                },
+                child: const Text('Reject'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                style: primaryButtonStyle(c),
+                onPressed: () async {
+                  await pushPage(c, TravelOfferPage(offerId: offerId, aiActionId: '${a['id']}'));
+                  onChanged();
+                },
+                child: const Text('Review & book'),
+              ),
+            ),
+          ]),
+        ],
+      ]),
+    );
+  }
+}
+
 class AssistantChatPage extends StatefulWidget {
   const AssistantChatPage({super.key, this.conversationId});
   final String? conversationId;
