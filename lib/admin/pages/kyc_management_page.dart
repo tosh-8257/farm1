@@ -58,47 +58,6 @@ class _KycManagementPageState extends State<KycManagementPage>
   @override
   Future<void> refreshAdminPage() => _load();
 
-  Future<void> _review(String docId, String status, {String? reason}) async {
-    try {
-      await AdminApiService.reviewKyc(docId, status, rejectionReason: reason);
-      _snack(status == 'verified' ? 'KYC Approved ✓' : 'KYC Rejected',
-          status == 'verified' ? context.successColor : context.errorColor);
-      _load();
-    } catch (e) {
-      _snack(e.toString(), context.errorColor);
-    }
-  }
-
-  void _showRejectDialog(String docId) {
-    final ctrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Reject KYC',
-            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(
-              hintText: 'Reason for rejection...',
-              border: OutlineInputBorder()),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context), child: Text('Cancel')),
-          ElevatedButton(
-            style:
-                ElevatedButton.styleFrom(backgroundColor: context.errorColor),
-            onPressed: () {
-              Navigator.pop(context);
-              _review(docId, 'rejected', reason: ctrl.text.trim());
-            },
-            child: Text('Reject'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _snack(String msg, Color c) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -329,35 +288,10 @@ class _KycManagementPageState extends State<KycManagementPage>
             ),
             Padding(
               padding: const EdgeInsets.all(14),
-              child: Row(children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: context.errorColor),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10))),
-                    icon: Icon(Icons.close_rounded,
-                        color: context.errorColor, size: 16),
-                    label: Text('Reject',
-                        style: GoogleFonts.plusJakartaSans(
-                            color: context.errorColor)),
-                    onPressed: () => _showRejectDialog(doc['id']),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: context.successColor,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10))),
-                    icon: Icon(Icons.check_rounded, size: 16),
-                    label:
-                        Text('Approve', style: GoogleFonts.plusJakartaSans()),
-                    onPressed: () => _review(doc['id'], 'verified'),
-                  ),
-                ),
-              ]),
+              child: Text(
+                  'Decisions are made automatically by Didit. This view is read-only.',
+                  style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12, color: Colors.grey)),
             ),
           ]),
         ),
@@ -493,22 +427,6 @@ class _KycManagementPageState extends State<KycManagementPage>
               TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text('Close')),
-              TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _showRejectDialog(d['id']);
-                  },
-                  child: Text('Reject',
-                      style: TextStyle(color: context.errorColor))),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _review(d['id'], 'verified');
-                },
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: context.successColor),
-                child: const Text('Approve'),
-              ),
             ],
           );
         },
