@@ -6,6 +6,7 @@ import 'money_pages.dart';
 import 'commerce_pages.dart';
 import 'escrow_pages.dart';
 import 'team_pages.dart';
+import 'project_pages.dart';
 
 /// Approved-business home: real summary numbers plus the tools the
 /// signed-in user's role is allowed to use.
@@ -39,6 +40,7 @@ class _BusinessHubState extends State<BusinessHub> {
       ('team:read', Icons.groups_outlined, 'Team', () => const TeamPage()),
       ('profile:read', Icons.storefront_outlined, 'Business profile', () => const BusinessProfilePage()),
       ('developers:read', Icons.code_rounded, 'Developer API', () => const DeveloperHomePage()),
+      ('projects:read', Icons.account_tree_outlined, 'Projects', () => const BusinessProjectsPage()),
     ].where((t) => _perms.contains(t.$1)).toList();
 
     return BizAsync<Map<String, dynamic>>(

@@ -1,0 +1,114 @@
+import '/backend/services/api_service.dart';
+import 'business_ops_api.dart';
+
+/// V2 Phase 4 investment marketplace. Eligibility, limits, risk disclosure
+/// and all money movement are enforced by the server.
+class InvestmentsApi {
+  static Future<Map<String, dynamic>> _call(String method, String path,
+          [Map<String, dynamic>? body]) =>
+      ApiService.request(method: method, path: path, body: body);
+
+  static Map<String, dynamic> _d(Map<String, dynamic> r) => BusinessOpsApi.data(r);
+  static List<Map<String, dynamic>> _l(Map<String, dynamic> r) => BusinessOpsApi.list(r);
+
+  static String _q(Map<String, String?> p) {
+    final parts = p.entries
+        .where((e) => e.value != null && e.value!.isNotEmpty)
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value!)}');
+    return parts.isEmpty ? '' : '?${parts.join('&')}';
+  }
+
+  // Marketplace
+  static Future<List<Map<String, dynamic>>> projects({String? sector, String? search, String? status}) async =>
+      _l(await _call('GET', '/marketplace/projects${_q({'sector': sector, 'search': search, 'status': status})}'));
+  static Future<Map<String, dynamic>> project(String id) async =>
+      _d(await _call('GET', '/marketplace/projects/$id'));
+  static Future<Map<String, dynamic>> eligibility() async =>
+      _d(await _call('GET', '/marketplace/eligibility'));
+  static Future<Map<String, dynamic>> requestEligibility() async =>
+      _d(await _call('POST', '/marketplace/eligibility/request'));
+  static Future<Map<String, dynamic>> invest(String id,
+          {required double amount, required String pin, required String disclosureVersion}) async =>
+      _d(await _call('POST', '/marketplace/projects/$id/invest', {
+        'amount': amount,
+        'pin': pin,
+        'accept_risk': true,
+        'disclosure_version': disclosureVersion,
+      }));
+
+  // Portfolio
+  static Future<Map<String, dynamic>> portfolio() async =>
+      _d(await _call('GET', '/marketplace/portfolio'));
+  static Future<List<Map<String, dynamic>>> history() async =>
+      _l(await _call('GET', '/marketplace/portfolio/history?limit=100'));
+  static Future<List<Map<String, dynamic>>> documents() async =>
+      _l(await _call('GET', '/marketplace/portfolio/documents'));
+  static Future<List<Map<String, dynamic>>> updates() async =>
+      _l(await _call('GET', '/marketplace/portfolio/updates'));
+
+  // Business projects
+  static Future<List<Map<String, dynamic>>> myProjects() async =>
+      _l(await _call('GET', '/business/projects'));
+  static Future<Map<String, dynamic>> myProject(String id) async =>
+      _d(await _call('GET', '/business/projects/$id'));
+  static Future<Map<String, dynamic>> createProject(Map<String, dynamic> body) async =>
+      _d(await _call('POST', '/business/projects', body));
+  static Future<Map<String, dynamic>> updateProject(String id, Map<String, dynamic> body) async =>
+      _d(await _call('PATCH', '/business/projects/$id', body));
+  static Future<Map<String, dynamic>> addDocument(String id,
+          {required String kind, required String title, required String url, String visibility = 'investors'}) async =>
+      _d(await _call('POST', '/business/projects/$id/documents',
+          {'kind': kind, 'title': title, 'url': url, 'visibility': visibility}));
+  static Future<void> removeDocument(String id, String docId) =>
+      _call('DELETE', '/business/projects/$id/documents/$docId');
+  static Future<Map<String, dynamic>> submitProject(String id) async =>
+      _d(await _call('POST', '/business/projects/$id/submit'));
+  static Future<Map<String, dynamic>> postUpdate(String id, String title, String body) async =>
+      _d(await _call('POST', '/business/projects/$id/updates', {'title': title, 'body': body}));
+}
+
+const sectorLabels = {
+  'agriculture': 'Agriculture',
+  'energy': 'Energy',
+  'real_estate': 'Real estate',
+  'infrastructure': 'Infrastructure',
+  'technology': 'Technology',
+  'manufacturing': 'Manufacturing',
+  'other': 'Other',
+};
+
+const instrumentLabels = {
+  'equity': 'Equity',
+  'debt': 'Debt',
+  'revenue_share': 'Revenue share',
+  'asset_backed': 'Asset backed',
+  'other': 'Other',
+};
+
+const documentKindLabels = {
+  'business_plan': 'Business plan',
+  'financial_statements': 'Financial statements',
+  'financial_projections': 'Financial projections',
+  'licence_permit': 'Licence / permit',
+  'land_title_lease': 'Land title / lease',
+  'pitch_deck': 'Pitch deck',
+  'valuation_report': 'Valuation report',
+  'legal_agreement': 'Legal agreement',
+  'environmental_assessment': 'Environmental assessment',
+  'other': 'Other',
+};
+
+const projectStatusLabels = {
+  'draft': 'Draft',
+  'submitted': 'Under review',
+  'more_info_required': 'More info needed',
+  'approved': 'Approved',
+  'rejected': 'Rejected',
+  'listed': 'Listed',
+  'funded': 'Funded',
+  'closed': 'Closed',
+  'cancelled': 'Cancelled',
+  'committed': 'Held until settlement',
+  'active': 'Active',
+  'refunded': 'Refunded',
+};

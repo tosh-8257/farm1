@@ -114,7 +114,7 @@ class _ProjectCardWidgetState extends State<ProjectCardWidget> {
                                     16.0, 8.0, 16.0, 8.0),
                                 child: Container(
                                   child: Text(
-                                    '${widget.roi}% ROI',
+                                    'Returns not guaranteed',
                                     style: FlutterFlowTheme.of(context)
                                         .labelLarge
                                         .override(
