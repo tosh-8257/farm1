@@ -16,6 +16,7 @@ import '/pages/growth_tracking_page/growth_tracking_page_widget.dart';
 import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
 import '/services/account_context.dart';
 import '/components/account_switcher/account_switcher_widget.dart';
+import '/pages/business/ops/pay_business_page.dart';
 import '/pages/business/business_home_view.dart';
 import '/pages/notifications/user_notifications_page_widget.dart';
 import '/services/app_session_manager.dart';
@@ -822,7 +823,20 @@ class _DashboardWidgetState extends State<DashboardWidget>
                     24.0,
                     0.0,
                   ),
-                  child: const AccountSwitcherWidget(),
+                  child: Row(
+                    children: [
+                      const Expanded(child: AccountSwitcherWidget()),
+                      IconButton(
+                        tooltip: 'Pay a business',
+                        icon: Icon(
+                          Icons.storefront_outlined,
+                          color: FlutterFlowTheme.of(context).primaryText,
+                        ),
+                        onPressed: () =>
+                            context.pushNamed(PayBusinessPage.routeName),
+                      ),
+                    ],
+                  ),
                 ),
                 Padding(
                   padding: EdgeInsetsDirectional.fromSTEB(

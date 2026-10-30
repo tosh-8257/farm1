@@ -6,6 +6,8 @@ import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
 import 'business_ui.dart';
 import 'business_onboarding_page.dart';
 import 'business_status_page.dart';
+import '/backend/api_requests/business_ops_api.dart';
+import 'ops/business_hub.dart';
 
 /// What the dashboard shows while the Business account is selected.
 /// Phase 1 only shows the KYB state; balances and business tools arrive in
@@ -23,6 +25,7 @@ class _BusinessHomeViewState extends State<BusinessHomeView> {
   Map<String, dynamic>? _business;
   Map<String, dynamic> _eligibility = const {};
   bool _starting = false;
+  Map<String, dynamic>? _opsContext;
 
   @override
   void initState() {
@@ -36,6 +39,20 @@ class _BusinessHomeViewState extends State<BusinessHomeView> {
       _error = null;
     });
     try {
+      // Approved owners and team members get the operations hub.
+      try {
+        final ctx = await BusinessOpsApi.context();
+        if (!mounted) return;
+        if (ctx['business_id'] != null) {
+          setState(() {
+            _opsContext = ctx;
+            _loading = false;
+          });
+          return;
+        }
+      } catch (_) {
+        _opsContext = null;
+      }
       final data = await BusinessApiService.getMine();
       if (!mounted) return;
       setState(() {
@@ -114,6 +131,7 @@ class _BusinessHomeViewState extends State<BusinessHomeView> {
         actionLabel: 'Retry',
       );
     }
+    if (_opsContext != null) return BusinessHub(context: _opsContext!);
     final b = _business;
     if (b == null) return _noBusiness(context);
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/backend/services/api_service.dart';
@@ -674,7 +674,7 @@ class _BusinessOnboardingPageState extends State<BusinessOnboardingPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Upload a clear photo or scan (JPG, PNG or WebP, up to 5 MB) of each document. Items marked * are required.',
+          'Upload a PDF, or a clear photo or scan (JPG, PNG or WebP), up to 10 MB, of each document. Items marked * are required.',
           style: TextStyle(color: mutedColor(context), height: 1.5),
         ),
         const SizedBox(height: 16),
@@ -750,32 +750,34 @@ class _BusinessOnboardingPageState extends State<BusinessOnboardingPage> {
   }
 
   Future<void> _upload(String type) async {
-    final file = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
+    final picked = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+      withData: true,
     );
+    final file = picked?.files.single;
     if (file == null) return;
+    final bytes = file.bytes;
+    if (bytes == null) {
+      _snack('Could not read that file. Please try another.');
+      return;
+    }
+    if (bytes.length > 10 * 1024 * 1024) {
+      _snack('Documents must be no larger than 10 MB.');
+      return;
+    }
     setState(() => _uploadingType = type);
     try {
-      final bytes = await file.readAsBytes();
-      final name = file.name;
-      final lower = name.toLowerCase();
-      final mime = lower.endsWith('.png')
-          ? 'image/png'
-          : lower.endsWith('.webp')
-          ? 'image/webp'
-          : 'image/jpeg';
-      final urls = await ApiService.uploadImages(
-        files: [bytes],
-        filenames: [name],
-        mimeTypes: [mime],
+      final url = await ApiService.uploadDocument(
+        bytes: bytes,
+        filename: file.name,
       );
-      if (!mounted || urls.isEmpty) return;
+      if (!mounted) return;
       setState(
         () => _documents.add({
           'doc_type': type,
-          'file_url': urls.first,
-          'file_name': name,
+          'file_url': url,
+          'file_name': file.name,
         }),
       );
       await _save(quiet: true);

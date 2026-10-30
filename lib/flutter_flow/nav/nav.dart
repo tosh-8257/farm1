@@ -25,6 +25,7 @@ import '/pages/receipts/receipt_pages.dart';
 import '/index.dart';
 import '/pages/business/business_onboarding_page.dart';
 import '/pages/business/business_status_page.dart';
+import '/pages/business/ops/pay_business_page.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -322,6 +323,12 @@ GoRouter createRouter(
       name: BusinessStatusPage.routeName,
       path: BusinessStatusPage.routePath,
       builder: (context, params) => const BusinessStatusPage(),
+    ),
+    FFRoute(
+      name: PayBusinessPage.routeName,
+      path: PayBusinessPage.routePath,
+      builder: (context, params) =>
+          PayBusinessPage(initialCode: params.getParam('code', ParamType.String)),
     ),
     FFRoute(
       name: MerchantDashboardWidget.routeName,

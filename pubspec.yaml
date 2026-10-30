@@ -107,6 +107,7 @@ dependencies:
   webview_flutter: ^4.14.0
   country_picker: ^2.0.28
   didit_sdk: ^4.9.1
+  file_picker: ^11.0.3
 
 dependency_overrides:
   http: 1.4.0
