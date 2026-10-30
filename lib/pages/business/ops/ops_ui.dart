@@ -192,12 +192,15 @@ class BizTile extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.leading,
+    this.leadingWidget,
   });
   final String title;
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
   final IconData? leading;
+  /// Custom leading (e.g. the FARM coin logo); takes precedence over [leading].
+  final Widget? leadingWidget;
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
@@ -207,8 +210,8 @@ class BizTile extends StatelessWidget {
           child: BizCard(
             padding: const EdgeInsets.all(16),
             child: Row(children: [
-              if (leading != null) ...[
-                Icon(leading, color: fgColor(context)),
+              if (leadingWidget != null || leading != null) ...[
+                leadingWidget ?? Icon(leading, color: fgColor(context)),
                 const SizedBox(width: 12),
               ],
               Expanded(

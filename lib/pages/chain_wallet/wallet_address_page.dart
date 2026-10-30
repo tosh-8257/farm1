@@ -1,3 +1,4 @@
+import '/components/farm_coin_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/backend/api_requests/chain_wallet_api.dart';
@@ -87,6 +88,8 @@ class WalletAddressPage extends StatelessWidget {
                   builder: (c2, l, _) => ListView(children: [
                     for (final d in l)
                       BizTile(
+                        leadingWidget: d['asset'] == 'FARM' ? const FarmCoinIcon(size: 28) : null,
+                        leading: d['asset'] == 'FARM' ? null : Icons.attach_money_rounded,
                         title: '${d['amount']} ${d['asset']}',
                         subtitle: [
                           shortDate(d['created_at']),

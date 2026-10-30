@@ -1,3 +1,4 @@
+import '/components/farm_coin_icon.dart';
 import 'dart:async';
 // Removed unused import
 import '/backend/services/api_service.dart';
@@ -29,7 +30,6 @@ import '/utils/transaction_history_utils.dart';
 import '/services/transaction_receipt_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dashboard_model.dart';
 export 'dashboard_model.dart';
@@ -1274,12 +1274,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                         CrossAxisAlignment
                                                             .center,
                                                     children: [
-                                                      SvgPicture.network(
-                                                        'https://cdn.simpleicons.org/algorand/ffffff.svg',
-                                                        width: 16.0,
-                                                        height: 16.0,
-                                                        fit: BoxFit.contain,
-                                                      ),
+                                                      const FarmCoinIcon(size: 16.0),
+                                                      const SizedBox(width: 6.0),
                                                       Text(
                                                         'FARM BALANCE',
                                                         style: FlutterFlowTheme.of(context).labelSmall.override(
