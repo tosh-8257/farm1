@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '/backend/api_requests/business_ops_api.dart';
 import 'ops_ui.dart';
+import 'developer_pages.dart';
 import 'money_pages.dart';
 import 'commerce_pages.dart';
 import 'escrow_pages.dart';
@@ -37,6 +38,7 @@ class _BusinessHubState extends State<BusinessHub> {
       ('analytics:read', Icons.insights_outlined, 'Analytics', () => const AnalyticsPage()),
       ('team:read', Icons.groups_outlined, 'Team', () => const TeamPage()),
       ('profile:read', Icons.storefront_outlined, 'Business profile', () => const BusinessProfilePage()),
+      ('developers:read', Icons.code_rounded, 'Developer API', () => const DeveloperHomePage()),
     ].where((t) => _perms.contains(t.$1)).toList();
 
     return BizAsync<Map<String, dynamic>>(
