@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import '/backend/api_requests/fees_api.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '/backend/services/api_service.dart';
@@ -68,12 +69,19 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   bool _loadingCryptoMinimum = false;
   String? _cryptoMinimumError;
 
-  // Fee rates per method
-  final Map<String, double> _fees = {
-    'BANK': 0.015,
-    'MOBILE_MONEY': 0.015,
-    'CRYPTO': 0.015,
-  };
+  // Live withdrawal fee from the backend fee schedule (same rate for every method).
+  FeeRule? _feeRule;
+  String? _feeError;
+
+  Future<void> _fetchFee() async {
+    setState(() => _feeError = null);
+    try {
+      final r = await FeesApi.rule('withdrawal');
+      if (mounted) setState(() => _feeRule = r);
+    } catch (_) {
+      if (mounted) setState(() => _feeError = 'Could not load the withdrawal fee. Tap to retry.');
+    }
+  }
 
   final Map<String, Map<String, double?>> _withdrawLimits = {
     'BANK': {'min': 4999, 'max': 999999},
@@ -82,11 +90,11 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   };
 
   double get amount => double.tryParse(_amountCtrl.text.trim()) ?? 0;
-  double get feeRate => _fees[selectedMethod] ?? 0.015;
+  double get feeRate => (_feeRule?.percent ?? 0) / 100;
   double get _amountInFarm => selectedMethod == 'CRYPTO'
       ? (_cryptoFarmUsdRate == null ? 0 : amount / _cryptoFarmUsdRate!)
       : amount;
-  double get fee => _amountInFarm * feeRate;
+  double get fee => _feeRule?.feeFor(_amountInFarm, dp: 8) ?? 0;
   double get settlement => _amountInFarm - fee;
 
   Map<String, double?> get _activeWithdrawLimits =>
@@ -145,6 +153,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   @override
   void initState() {
     super.initState();
+    _fetchFee();
     _fetchWallet();
     _fetchHistory();
     _fetchPaystackDestinations();
@@ -504,7 +513,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
             Text(
               'Total deduction: ${selectedMethod == 'CRYPTO' ? 'USD ${amount.toStringAsFixed(2)} (${_amountInFarm.toStringAsFixed(4)} FARM)' : '${amount.toStringAsFixed(4)} FARM'}',
             ),
-            Text('Transaction fee (1.5%): ${fee.toStringAsFixed(4)} FARM'),
+            Text('Transaction fee (${_feeRule?.percentLabel ?? '—'}): ${fee.toStringAsFixed(4)} FARM'),
             Text('Net amount: ${settlement.toStringAsFixed(4)} FARM'),
             const SizedBox(height: 8),
             Text(
@@ -559,6 +568,11 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     TransactionAuthenticationResult? preAuthResult,
   }) async {
     if (isLoading) return;
+    if (_feeRule == null) {
+      _snack(_feeError ?? 'Loading the withdrawal fee…');
+      if (_feeError != null) _fetchFee();
+      return;
+    }
 
     if (!_hasValidWithdrawAmount) {
       _snack(_withdrawValidationMessage);
@@ -1378,10 +1392,16 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                               : '${amount.toStringAsFixed(4)} FARM',
                         ),
                         const SizedBox(height: 12),
-                        _feeRow(
-                          'Fee (${(feeRate * 100).toStringAsFixed(1)}%)',
-                          '${fee.toStringAsFixed(4)} FARM',
-                        ),
+                        if (_feeRule == null)
+                          InkWell(
+                            onTap: _feeError != null ? _fetchFee : null,
+                            child: _feeRow('Fee', _feeError != null ? 'Unavailable, tap to retry' : 'Loading…'),
+                          )
+                        else
+                          _feeRow(
+                            'Fee (${_feeRule!.percentLabel})',
+                            '${fee.toStringAsFixed(4)} FARM',
+                          ),
                         const Divider(height: 24),
                         _feeRow(
                           'You Receive',

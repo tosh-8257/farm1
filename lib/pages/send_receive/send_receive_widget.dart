@@ -1,3 +1,5 @@
+import '/backend/api_requests/fees_api.dart';
+import '/components/fee_line.dart';
 import '/backend/services/api_service.dart';
 import '/backend/api_requests/user_api_service.dart';
 import '/backend/api_requests/payment_request_api_service.dart';
@@ -460,6 +462,13 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
 
   Future<void> sendFunds(
       {TransactionAuthenticationResult? preAuthResult}) async {
+    try {
+      await FeesApi.rule('transfer');
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not load the transfer fee. Try again.')));
+      return;
+    }
     if (recipientController.text.isEmpty || amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -995,7 +1004,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('Confirm Transfer'),
         content: SizedBox(
-          height: 200,
+          height: 230,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -1004,6 +1013,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                 style:
                     const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
+              FeeLine(feeKey: 'transfer', amount: amount),
               const SizedBox(height: 24),
               TextField(
                 controller: tempPin,
@@ -2080,6 +2090,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                           ),
                                         ),
                                       ),
+                                      FeeLine(feeKey: 'transfer', amount: double.tryParse(amountController.text.trim()) ?? 0),
                                       const SizedBox(
                                         height: 20,
                                       ),

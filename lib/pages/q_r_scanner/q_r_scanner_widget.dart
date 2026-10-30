@@ -1,3 +1,4 @@
+import '/components/fee_line.dart';
 import '/backend/services/api_service.dart';
 import '/components/action_circle/action_circle_widget.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
@@ -202,6 +203,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
                       const SizedBox(height: 16),
                       TextField(
                         controller: amountController,
+                        onChanged: (_) => setState(() {}),
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
@@ -210,6 +212,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
                           prefixText: 'FARM ',
                         ),
                       ),
+                      FeeLine(feeKey: 'transfer', amount: double.tryParse(amountController.text.trim()) ?? 0),
                       const SizedBox(height: 12),
                       if (pinEntryEnabled || !isBiometricChecking)
                         TextField(

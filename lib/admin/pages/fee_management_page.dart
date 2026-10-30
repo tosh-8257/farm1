@@ -56,7 +56,7 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(
-          'Update ${fee['name'] ?? fee['fee_type'] ?? 'fee'}',
+          'Update ${fee['label'] ?? fee['name'] ?? fee['transaction_type'] ?? 'fee'} (%)',
         ),
         content: TextField(
           controller: controller,
@@ -152,8 +152,8 @@ class _FeeManagementPageState extends State<FeeManagementPage> {
                               const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             final fee = _fees[index];
-                            final label = fee['name'] ??
-                                fee['fee_type'] ??
+                            final label = fee['label'] ?? fee['name'] ??
+                                fee['transaction_type'] ?? fee['fee_type'] ??
                                 fee['transaction_type'] ??
                                 'Fee';
                             return Card(

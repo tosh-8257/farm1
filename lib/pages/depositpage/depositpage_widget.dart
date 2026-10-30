@@ -604,13 +604,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                   if (pp != null) fee = (amount * (pp / 100.0));
                 }
 
-                // As a last resort, detect merchant QR sale hints and compute 1%
-                if (fee == null &&
-                    amount != null &&
-                    (metadata['qr_guest_payment'] == true ||
-                        metadata['platform_fee_type'] == 'merchant_sale')) {
-                  fee = amount * 0.01;
-                }
+                // The fee shown is only what the backend recorded (no client-side guess).
 
                 final grossAmount = amount;
                 final platformFee = fee;
@@ -631,7 +625,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Platform fee: ${platformFee.toStringAsFixed(2)} FARM (1%)',
+                            'Platform fee: ${platformFee.toStringAsFixed(2)} FARM',
                           ),
                           const SizedBox(height: 8),
                           Text(

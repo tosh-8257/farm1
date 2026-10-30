@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '/backend/api_requests/business_ops_api.dart';
+import '/backend/api_requests/fees_api.dart';
 import 'ops_ui.dart';
 
 /// Payer side: pay a business payment link or invoice, or fund an escrow a
@@ -93,9 +94,16 @@ class _LookupPayState extends State<_LookupPay> {
   Future<void> _pay() async {
     final i = _item!;
     final amount = _isLink ? i['amount'] : i['total'];
+    final fees = await runBusy(context, () => FeesApi.schedule());
+    if (fees == null || !mounted) return;
+    final payerFee = fees['transfer']?.feeFor(amount) ?? 0;
+    final m = fees['merchant'];
     final pin = await confirmWithPin(context,
         title: 'Confirm payment',
-        message: 'Pay ${money(amount)} to ${i['business_name']}? A transfer fee may apply.');
+        message: 'Pay ${money(amount)} to ${i['business_name']}.\n'
+            'Your fee: ${money(payerFee)}\n'
+            'Total from your wallet: ${money(amount + payerFee)}'
+            '${m != null && m.percent > 0 ? '\nThe business pays a ${m.percentLabel} merchant fee (${money(m.feeFor(amount))}).' : ''}');
     if (pin == null || !mounted) return;
     final res = await runBusy(context, () => _isLink
         ? BusinessOpsApi.payLink(_ctrl.text.trim(), pin)
@@ -171,9 +179,15 @@ class _IncomingEscrows extends StatelessWidget {
                           .then((_) => reload())
                       : null)
                   : () async {
+                      final rule = await runBusy(c, () => FeesApi.rule('escrow_creation'));
+                      if (rule == null || !c.mounted) return;
+                      final amt = (e['amount'] as num?)?.toDouble() ?? double.tryParse('${e['amount']}') ?? 0;
+                      final fee = rule.feeFor(amt);
                       final pin = await confirmWithPin(c,
                           title: 'Fund escrow',
-                          message: '${money(e['amount'])} will be held in escrow for ${e['business_name']} until you release it. An escrow fee may apply.');
+                          message: '${money(e['amount'])} will be held in escrow for ${e['business_name']} until you release it.\n'
+                              'Escrow fee (${rule.percentLabel}): ${money(fee)}\n'
+                              'Total from your wallet: ${money(amt + fee)}');
                       if (pin == null || !c.mounted) return;
                       final ok = await runBusy(c, () => BusinessOpsApi.fundEscrow('${e['id']}', pin),
                           success: 'Escrow funded. Release or dispute it from Escrow.');

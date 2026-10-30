@@ -88,15 +88,22 @@ class _FeeManagementPageState extends State<FeeManagementPage>
   }
 
   String _feeLabel(dynamic fee) {
-    return fee['name']?.toString() ??
-        fee['fee_code']?.toString() ??
+    return fee['label']?.toString() ??
+        fee['name']?.toString() ??
+        fee['transaction_type']?.toString() ??
         'Fee setting';
   }
 
   String _feeDescription(dynamic fee) {
-    return fee['description']?.toString() ??
-        fee['note']?.toString() ??
-        'Update the fee value for this configuration.';
+    final key = fee['transaction_type']?.toString();
+    final payer = fee['payer']?.toString();
+    final desc = fee['description']?.toString() ??
+        'Update the fee percent for this configuration.';
+    return [
+      desc,
+      if (key != null) 'Key: $key',
+      if (payer != null) 'Paid by: $payer',
+    ].join(' · ');
   }
 
   String _feeValue(dynamic fee) {
@@ -268,7 +275,7 @@ class _FeeManagementPageState extends State<FeeManagementPage>
                                     style: GoogleFonts.plusJakartaSans(
                                         color: context.onSurface),
                                     decoration: InputDecoration(
-                                      hintText: 'Fee value',
+                                      hintText: 'Percent (0–100)',
                                       hintStyle: GoogleFonts.plusJakartaSans(
                                           color: context.onSurface
                                               .withOpacity(0.38)),

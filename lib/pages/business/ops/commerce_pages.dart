@@ -1,3 +1,4 @@
+import '/components/fee_line.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -101,8 +102,14 @@ class _CreateLinkState extends State<CreatePaymentLinkPage> {
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
               decoration: bizInput(context, 'Amount (FARM)'),
+              onChanged: (_) => setState(() {}),
               validator: (v) => (double.tryParse(v ?? '') ?? 0) > 0 ? null : 'Enter an amount',
             ),
+            FeeLine(
+                feeKey: 'merchant',
+                amount: double.tryParse(_amount.text.trim()) ?? 0,
+                payerPays: false,
+                label: 'Merchant fee'),
             const SizedBox(height: 12),
             TextFormField(
               controller: _maxUses,
@@ -617,6 +624,7 @@ class _CreateInvoiceState extends State<CreateInvoicePage> {
             Text('Estimated total ${money(_total)}',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: fgColor(context))),
             Text('The final total is calculated by the server.', style: TextStyle(fontSize: 12, color: mutedColor(context))),
+            FeeLine(feeKey: 'merchant', amount: _total, payerPays: false, label: 'Merchant fee'),
             const SizedBox(height: 20),
             ElevatedButton(style: primaryButtonStyle(context), onPressed: _save, child: const Text('Save draft')),
           ]),

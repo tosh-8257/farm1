@@ -1,3 +1,5 @@
+import '/components/fee_line.dart';
+import '/backend/api_requests/fees_api.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/backend/api_requests/investments_api.dart';
@@ -251,12 +253,21 @@ Future<bool?> startInvest(BuildContext c, Map<String, dynamic> p) async {
   final amount = await showModalBottomSheet<double>(
     context: c,
     isScrollControlled: true,
-    builder: (_) => _InvestSheet(project: p, points: ((disc['points'] as List?) ?? const []).map((e) => '$e').toList()),
+    builder: (_) => _InvestSheet(
+        project: p,
+        points: ((disc['points'] as List?) ?? const []).map((e) => '$e').toList(),
+        feePoints: (((p['fees'] as Map?)?['points'] as List?) ?? const []).map((e) => '$e').toList()),
   );
   if (amount == null || !c.mounted) return null;
+  final rule = await runBusy(c, () => FeesApi.rule('investment'));
+  if (rule == null || !c.mounted) return null;
+  final fee = rule.feeFor(amount);
   final pin = await confirmWithPin(c,
       title: 'Confirm investment',
-      message: 'Invest ${money(amount)} in ${p['project_name']}? You could lose this money.');
+      message: 'Invest ${money(amount)} in ${p['project_name']}.\n'
+          'Marketplace fee (${rule.percentLabel}): ${money(fee)}\n'
+          'Total from your wallet: ${money(amount + fee)}\n'
+          'You could lose this money.');
   if (pin == null || !c.mounted) return null;
   final r = await runBusy(c,
       () => InvestmentsApi.invest('${p['id']}', amount: amount, pin: pin, disclosureVersion: '${disc['version']}'),
@@ -265,9 +276,11 @@ Future<bool?> startInvest(BuildContext c, Map<String, dynamic> p) async {
 }
 
 class _InvestSheet extends StatefulWidget {
-  const _InvestSheet({required this.project, required this.points});
+  const _InvestSheet({required this.project, required this.points, required this.feePoints});
   final Map<String, dynamic> project;
   final List<String> points;
+  /// Live fee terms from the backend (investment fee + consolidation fund).
+  final List<String> feePoints;
   @override
   State<_InvestSheet> createState() => _InvestSheetState();
 }
@@ -288,7 +301,8 @@ class _InvestSheetState extends State<_InvestSheet> {
     final min = (widget.project['minimum_investment'] as num?)?.toDouble() ?? 0;
     if (v == null || v <= 0) return setState(() => _err = 'Enter an amount');
     if (v < min) return setState(() => _err = 'Minimum is ${money(min)}');
-    if (!_accepted) return setState(() => _err = 'Please accept the risk disclosure');
+    if (widget.feePoints.isEmpty) return setState(() => _err = 'Fee terms could not be loaded. Close and try again.');
+    if (!_accepted) return setState(() => _err = 'Please accept the risk disclosure and fees');
     Navigator.pop(context, v);
   }
 
@@ -306,20 +320,34 @@ class _InvestSheetState extends State<_InvestSheet> {
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Text('•  $pt', style: TextStyle(color: fgColor(context), height: 1.35)),
                 ),
+              const SizedBox(height: 8),
+              Text('Fees', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: fgColor(context))),
+              const SizedBox(height: 6),
+              if (widget.feePoints.isEmpty)
+                Text('Fee terms are unavailable right now.', style: TextStyle(color: mutedColor(context)))
+              else
+                for (final pt in widget.feePoints)
+                  Padding(
+                    key: const Key('invest-fee-terms'),
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text('•  $pt', style: TextStyle(color: fgColor(context), height: 1.35)),
+                  ),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _accepted,
                 activeColor: fgColor(context),
                 onChanged: (v) => setState(() => _accepted = v ?? false),
-                title: Text('I have read and understand these risks',
+                title: Text('I have read and understand these risks and fees',
                     style: TextStyle(color: fgColor(context))),
               ),
               TextField(
                 controller: _amount,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => setState(() {}),
                 decoration: bizInput(context, 'Amount (FARM)',
                     hint: 'Minimum ${money(widget.project['minimum_investment'])}'),
               ),
+              FeeLine(feeKey: 'investment', amount: double.tryParse(_amount.text.trim()) ?? 0, label: 'Investment fee'),
               if (_err != null) ...[
                 const SizedBox(height: 8),
                 Text(_err!, style: TextStyle(color: fgColor(context), fontWeight: FontWeight.w600)),

@@ -195,6 +195,8 @@ class _CheckoutState extends State<_Checkout> {
           if (o['board'] != null) KeyValue('Board', '${o['board']}'),
           KeyValue('Dates', '${pb['checkin']} → ${pb['checkout']}'),
           KeyValue('Hotel price', '${pb['total_currency']} ${pb['total_amount']}'),
+          if (pb['base_price_farm'] != null) KeyValue('Room price', money(pb['base_price_farm'])),
+          if (pb['service_fee_farm'] != null) KeyValue('FARM fee', money(pb['service_fee_farm'])),
           KeyValue('You pay', pb['bookable'] == true ? '${money(pb['price_farm'])}' : 'Not bookable in FARM'),
           KeyValue('Refundable', pb['refundable'] == true ? 'Yes' : pb['refundable'] == false ? 'No' : '-'),
           KeyValue('Cancellation', cancellationText(pb['cancel_policies'], pb['refundable'])),

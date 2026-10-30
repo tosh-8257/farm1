@@ -933,7 +933,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '1% from $merchantSalesCount sales',
+                      'Merchant fees from $merchantSalesCount sales',
                       style: GoogleFonts.plusJakartaSans(
                         color: muted,
                         fontSize: 11,
