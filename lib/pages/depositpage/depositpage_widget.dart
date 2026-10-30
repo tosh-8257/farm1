@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import '/backend/services/api_service.dart';
 // Removed unused import
 import '/flutter_flow/flutter_flow_icon_button.dart';
@@ -12,6 +11,7 @@ import '/components/kyc_required_widget.dart';
 import '/services/transaction_receipt_service.dart';
 import '/services/paystack_inline_checkout.dart';
 import '/widgets/searchable_crypto_picker.dart';
+import 'crypto_checkout_page.dart';
 
 class DepositpageWidget extends StatefulWidget {
   const DepositpageWidget({super.key});
@@ -401,51 +401,13 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
 
     try {
       if (selectedMethod == 'CRYPTO') {
-        final response = await ApiService.request(
-          method: 'POST',
-          path: '/wallet/deposit/crypto',
-          body: {
-            'price_amount': amount,
-            'price_currency': 'usd',
-            'pay_currency': _selectedCryptoToken!.toLowerCase(),
-          },
-          requiresAuth: true,
-        );
-        final payment = response['data'];
-        if (payment is! Map) {
-          throw const FormatException(
-            'NOWPayments did not return payment instructions.',
-          );
-        }
-        final paymentId = payment['payment_id']?.toString();
-        final address = payment['pay_address']?.toString();
-        final payAmount = payment['pay_amount'];
-        final payCurrency = payment['pay_currency']?.toString();
-        if (paymentId == null ||
-            paymentId.isEmpty ||
-            address == null ||
-            address.isEmpty ||
-            payAmount == null ||
-            payCurrency == null ||
-            payCurrency.isEmpty) {
-          throw const FormatException(
-            'NOWPayments returned incomplete payment instructions.',
-          );
-        }
-
-        if (!mounted) return;
-        final completed = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => _NowpaymentsDepositDialog(
-            paymentId: paymentId,
-            address: address,
-            amount: payAmount.toString(),
-            currency: payCurrency.toUpperCase(),
-            expirationEstimate:
-                (payment['expiration_estimate'] ??
-                        payment['expiration_estimate_date'])
-                    ?.toString(),
+        final completed = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => CryptoCheckoutPage(
+              amountUsd: amount,
+              tokens: _cryptoTokens,
+              initialToken: _selectedCryptoToken,
+            ),
           ),
         );
         if (!mounted) return;
@@ -1416,201 +1378,6 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
       children: [
         Text(label, style: style),
         Text(value, style: style),
-      ],
-    );
-  }
-}
-
-class _NowpaymentsDepositDialog extends StatefulWidget {
-  const _NowpaymentsDepositDialog({
-    required this.paymentId,
-    required this.address,
-    required this.amount,
-    required this.currency,
-    this.expirationEstimate,
-  });
-
-  final String paymentId;
-  final String address;
-  final String amount;
-  final String currency;
-  final String? expirationEstimate;
-
-  @override
-  State<_NowpaymentsDepositDialog> createState() =>
-      _NowpaymentsDepositDialogState();
-}
-
-class _NowpaymentsDepositDialogState extends State<_NowpaymentsDepositDialog> {
-  Timer? _pollTimer;
-  Timer? _countdownTimer;
-  DateTime? _expiresAt;
-  bool _checking = false;
-  String _status = 'waiting';
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _expiresAt = _parseExpiry(widget.expirationEstimate);
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => _checkStatus(),
-    );
-    if (_expiresAt != null) {
-      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() {});
-      });
-    }
-  }
-
-  DateTime? _parseExpiry(String? value) {
-    if (value == null || value.trim().isEmpty) return null;
-    final parsedDate = DateTime.tryParse(value);
-    if (parsedDate != null) return parsedDate.toLocal();
-    final numeric = int.tryParse(value);
-    if (numeric == null) return null;
-    if (numeric > 1000000000) {
-      return DateTime.fromMillisecondsSinceEpoch(
-        numeric > 1000000000000 ? numeric : numeric * 1000,
-      );
-    }
-    return DateTime.now().add(Duration(seconds: numeric));
-  }
-
-  String get _countdown {
-    final remaining = _expiresAt?.difference(DateTime.now());
-    if (remaining == null) return 'Expiry time unavailable';
-    if (remaining.isNegative) return 'Expired';
-    final minutes = remaining.inMinutes;
-    final seconds = remaining.inSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  Future<void> _checkStatus() async {
-    if (_checking) return;
-    _checking = true;
-    try {
-      final response = await ApiService.request(
-        method: 'GET',
-        path: '/wallet/deposit/status/${Uri.encodeComponent(widget.paymentId)}',
-        requiresAuth: true,
-      );
-      final data = response['data'];
-      if (data is! Map) {
-        throw const FormatException('Invalid payment status response.');
-      }
-      final status = data['status']?.toString().toLowerCase() ?? 'unknown';
-      if (!mounted) return;
-      setState(() {
-        _status = status;
-        _error = null;
-      });
-      if (['finished', 'confirmed'].contains(status) &&
-          data['credited'] == true) {
-        Navigator.of(context).pop(true);
-      } else if (['failed', 'expired', 'refunded'].contains(status)) {
-        Navigator.of(context).pop(false);
-      }
-    } catch (error) {
-      if (mounted) {
-        setState(() => _error = 'Status check will retry: $error');
-      }
-    } finally {
-      _checking = false;
-    }
-  }
-
-  @override
-  void dispose() {
-    _pollTimer?.cancel();
-    _countdownTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Complete crypto deposit'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            QrImageView(
-              data: widget.address,
-              size: 190,
-              backgroundColor: Colors.white,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: SelectableText(
-                    '${widget.amount} ${widget.currency}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Copy amount',
-                  onPressed: () async {
-                    await Clipboard.setData(ClipboardData(text: widget.amount));
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Amount copied')),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.copy),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SelectableText(
-              widget.address,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12),
-            ),
-            TextButton.icon(
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: widget.address));
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Address copied')),
-                  );
-                }
-              },
-              icon: const Icon(Icons.copy),
-              label: const Text('Copy address'),
-            ),
-            Text('Time remaining: $_countdown'),
-            const SizedBox(height: 6),
-            Text('Payment status: $_status'),
-            if (_checking) const LinearProgressIndicator(),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-                ),
-              ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _checking ? null : _checkStatus,
-          child: const Text('Check status'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
-        ),
       ],
     );
   }
