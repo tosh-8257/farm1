@@ -18,7 +18,7 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({});
     FFAppState.reset();
     await FFAppState().initializePersistedState();
-    await dotenv.load(fileName: '.env');
+    dotenv.loadFromString(isOptional: true);
     late http.Request capturedRequest;
     final mockClient = MockClient((request) async {
       capturedRequest = request;
@@ -60,7 +60,7 @@ void main() {
     FFAppState.reset();
     await FFAppState().initializePersistedState();
     if (!dotenv.isInitialized) {
-      await dotenv.load(fileName: '.env');
+      dotenv.loadFromString(isOptional: true);
     }
 
     late Uri capturedUri;
