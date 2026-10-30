@@ -6,11 +6,12 @@ class AiApi {
   static Map<String, dynamic> _d(Map<String, dynamic> r) =>
       r['data'] is Map ? Map<String, dynamic>.from(r['data'] as Map) : r;
   static Future<Map<String, dynamic>> status() async => _d(await ApiService.request(method: 'GET', path: '/ai/status'));
-  static Future<Map<String, dynamic>> chat(String message, {String? conversationId}) async => _d(await ApiService.request(
+  static Future<Map<String, dynamic>> chat(String message, {String? conversationId, String? language}) async => _d(await ApiService.request(
       method: 'POST',
       path: '/ai/chat',
       timeoutSeconds: 60,
-      body: {'message': message, if (conversationId != null) 'conversation_id': conversationId}));
+      body: {'message': message, if (conversationId != null) 'conversation_id': conversationId,
+        if (language != null && language.isNotEmpty) 'language': language}));
   static Future<List<Map<String, dynamic>>> conversations() async =>
       BusinessOpsApi.list(await ApiService.request(method: 'GET', path: '/ai/conversations'));
   static Future<Map<String, dynamic>> conversation(String id) async =>

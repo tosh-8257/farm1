@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/backend/api_requests/ai_api.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'voice_input.dart';
 import '/pages/business/ops/ops_ui.dart';
 import '/pages/travel/travel_pages.dart';
 import '/pages/agent_payments/agent_payments_pages.dart';
@@ -214,6 +216,9 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
   bool? _enabled;
   String? _error;
   String? _lastFailed;
+  String? _lastLanguage; // language of the last confirmed voice message
+  final _tts = FlutterTts();
+  int? _speaking;
 
   @override
   void initState() {
@@ -226,6 +231,7 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
   void dispose() {
     _input.dispose();
     _scroll.dispose();
+    _tts.stop();
     super.dispose();
   }
 
@@ -256,18 +262,52 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
         if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
       });
 
-  Future<void> _send([String? retry]) async {
+  Future<void> _voice() async {
+    final v = await showVoiceInputSheet(context);
+    if (v == null || !mounted) return; // cancelled: nothing is sent
+    _lastLanguage = v.language;
+    await _sendText(v.text, language: v.language, fromVoice: true);
+  }
+
+  Future<void> _readAloud(int i, String text) async {
+    if (_speaking == i) {
+      await _tts.stop();
+      setState(() => _speaking = null);
+      return;
+    }
+    final sw = (_lastLanguage ?? '').startsWith('sw');
+    try {
+      await _tts.setLanguage(sw ? 'sw-KE' : 'en-US');
+      _tts.setCompletionHandler(() {
+        if (mounted) setState(() => _speaking = null);
+      });
+      setState(() => _speaking = i);
+      await _tts.speak(text.replaceAll(RegExp(r'[*_#`]'), ''));
+    } catch (_) {
+      if (mounted) {
+        setState(() => _speaking = null);
+        bizSnack(context, 'Read aloud is not available on this device');
+      }
+    }
+  }
+
+  Future<void> _send([String? retry]) => _sendText(retry);
+
+  Future<void> _sendText(String? retry, {String? language, bool fromVoice = false}) async {
     final text = (retry ?? _input.text).trim();
     if (text.isEmpty || _sending) return;
     setState(() {
-      if (retry == null) _items.add({'role': 'user', 'content': text});
-      _input.clear();
+      if (retry == null || fromVoice) {
+        _items.add({'role': 'user', 'content': text, if (fromVoice) 'voice': true});
+      }
+      if (!fromVoice) _input.clear();
       _sending = true;
       _lastFailed = null;
     });
     _toBottom();
     try {
-      final r = await AiApi.chat(text, conversationId: _conversationId);
+      final r = await AiApi.chat(text,
+          conversationId: _conversationId, language: language ?? _lastLanguage);
       _conversationId = '${r['conversation_id']}';
       final msg = r['message'] is Map ? r['message'] as Map : const {};
       setState(() {
@@ -336,7 +376,36 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
             borderRadius: BorderRadius.circular(16),
             border: mine ? null : Border.all(color: borderColor(c)),
           ),
-          child: Text('${m['content']}', style: TextStyle(color: fg, height: 1.35)),
+          child: mine
+              ? Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
+                  Text('${m['content']}', style: TextStyle(color: fg, height: 1.35)),
+                  if (m['voice'] == true)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.mic, size: 12, color: fg.withValues(alpha: 0.7)),
+                        Text(' voice, confirmed', style: TextStyle(fontSize: 11, color: fg.withValues(alpha: 0.7))),
+                      ]),
+                    ),
+                ])
+              : Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text('${m['content']}', style: TextStyle(color: fg, height: 1.35)),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: InkWell(
+                      onTap: () => _readAloud(_items.indexOf(m), '${m['content']}'),
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(_speaking == _items.indexOf(m) ? Icons.stop : Icons.volume_up_outlined,
+                              size: 14, color: mutedColor(c)),
+                          Text(_speaking == _items.indexOf(m) ? ' Stop' : ' Read aloud',
+                              style: TextStyle(fontSize: 11, color: mutedColor(c))),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ]),
         ),
       ),
     );
@@ -415,6 +484,12 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
               style: TextStyle(color: fgColor(c)),
               decoration: bizInput(c, 'Message Mkulima').copyWith(counterText: '', labelText: null, hintText: 'Message Mkulima'),
             ),
+          ),
+          IconButton(
+            key: const ValueKey('mkulima-mic'),
+            tooltip: 'Voice message',
+            onPressed: _sending ? null : _voice,
+            icon: Icon(Icons.mic_none_rounded, color: fgColor(c)),
           ),
           IconButton(
             onPressed: _sending ? null : _send,

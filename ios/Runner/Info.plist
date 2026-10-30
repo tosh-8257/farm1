@@ -21,7 +21,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Allow camera access to take photos or record videos for support enquiries.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Allow microphone access to record videos for support enquiries.</string>
+	<string>Allow microphone access to record videos for support enquiries and voice messages to Mkulima.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Save QR codes to your Photos library so you can access them from the Photos app.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

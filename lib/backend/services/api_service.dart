@@ -58,6 +58,54 @@ class ApiService {
 
   /// Business document upload: PDF, JPG, PNG or WebP up to 10 MB.
   /// The server re-validates type (magic bytes) and size.
+  /// Mkulima voice input: uploads a short recording (max ~60 s) for xAI
+  /// transcription. Returns {transcript, language}. Nothing is sent to the
+  /// assistant; the user must confirm the transcript first.
+  static Future<Map<String, dynamic>> transcribeVoice({
+    required Uint8List bytes,
+    required String filename,
+    required String mimeType,
+    bool isRetry = false,
+  }) async {
+    if (bytes.isEmpty) throw ArgumentError('Nothing was recorded.');
+    if (bytes.length > 2 * 1024 * 1024) {
+      throw ArgumentError('Recording is too long (max 60 seconds).');
+    }
+    final token = await FFAppState().getActiveAccessToken();
+    final parts = mimeType.split('/');
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${AppConfig.api}/ai/voice'),
+    )..headers.addAll({
+        'Accept': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+      });
+    request.files.add(http.MultipartFile.fromBytes('audio', bytes,
+        filename: filename, contentType: MediaType(parts[0], parts.length > 1 ? parts[1] : 'webm')));
+    final response = await http.Response.fromStream(
+      await _client.send(request).timeout(const Duration(seconds: 60)),
+    );
+    Map<String, dynamic> decoded = {};
+    try {
+      decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {}
+    if (response.statusCode == 401 &&
+        !isRetry &&
+        FFAppState().refreshToken.isNotEmpty) {
+      final refreshed = await RefreshManager().refreshIfNeeded(force: true);
+      if (refreshed) {
+        return transcribeVoice(
+            bytes: bytes, filename: filename, mimeType: mimeType, isRetry: true);
+      }
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final m = decoded['message'];
+      throw Exception(m is String ? m : 'Could not transcribe (${response.statusCode})');
+    }
+    final d = decoded['data'] is Map ? Map<String, dynamic>.from(decoded['data'] as Map) : decoded;
+    return d;
+  }
+
   static Future<String> uploadDocument({
     required Uint8List bytes,
     required String filename,
