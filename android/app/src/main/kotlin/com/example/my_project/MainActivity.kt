@@ -48,6 +48,30 @@ class MainActivity: FlutterFragmentActivity() {
       }
     }
 
+    MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "farm.tap_pay").setMethodCallHandler { call, result ->
+      when (call.method) {
+        "supported" -> {
+          val pm = packageManager
+          val nfc = android.nfc.NfcAdapter.getDefaultAdapter(this)
+          result.success(mapOf(
+            "hce" to pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_NFC_HOST_CARD_EMULATION),
+            "enabled" to (nfc?.isEnabled == true),
+          ))
+        }
+        "start" -> {
+          FarmPayHceService.token = call.argument<String>("token")
+          FarmPayHceService.expiresAtMs = (call.argument<Number>("expiresAtMs") ?: 0).toLong()
+          result.success(true)
+        }
+        "stop" -> {
+          FarmPayHceService.token = null
+          FarmPayHceService.expiresAtMs = 0
+          result.success(true)
+        }
+        else -> result.notImplemented()
+      }
+    }
+
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, receiptChannelName).setMethodCallHandler { call, result ->
       if (call.method != "saveReceipt") {
         result.notImplemented()

@@ -26,6 +26,7 @@ import '/index.dart';
 import '/pages/business/business_onboarding_page.dart';
 import '/pages/business/business_status_page.dart';
 import '/pages/business/ops/pay_business_page.dart';
+import '/pages/tap_pay/tap_pay_pages.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -332,6 +333,17 @@ GoRouter createRouter(
             initialCode: params.getParam('code', ParamType.String),
             initialInvoice: params.getParam('invoice', ParamType.String),
           ),
+    ),
+    FFRoute(
+      name: TapReceivePage.routeName,
+      path: TapReceivePage.routePath,
+      builder: (context, params) => const TapReceivePage(),
+    ),
+    FFRoute(
+      name: TapPayPage.routeName,
+      path: TapPayPage.routePath,
+      builder: (context, params) =>
+          TapPayPage(initialToken: params.getParam('t', ParamType.String)),
     ),
     FFRoute(
       name: MerchantDashboardWidget.routeName,

@@ -1,3 +1,5 @@
+import '/backend/api_requests/nfc_pay_api.dart';
+import '/pages/tap_pay/tap_pay_pages.dart';
 import '/components/fee_line.dart';
 import '/backend/services/api_service.dart';
 import '/components/action_circle/action_circle_widget.dart';
@@ -464,6 +466,15 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
 
   Future<void> validateQr(String qrPayload) async {
     if (isProcessing) return;
+    // Tap-to-pay request shown as QR (iOS / NFC off): review + PIN on its own screen.
+    final tapToken = NfcPayApi.extractToken(qrPayload);
+    if (tapToken != null) {
+      isProcessing = true;
+      await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => TapPayPage(initialToken: tapToken)));
+      isProcessing = false;
+      return;
+    }
 
     isProcessing = true;
 

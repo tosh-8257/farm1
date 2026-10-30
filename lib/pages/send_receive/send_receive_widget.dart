@@ -1,3 +1,4 @@
+import '/components/tap_pay_entry.dart';
 import '/backend/api_requests/fees_api.dart';
 import '/components/fee_line.dart';
 import '/backend/services/api_service.dart';
@@ -1814,6 +1815,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                             ],
                           ),
                         ),
+                        const TapPayEntry(),
                         Expanded(
                           child: SingleChildScrollView(
                             padding: const EdgeInsets.all(
