@@ -19,6 +19,7 @@ import '/pages/forgot_pin_page/forgot_pin_page_widget.dart';
 import '/widgets/common/back_chevron.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'profile_settings_model.dart';
+import '/pages/chain_wallet/wallet_address_page.dart';
 export 'profile_settings_model.dart';
 
 class ProfileSettingsWidget extends StatefulWidget {
@@ -875,6 +876,21 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                           biometricLockTimeoutSeconds),
                                     ),
                                   ),
+                                ),
+                              ),
+                              // WALLET ADDRESS (Algorand, receive USDC)
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (_) => const WalletAddressPage()));
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.account_balance_wallet_outlined,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Wallet address',
                                 ),
                               ),
                               // NOTIFICATIONS
