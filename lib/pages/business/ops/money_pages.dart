@@ -135,7 +135,7 @@ class _PayoutsState extends State<PayoutsPage> {
   Widget build(BuildContext context) => BizScaffold(
         title: 'Payouts',
         fab: BizFab(
-          label: 'Request payout',
+          label: 'New payout',
           onPressed: () async {
             final ok = await pushPage<bool>(context, const RequestPayoutPage());
             if (ok == true) _key.currentState?.reload();
@@ -151,7 +151,7 @@ class _PayoutsState extends State<PayoutsPage> {
             for (final p in items)
               BizTile(
                 title: money(p['amount']),
-                subtitle: '${p['payout_method']} · ${p['account_name']} · ${shortDate(p['created_at'])}',
+                subtitle: '${p['payout_method'] ?? p['method'] ?? ''}${p['automatic'] == true ? ' · automatic' : ''} · ${p['account_name'] ?? ''} · ${shortDate(p['created_at'])}',
                 trailing: StatusChip(statusLabel('${p['status']}'), filled: p['status'] == 'successful'),
               ),
           ]),
@@ -185,24 +185,25 @@ class _RequestPayoutState extends State<RequestPayoutPage> {
     final amount = double.parse(_amount.text);
     final pin = await confirmWithPin(context,
         title: 'Confirm payout',
-        message: 'Request a payout of ${money(amount)} to ${_name.text.trim()} (${_number.text.trim()})?');
+        message: 'Send ${money(amount)} to ${_name.text.trim()} (${_number.text.trim()})?');
     if (pin == null || !mounted) return;
     final ok = await runBusy(context, () async {
       await BusinessOpsApi.requestPayout({
         'amount': amount,
-        'payout_method': _method,
+        'method': _method == 'mobile_money' ? 'MOBILE_MONEY' : 'BANK_TRANSFER',
         'account_name': _name.text.trim(),
-        'account_number': _number.text.trim(),
+        if (_method == 'mobile_money') 'phone_number': _number.text.trim().replaceAll(' ', ''),
+        if (_method != 'mobile_money') 'account_number': _number.text.trim(),
         'pin': pin,
       });
       return true;
-    }, success: 'Payout requested');
+    }, success: 'Payout sent');
     if (ok == true && mounted) Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) => BizScaffold(
-        title: 'Request payout',
+        title: 'New payout',
         body: Form(
           key: _form,
           child: ListView(padding: const EdgeInsets.all(20), children: [
@@ -235,6 +236,9 @@ class _RequestPayoutState extends State<RequestPayoutPage> {
               decoration: bizInput(context, _method == 'mobile_money' ? 'Phone number' : 'Account number'),
               validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
             ),
+            const SizedBox(height: 12),
+            Text('Payouts are processed automatically. Only the Owner and Finance roles can send them, and your PIN is required.',
+                style: TextStyle(fontSize: 12, color: mutedColor(context))),
             const SizedBox(height: 24),
             ElevatedButton(style: primaryButtonStyle(context), onPressed: _submit, child: const Text('Continue')),
           ]),
