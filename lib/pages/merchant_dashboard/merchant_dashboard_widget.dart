@@ -1,4 +1,5 @@
 import '/components/button/button_widget.dart';
+import '/pages/business/business_upgrade_tile.dart';
 import '/components/merchant_stat_card/merchant_stat_card_widget.dart';
 import '/components/merchant_transaction_item/merchant_transaction_item_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -1122,6 +1123,10 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                       ),
                     ),
                   ),
+                ),
+                const Padding(
+                  padding: EdgeInsetsDirectional.fromSTEB(0, 16, 0, 0),
+                  child: BusinessUpgradeTile(),
                 ),
                 Padding(
                   padding: EdgeInsetsDirectional.fromSTEB(0, 24, 0, 24),

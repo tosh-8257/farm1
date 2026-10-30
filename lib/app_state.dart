@@ -1,4 +1,5 @@
 import 'dart:async';
+import '/services/account_context.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'flutter_flow/flutter_flow_theme.dart';
@@ -530,6 +531,8 @@ class FFAppState extends ChangeNotifier {
         (reason != null ? ' reason=$reason' : '');
     debugPrint(msg);
     debugPrint(StackTrace.current.toString());
+    // Next sign-in always starts in the Personal account.
+    unawaited(AccountContext.instance.reset());
     accessToken = '';
     refreshToken = '';
     userId = '';

@@ -14,6 +14,9 @@ import '/pages/send_receive/send_receive_widget.dart';
 import '/pages/all_transactions/all_transactions_widget.dart';
 import '/pages/growth_tracking_page/growth_tracking_page_widget.dart';
 import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
+import '/services/account_context.dart';
+import '/components/account_switcher/account_switcher_widget.dart';
+import '/pages/business/business_home_view.dart';
 import '/pages/notifications/user_notifications_page_widget.dart';
 import '/services/app_session_manager.dart';
 import '/services/transaction_authentication_service.dart';
@@ -74,6 +77,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
     _model = createModel(context, () => DashboardModel());
     FFAppState().addListener(_handleAppStateChanged);
+    AccountContext.instance.addListener(_handleAccountModeChanged);
+    AccountContext.instance.load();
     _startPeriodicRefresh();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -81,10 +86,15 @@ class _DashboardWidgetState extends State<DashboardWidget>
     });
   }
 
+  void _handleAccountModeChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     _refreshTimer?.cancel();
     FFAppState().removeListener(_handleAppStateChanged);
+    AccountContext.instance.removeListener(_handleAccountModeChanged);
     WidgetsBinding.instance.removeObserver(this);
     _model.dispose();
     super.dispose();
@@ -793,7 +803,9 @@ class _DashboardWidgetState extends State<DashboardWidget>
           ],
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        body: RefreshIndicator(
+        body: AccountContext.instance.isBusiness
+            ? const BusinessHomeView()
+            : RefreshIndicator(
           onRefresh: _refreshDashboard,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -803,6 +815,15 @@ class _DashboardWidgetState extends State<DashboardWidget>
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    24.0,
+                    MediaQuery.of(context).padding.top + 12.0,
+                    24.0,
+                    0.0,
+                  ),
+                  child: const AccountSwitcherWidget(),
+                ),
                 Padding(
                   padding: EdgeInsetsDirectional.fromSTEB(
                     0.0,
