@@ -422,6 +422,7 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
                   child: const Text('Submit for review'),
                 ),
               ],
+              if (['funded', 'closed'].contains(status)) TokenizationCard(projectId: widget.id),
               if (canUpdate)
                 ElevatedButton(style: primaryButtonStyle(c), onPressed: _postUpdate, child: const Text('Post update to investors')),
               if (reviews.isNotEmpty) ...[
@@ -555,4 +556,82 @@ class _MilestoneEditorPageState extends State<MilestoneEditorPage> {
       ),
     );
   }
+}
+
+
+/// Request tokenization of a funded project. FARM approves and creates the ASA.
+class TokenizationCard extends StatefulWidget {
+  const TokenizationCard({super.key, required this.projectId});
+  final String projectId;
+  @override
+  State<TokenizationCard> createState() => _TokenizationCardState();
+}
+
+class _TokenizationCardState extends State<TokenizationCard> {
+  final _key = GlobalKey<BizAsyncState<Map<String, dynamic>>>();
+
+  Future<void> _request() async {
+    final n = TextEditingController();
+    final u = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Request tokenization'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: n, maxLength: 32, decoration: bizInput(ctx, 'Token name')),
+          TextField(controller: u, maxLength: 8, decoration: bizInput(ctx, 'Unit name (e.g. SOLAR)')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Request')),
+        ],
+      ),
+    );
+    final name = n.text.trim(), unit = u.text.trim();
+    n.dispose();
+    u.dispose();
+    if (ok != true || name.isEmpty || unit.isEmpty || !mounted) return;
+    final r = await runBusy(context, () => InvestmentsApi.requestToken(widget.projectId, name, unit),
+        success: 'Requested. FARM will review it.');
+    if (r != null) _key.currentState?.reload();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: BizCard(
+          child: SizedBox(
+            height: 150,
+            child: BizAsync<Map<String, dynamic>>(
+              key: _key,
+              load: () => InvestmentsApi.projectToken(widget.projectId),
+              builder: (c, r, _) {
+                final t = r['data'] is Map ? Map<String, dynamic>.from(r['data'] as Map) : null;
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Tokenization (Algorand TestNet)', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+                  const SizedBox(height: 6),
+                  if (t == null || t['status'] == 'rejected') ...[
+                    Text(
+                        r['enabled'] == true
+                            ? (t?['notes'] != null ? 'Previous request rejected: ${t!['notes']}' : 'Represent investor holdings as an Algorand asset.')
+                            : 'Tokenization is not available yet.',
+                        style: TextStyle(color: mutedColor(c))),
+                    const Spacer(),
+                    if (r['enabled'] == true)
+                      OutlinedButton(style: secondaryButtonStyle(c), onPressed: _request, child: const Text('Request tokenization')),
+                  ] else ...[
+                    KeyValue('Status', tokenStatusLabels['${t['status']}'] ?? '${t['status']}'),
+                    KeyValue('Token', '${t['asset_name']} (${t['unit_name']})'),
+                    if (t['asset_id'] != null) KeyValue('Asset ID', '${t['asset_id']}'),
+                    if (t['explorer_url'] != null)
+                      TextButton(
+                          onPressed: () => openDoc(c, '${t['explorer_url']}'),
+                          child: Text('View on explorer', style: TextStyle(color: fgColor(c)))),
+                  ],
+                ]);
+              },
+            ),
+          ),
+        ),
+      );
 }

@@ -337,7 +337,7 @@ class PortfolioPage extends StatelessWidget {
   const PortfolioPage({super.key});
   @override
   Widget build(BuildContext context) => DefaultTabController(
-        length: 4,
+        length: 5,
         child: BizScaffold(
           title: 'My investments',
           body: Column(children: [
@@ -346,7 +346,7 @@ class PortfolioPage extends StatelessWidget {
               labelColor: fgColor(context),
               unselectedLabelColor: mutedColor(context),
               indicatorColor: fgColor(context),
-              tabs: const [Tab(text: 'Holdings'), Tab(text: 'History'), Tab(text: 'Documents'), Tab(text: 'Updates')],
+              tabs: const [Tab(text: 'Holdings'), Tab(text: 'History'), Tab(text: 'Documents'), Tab(text: 'Updates'), Tab(text: 'Tokens')],
             ),
             Expanded(
               child: TabBarView(children: [
@@ -423,6 +423,7 @@ class PortfolioPage extends StatelessWidget {
                       ),
                   ]),
                 ),
+                const TokensTab(),
               ]),
             ),
           ]),
@@ -460,4 +461,30 @@ class MilestoneList extends StatelessWidget {
       ]),
     );
   }
+}
+
+
+/// Project tokens held for the investor in FARM custody (Algorand TestNet).
+class TokensTab extends StatelessWidget {
+  const TokensTab({super.key});
+  @override
+  Widget build(BuildContext context) => BizAsync<List<Map<String, dynamic>>>(
+        load: InvestmentsApi.myTokens,
+        isEmpty: (l) => l.isEmpty,
+        emptyIcon: Icons.token_outlined,
+        emptyTitle: 'No tokens yet',
+        emptyMessage: 'When a project you backed is tokenized on Algorand, your units appear here. FARM holds them for you.',
+        builder: (c, l, _) => ListView(padding: const EdgeInsets.all(16), children: [
+          for (final a in l)
+            Builder(builder: (_) {
+              final t = (a['token'] as Map?) ?? const {};
+              return BizTile(
+                leading: Icons.token_outlined,
+                title: '${(a['project'] as Map?)?['project_name'] ?? 'Project'}',
+                subtitle: '${a['units']} ${t['unit_name'] ?? ''} · ASA ${t['asset_id'] ?? '—'} · ${t['network'] ?? ''} · FARM custody',
+                onTap: t['explorer_url'] != null ? () => openDoc(c, '${t['explorer_url']}') : null,
+              );
+            }),
+        ]),
+      );
 }

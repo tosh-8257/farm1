@@ -65,6 +65,11 @@ class InvestmentsApi {
       _d(await _call('POST', '/business/projects/$id/submit'));
   static Future<Map<String, dynamic>> postUpdate(String id, String title, String body) async =>
       _d(await _call('POST', '/business/projects/$id/updates', {'title': title, 'body': body}));
+  // Phase 5: Algorand tokenization (backend decides everything; disabled until configured)
+  static Future<List<Map<String, dynamic>>> myTokens() async => _l(await _call('GET', '/investments/tokens'));
+  static Future<Map<String, dynamic>> projectToken(String id) async => await _call('GET', '/business/projects/$id/tokenization');
+  static Future<Map<String, dynamic>> requestToken(String id, String assetName, String unitName) async =>
+      _d(await _call('POST', '/business/projects/$id/tokenization', {'asset_name': assetName, 'unit_name': unitName}));
   static Future<Map<String, dynamic>> setMilestones(String id, List<Map<String, dynamic>> items) async =>
       _d(await _call('PATCH', '/business/projects/$id/milestones', {'milestones': items}));
   static Future<Map<String, dynamic>> requestMilestone(String id, String mid,
@@ -126,4 +131,12 @@ const projectStatusLabels = {
   'committed': 'Held until settlement',
   'active': 'Active',
   'refunded': 'Refunded',
+};
+
+const tokenStatusLabels = {
+  'requested': 'Requested',
+  'creating': 'Creating on Algorand',
+  'created': 'Created',
+  'failed': 'Failed (FARM will retry)',
+  'rejected': 'Rejected',
 };
