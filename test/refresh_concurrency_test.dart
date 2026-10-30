@@ -17,11 +17,7 @@ void main() {
   group('RefreshManager concurrency', () {
     setUp(() async {
       // Initialize dotenv for Env.api resolution used by RefreshManager.
-      try {
-        await dotenv.load(fileName: '.env');
-      } catch (_) {
-        // Ignore missing env files in isolated test runs.
-      }
+      dotenv.loadFromString(isOptional: true);
       dotenv.env['API_URL'] = 'http://127.0.0.1:3000';
       // Ensure clean app state and empty SharedPreferences
       SharedPreferences.setMockInitialValues({});

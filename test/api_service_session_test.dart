@@ -26,7 +26,7 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
-    await dotenv.load(fileName: '.env');
+    dotenv.loadFromString(isOptional: true);
     FFAppState.reset();
     await FFAppState().initializePersistedState();
     RefreshManager().reset();

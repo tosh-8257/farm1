@@ -35,13 +35,10 @@ void main() async {
   print('APP START');
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load dotenv early to avoid NotInitializedError when Env is referenced.
-  try {
-    await dotenv.load();
-    debugPrint('Loaded environment variables from .env');
-  } catch (e) {
-    debugPrint('Could not load .env (it may be missing): $e');
-  }
+  // Configuration comes from --dart-define / --dart-define-from-file=.env
+  // (see .env.example). Initialise dotenv empty so any lookup is safe; no
+  // .env asset is bundled into the app.
+  dotenv.loadFromString(isOptional: true);
 
   // Global Flutter framework error handler
   FlutterError.onError = (FlutterErrorDetails details) {
