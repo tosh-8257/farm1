@@ -523,7 +523,12 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                 child: GestureDetector(
                                   onTap: _isKycApproved
                                       ? null
-                                      : () => context.pushNamed('KYCPAGE'),
+                                      : () => context.pushNamed(
+                                          'KYCPAGE',
+                                          queryParameters: const {
+                                            'startDidit': 'true',
+                                          },
+                                        ),
                                   child: ProfileInfoTileWidget(
                                     icon: Icon(
                                       Icons.fingerprint_rounded,

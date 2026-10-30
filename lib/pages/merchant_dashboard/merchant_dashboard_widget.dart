@@ -983,7 +983,12 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                             child: ElevatedButton(
                               onPressed: needsApplication
                                   ? openApplyMerchantModal
-                                  : () => context.pushNamed('KYCPAGE'),
+                                  : () => context.pushNamed(
+                                          'KYCPAGE',
+                                          queryParameters: const {
+                                            'startDidit': 'true',
+                                          },
+                                        ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor:
                                     Theme.of(context).brightness ==
