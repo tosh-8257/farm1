@@ -16,6 +16,16 @@ class TravelApi {
       BusinessOpsApi.list(await ApiService.request(method: 'GET', path: '/travel/bookings'));
   static Future<Map<String, dynamic>> booking(String id) async =>
       _d(await ApiService.request(method: 'GET', path: '/travel/bookings/$id'));
+
+  // Hotels (LiteAPI). Off unless the server reports hotels.enabled.
+  static Future<List<Map<String, dynamic>>> hotelSearch(Map<String, dynamic> q) async => BusinessOpsApi.list(
+      await ApiService.request(method: 'POST', path: '/travel/hotels/search', body: q, timeoutSeconds: 60));
+  static Future<Map<String, dynamic>> hotelPrebook(String offerId) async =>
+      _d(await ApiService.request(method: 'POST', path: '/travel/hotels/prebook', body: {'offer_id': offerId}, timeoutSeconds: 60));
+  static Future<Map<String, dynamic>> hotelBook(Map<String, dynamic> body) async =>
+      _d(await ApiService.request(method: 'POST', path: '/travel/hotels/book', body: body, timeoutSeconds: 120));
+  static Future<Map<String, dynamic>> hotelCancel(String id) async =>
+      _d(await ApiService.request(method: 'POST', path: '/travel/hotels/bookings/$id/cancel', timeoutSeconds: 90));
 }
 
 /// Admin: review travel bookings whose provider outcome was unknown.

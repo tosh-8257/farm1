@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '/backend/api_requests/travel_api.dart';
 import '/pages/business/ops/ops_ui.dart';
+import 'hotel_pages.dart';
 
 const _bookingLabels = {
   'payment_held': 'Processing',
@@ -9,6 +10,8 @@ const _bookingLabels = {
   'needs_review': 'Under review',
   'refunding': 'Refunding',
   'failed_refunded': 'Refunded',
+  'cancelling': 'Cancelling',
+  'cancelled': 'Cancelled',
 };
 
 String _time(dynamic iso) {
@@ -44,7 +47,9 @@ class TravelHomePage extends StatelessWidget {
         body: BizAsync<Map<String, dynamic>>(
           load: TravelApi.status,
           builder: (c, s, reload) {
-            if (s['enabled'] != true) {
+            final flightsOn = s['enabled'] == true;
+            final hotelsOn = (s['hotels'] as Map?)?['enabled'] == true;
+            if (!flightsOn && !hotelsOn) {
               return BizMessage(
                   icon: Icons.flight_outlined,
                   title: 'Travel is not available yet',
@@ -53,7 +58,8 @@ class TravelHomePage extends StatelessWidget {
                   actionLabel: 'Check again');
             }
             final sandbox = (s['flights'] as Map?)?['sandbox'] == true;
-            return _Categories(sandbox: sandbox);
+            final hotelSandbox = (s['hotels'] as Map?)?['sandbox'] == true;
+            return _Categories(sandbox: sandbox, flightsOn: flightsOn, hotelsOn: hotelsOn, hotelSandbox: hotelSandbox);
           },
         ),
       );
@@ -71,14 +77,14 @@ const _categories = <(String, IconData)>[
 ];
 
 class _Categories extends StatefulWidget {
-  const _Categories({required this.sandbox});
-  final bool sandbox;
+  const _Categories({required this.sandbox, required this.flightsOn, required this.hotelsOn, required this.hotelSandbox});
+  final bool sandbox, flightsOn, hotelsOn, hotelSandbox;
   @override
   State<_Categories> createState() => _CategoriesState();
 }
 
 class _CategoriesState extends State<_Categories> {
-  String _sel = 'Flights';
+  late String _sel = widget.flightsOn ? 'Flights' : 'Hotels';
   @override
   Widget build(BuildContext c) => Column(children: [
         SizedBox(
@@ -99,9 +105,11 @@ class _CategoriesState extends State<_Categories> {
           ]),
         ),
         Expanded(
-          child: _sel == 'Flights'
+          child: _sel == 'Flights' && widget.flightsOn
               ? _SearchForm(sandbox: widget.sandbox)
-              : BizMessage(
+              : _sel == 'Hotels' && widget.hotelsOn
+                  ? HotelSearchForm(sandbox: widget.hotelSandbox)
+                  : BizMessage(
                   icon: _categories.firstWhere((e) => e.$1 == _sel).$2,
                   title: '$_sel not available yet',
                   message: 'We will show $_sel here once a provider is connected. Nothing is listed until it can really be booked.',
@@ -427,14 +435,16 @@ class TravelBookingsPage extends StatelessWidget {
           isEmpty: (l) => l.isEmpty,
           emptyIcon: Icons.luggage_outlined,
           emptyTitle: 'No bookings yet',
-          emptyMessage: 'Flights you book appear here.',
+          emptyMessage: 'Flights and hotels you book appear here.',
           builder: (c, list, reload) => RefreshIndicator(
             onRefresh: reload,
             child: ListView(padding: const EdgeInsets.all(16), children: [
               for (final b in list)
                 BizTile(
-                  leading: Icons.flight_takeoff,
-                  title: _route(Map<String, dynamic>.from(b['summary'] as Map? ?? {})),
+                  leading: b['kind'] == 'hotel' ? Icons.hotel_outlined : Icons.flight_takeoff,
+                  title: b['kind'] == 'hotel'
+                      ? hotelTitle(Map<String, dynamic>.from(b['summary'] as Map? ?? {}))
+                      : _route(Map<String, dynamic>.from(b['summary'] as Map? ?? {})),
                   subtitle: '${money(b['total_farm'])} FARM · ${shortDate(b['created_at'])}',
                   trailing: StatusChip(_bookingLabels['${b['status']}'] ?? '${b['status']}', filled: b['status'] == 'confirmed'),
                   onTap: () => pushPage(c, TravelBookingPage(id: '${b['id']}')),
@@ -454,6 +464,7 @@ class TravelBookingPage extends StatelessWidget {
         body: BizAsync<Map<String, dynamic>>(
           load: () => TravelApi.booking(id),
           builder: (c, b, reload) {
+            if (b['kind'] == 'hotel') return HotelBookingView(b: b, reload: reload, labels: _bookingLabels);
             final s = Map<String, dynamic>.from(b['summary'] as Map? ?? {});
             final status = '${b['status']}';
             final note = {
