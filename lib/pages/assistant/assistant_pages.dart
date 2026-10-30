@@ -485,6 +485,7 @@ class _AssistantSettingsPageState extends State<AssistantSettingsPage> {
                     KeyValue('Max per payment', money(p['per_tx_cap'])),
                     KeyValue('Max per day', money(p['daily_cap'])),
                     KeyValue('Used today', money(p['spent_today'])),
+                    KeyValue('Above your limits', 'Refused. Every payment needs your PIN.'),
                   ],
                   const SizedBox(height: 12),
                   Row(children: [
@@ -516,6 +517,32 @@ class _AssistantSettingsPageState extends State<AssistantSettingsPage> {
                   ]),
                 ]),
               ),
+              if (on) ...[
+                const SizedBox(height: 20),
+                Text('Spending categories', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+                const SizedBox(height: 4),
+                Text('Mkulima can only pay in the categories you leave on.', style: TextStyle(color: mutedColor(c), fontSize: 12)),
+                const SizedBox(height: 8),
+                BizCard(
+                  child: Column(children: [
+                    for (final cat in AiApi.spendCategories)
+                      SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        activeThumbColor: fgColor(c),
+                        title: Text(cat, style: TextStyle(color: fgColor(c))),
+                        value: ((p['spend_categories'] as List?) ?? AiApi.spendCategories).contains(cat),
+                        onChanged: (v) async {
+                          final cur = List<String>.from((p['spend_categories'] as List?) ?? AiApi.spendCategories);
+                          v ? cur.add(cat) : cur.remove(cat);
+                          final r = await runBusy(c,
+                              () => AiApi.savePermissions(enabled: true, perTxCap: p['per_tx_cap'] as num, dailyCap: p['daily_cap'] as num, categories: cur));
+                          if (r != null) reload();
+                        },
+                      ),
+                  ]),
+                ),
+              ],
               const SizedBox(height: 20),
               Text('Pending requests', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
               const SizedBox(height: 8),

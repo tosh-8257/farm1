@@ -578,12 +578,11 @@ class ApiService {
   }) =>
       _request(
         method: 'POST',
-        path: '/auth/sessions/revoke',
-        body: {'session_id': sessionId},
+        path: '/auth/sessions/$sessionId/revoke',
       );
 
   static Future<Map<String, dynamic>> revokeOtherSessions() =>
-      _request(method: 'POST', path: '/auth/sessions/revoke-other');
+      _request(method: 'POST', path: '/auth/sessions/revoke-others');
 
   static Future<Map<String, dynamic>> revokeAllSessions() =>
       _request(method: 'POST', path: '/auth/sessions/revoke-all');

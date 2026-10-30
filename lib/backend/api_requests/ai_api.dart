@@ -18,12 +18,13 @@ class AiApi {
   static Future<void> deleteConversation(String id) => ApiService.request(method: 'DELETE', path: '/ai/conversations/$id');
   static Future<Map<String, dynamic>> permissions() async => _d(await ApiService.request(method: 'GET', path: '/ai/permissions'));
   static Future<Map<String, dynamic>> savePermissions(
-          {required bool enabled, required num perTxCap, required num dailyCap}) async =>
+          {required bool enabled, required num perTxCap, required num dailyCap, List<String>? categories}) async =>
       _d(await ApiService.request(method: 'PUT', path: '/ai/permissions', body: {
         'enabled': enabled,
         'per_tx_cap': perTxCap,
         'daily_cap': dailyCap,
         'allowed_actions': enabled ? ['send_farm', 'book_flight', 'pay_intent'] : <String>[],
+        if (categories != null) 'spend_categories': categories,
       }));
   static Future<Map<String, dynamic>> revoke() async =>
       _d(await ApiService.request(method: 'POST', path: '/ai/permissions/revoke'));
@@ -32,6 +33,10 @@ class AiApi {
   static Future<Map<String, dynamic>> confirm(String id, String pin) async =>
       _d(await ApiService.request(method: 'POST', path: '/ai/actions/$id/confirm', body: {'pin': pin}));
   static Future<void> reject(String id) => ApiService.request(method: 'POST', path: '/ai/actions/$id/reject');
+  /// Unified Mkulima activity (requests, bookings, payments) in one shape.
+  static Future<List<Map<String, dynamic>>> activity() async =>
+      BusinessOpsApi.list(await ApiService.request(method: 'GET', path: '/ai/activity'));
+  static const spendCategories = ['Hotels', 'Flights', 'Transport', 'Shopping', 'Bills', 'Services', 'Investments', 'Crypto'];
   static Future<List<Map<String, dynamic>>> audit() async =>
       BusinessOpsApi.list(await ApiService.request(method: 'GET', path: '/ai/audit'));
 }

@@ -53,10 +53,61 @@ class TravelHomePage extends StatelessWidget {
                   actionLabel: 'Check again');
             }
             final sandbox = (s['flights'] as Map?)?['sandbox'] == true;
-            return _SearchForm(sandbox: sandbox);
+            return _Categories(sandbox: sandbox);
           },
         ),
       );
+}
+
+/// Master prompt travel categories. Only flights have a connected provider; the rest are provider-ready.
+const _categories = <(String, IconData)>[
+  ('Flights', Icons.flight_outlined),
+  ('Hotels', Icons.hotel_outlined),
+  ('Transport', Icons.directions_bus_outlined),
+  ('Car rental', Icons.directions_car_outlined),
+  ('Airport transfers', Icons.local_taxi_outlined),
+  ('Activities', Icons.local_activity_outlined),
+  ('Other', Icons.more_horiz),
+];
+
+class _Categories extends StatefulWidget {
+  const _Categories({required this.sandbox});
+  final bool sandbox;
+  @override
+  State<_Categories> createState() => _CategoriesState();
+}
+
+class _CategoriesState extends State<_Categories> {
+  String _sel = 'Flights';
+  @override
+  Widget build(BuildContext c) => Column(children: [
+        SizedBox(
+          height: 56,
+          child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.fromLTRB(16, 10, 16, 6), children: [
+            for (final (name, icon) in _categories)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  avatar: Icon(icon, size: 16, color: _sel == name ? Theme.of(c).scaffoldBackgroundColor : fgColor(c)),
+                  label: Text(name),
+                  selected: _sel == name,
+                  selectedColor: fgColor(c),
+                  labelStyle: TextStyle(color: _sel == name ? Theme.of(c).scaffoldBackgroundColor : fgColor(c)),
+                  onSelected: (_) => setState(() => _sel = name),
+                ),
+              ),
+          ]),
+        ),
+        Expanded(
+          child: _sel == 'Flights'
+              ? _SearchForm(sandbox: widget.sandbox)
+              : BizMessage(
+                  icon: _categories.firstWhere((e) => e.$1 == _sel).$2,
+                  title: '$_sel not available yet',
+                  message: 'We will show $_sel here once a provider is connected. Nothing is listed until it can really be booked.',
+                ),
+        ),
+      ]);
 }
 
 class _SearchForm extends StatefulWidget {

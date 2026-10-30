@@ -1,3 +1,5 @@
+import '/pages/mkulima/mkulima_pages.dart';
+import '/pages/security/sessions_page.dart';
 import 'dart:async';
 
 import '/backend/services/api_service.dart';
@@ -20,7 +22,6 @@ import '/widgets/common/back_chevron.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'profile_settings_model.dart';
 import '/pages/chain_wallet/wallet_address_page.dart';
-import '/pages/assistant/assistant_pages.dart';
 import '/pages/travel/travel_pages.dart';
 import '/pages/agent_payments/agent_payments_pages.dart';
 export 'profile_settings_model.dart';
@@ -896,11 +897,26 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                   label: 'Wallet address',
                                 ),
                               ),
+                              // DEVICES & SESSIONS
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (_) => const SessionsPage()));
+                                },
+                                child: SettingsActionTileWidget(
+                                  icon: Icon(
+                                    Icons.devices_outlined,
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                  ),
+                                  label: 'Devices & login history',
+                                ),
+                              ),
                               // MKULIMA AI ASSISTANT
                               GestureDetector(
                                 onTap: () {
                                   Navigator.of(context).push(MaterialPageRoute(
-                                      builder: (_) => const AssistantChatPage()));
+                                      builder: (_) => const MkulimaHubPage()));
                                 },
                                 child: SettingsActionTileWidget(
                                   icon: Icon(
@@ -908,7 +924,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                     color: FlutterFlowTheme.of(context)
                                         .primaryText,
                                   ),
-                                  label: 'Mkulima assistant',
+                                  label: 'Mkulima',
                                 ),
                               ),
                               // TRAVEL

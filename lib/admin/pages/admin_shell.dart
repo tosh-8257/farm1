@@ -16,6 +16,7 @@ import 'merchant_kyb_management_page.dart';
 import 'business_review_page.dart';
 import 'payouts_page.dart';
 import 'travel_review_page.dart';
+import 'monitoring_pages.dart';
 import '../services/admin_api_service.dart';
 import '/services/auth/auth_service.dart';
 import '/core/localization/app_locale_service.dart';
@@ -100,6 +101,9 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     _NavItem(icon: Icons.badge_rounded, label: 'Merchant KYB'),
     _NavItem(icon: Icons.business_rounded, label: 'Business KYB'),
     _NavItem(icon: Icons.flight_rounded, label: 'Travel review'),
+    _NavItem(icon: Icons.agriculture_rounded, label: 'Projects'),
+    _NavItem(icon: Icons.token_rounded, label: 'Tokenization'),
+    _NavItem(icon: Icons.monitor_heart_rounded, label: 'Payments monitor'),
   ];
 
   void _goToDashboard() {
@@ -122,6 +126,9 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
         MerchantKybManagementPage(onGoBack: _goToDashboard),
         BusinessReviewPage(onGoBack: _goToDashboard),
         TravelReviewPage(onGoBack: _goToDashboard),
+        ProjectsReviewPage(onGoBack: _goToDashboard),
+        TokenizationReviewPage(onGoBack: _goToDashboard),
+        PaymentsMonitorPage(onGoBack: _goToDashboard),
       ];
 
   Widget _buildCurrentPage() {
