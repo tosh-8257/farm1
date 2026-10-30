@@ -111,6 +111,10 @@ class BusinessOpsApi {
       data(await _call('GET', '/pay/invoices/${Uri.encodeComponent(number)}'));
   static Future<Map<String, dynamic>> payInvoice(String number, String pin) async =>
       data(await _call('POST', '/pay/invoices/${Uri.encodeComponent(number)}', {'pin': pin}));
+  static Future<Map<String, dynamic>> requestMilestone(String id, int index) async =>
+      data(await _call('POST', '/business/escrows/$id/milestones/$index/request-release'));
+  static Future<Map<String, dynamic>> releaseMilestone(String id, int index, String pin) async =>
+      data(await _call('POST', '/pay/escrows/$id/milestones/$index/release', {'pin': pin}));
   static Future<List<Map<String, dynamic>>> incomingEscrows() async =>
       list(await _call('GET', '/pay/escrows'));
   static Future<Map<String, dynamic>> fundEscrow(String id, String pin) async =>

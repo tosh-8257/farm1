@@ -328,7 +328,10 @@ GoRouter createRouter(
       name: PayBusinessPage.routeName,
       path: PayBusinessPage.routePath,
       builder: (context, params) =>
-          PayBusinessPage(initialCode: params.getParam('code', ParamType.String)),
+          PayBusinessPage(
+            initialCode: params.getParam('code', ParamType.String),
+            initialInvoice: params.getParam('invoice', ParamType.String),
+          ),
     ),
     FFRoute(
       name: MerchantDashboardWidget.routeName,

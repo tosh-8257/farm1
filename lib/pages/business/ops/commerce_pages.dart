@@ -1,3 +1,4 @@
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/backend/api_requests/business_ops_api.dart';
@@ -158,6 +159,26 @@ class PaymentLinkDetailPage extends StatelessWidget {
                 ]),
               ),
               const SizedBox(height: 12),
+              if ((l['url'] ?? '').toString().isNotEmpty) ...[
+                ElevatedButton.icon(
+                  style: primaryButtonStyle(c),
+                  icon: const Icon(Icons.share_rounded),
+                  label: const Text('Share payment link'),
+                  onPressed: () => SharePlus.instance.share(ShareParams(
+                      text: 'Pay ${l['title'] ?? ''} (${money(l['amount'])}): ${l['url']}')),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  style: secondaryButtonStyle(c),
+                  icon: const Icon(Icons.link_rounded),
+                  label: const Text('Copy link'),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: '${l['url']}'));
+                    bizSnack(c, 'Link copied. Anyone can pay it, with or without the FARM app.');
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
               OutlinedButton.icon(
                 style: secondaryButtonStyle(c),
                 icon: const Icon(Icons.copy_rounded),
@@ -657,9 +678,32 @@ class InvoiceDetailPage extends StatelessWidget {
               if (status == 'draft')
                 ElevatedButton(
                   style: primaryButtonStyle(c),
-                  onPressed: () => act('send', 'Issue invoice?', 'After issuing, the invoice can no longer be edited. Share the invoice number with your customer.', 'Issue'),
+                  onPressed: () => act('send', 'Issue invoice?', 'After issuing, the invoice can no longer be edited. If the customer has an email address, we email them a pay link.', 'Issue'),
                   child: const Text('Issue invoice'),
                 ),
+              if (['sent', 'pending', 'overdue'].contains(status) &&
+                  (inv['pay_url'] ?? '').toString().isNotEmpty) ...[
+                ElevatedButton.icon(
+                  style: primaryButtonStyle(c),
+                  icon: const Icon(Icons.share_rounded),
+                  label: const Text('Share pay link'),
+                  onPressed: () => SharePlus.instance.share(ShareParams(
+                      text: 'Invoice ${inv['invoice_number']} (${money(inv['total'])}): ${inv['pay_url']}')),
+                ),
+                const SizedBox(height: 8),
+                if ((inv['customer']?['email'] ?? '').toString().isNotEmpty) ...[
+                  OutlinedButton.icon(
+                    style: secondaryButtonStyle(c),
+                    icon: const Icon(Icons.email_outlined),
+                    label: Text(inv['last_emailed_at'] == null
+                        ? 'Email invoice'
+                        : 'Email again (last sent ${shortDate(inv['last_emailed_at'])})'),
+                    onPressed: () => act('resend', 'Email invoice?',
+                        'We will email ${inv['customer']['email']} a link to pay this invoice.', 'Send'),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ],
               if (['sent', 'pending', 'overdue'].contains(status))
                 OutlinedButton.icon(
                   style: secondaryButtonStyle(c),

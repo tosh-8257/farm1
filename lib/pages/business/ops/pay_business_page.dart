@@ -5,14 +5,16 @@ import 'ops_ui.dart';
 /// Payer side: pay a business payment link or invoice, or fund an escrow a
 /// business requested. Every payment goes through the server with your PIN.
 class PayBusinessPage extends StatelessWidget {
-  const PayBusinessPage({super.key, this.initialCode});
+  const PayBusinessPage({super.key, this.initialCode, this.initialInvoice});
   static String routeName = 'PayBusiness';
   static String routePath = '/pay-business';
   final String? initialCode;
+  final String? initialInvoice;
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
         length: 3,
+        initialIndex: (initialInvoice ?? '').isNotEmpty ? 1 : 0,
         child: BizScaffold(
           title: 'Pay a business',
           body: Column(children: [
@@ -25,7 +27,7 @@ class PayBusinessPage extends StatelessWidget {
             Expanded(
               child: TabBarView(children: [
                 _LookupPay(kind: 'link', initial: initialCode),
-                const _LookupPay(kind: 'invoice'),
+                _LookupPay(kind: 'invoice', initial: initialInvoice),
                 const _IncomingEscrows(),
               ]),
             ),
@@ -162,7 +164,12 @@ class _IncomingEscrows extends StatelessWidget {
               subtitle: '${e['business_name']} · ${money(e['amount'])}',
               trailing: StatusChip(statusLabel('${e['status']}'), filled: e['status'] == 'awaiting_payment'),
               onTap: e['status'] != 'awaiting_payment'
-                  ? null
+                  ? (((e['milestones'] as List?) ?? const []).isNotEmpty &&
+                          ['funded', 'in_progress', 'release_requested'].contains(e['status'])
+                      ? () => Navigator.of(c)
+                          .push(MaterialPageRoute(builder: (_) => _EscrowMilestonesPage(id: '${e['id']}')))
+                          .then((_) => reload())
+                      : null)
                   : () async {
                       final pin = await confirmWithPin(c,
                           title: 'Fund escrow',
@@ -174,5 +181,62 @@ class _IncomingEscrows extends StatelessWidget {
                     },
             ),
         ]),
+      );
+}
+
+/** Buyer view: release escrow funds milestone by milestone. Money moves on the server. */
+class _EscrowMilestonesPage extends StatelessWidget {
+  const _EscrowMilestonesPage({required this.id});
+  final String id;
+
+  @override
+  Widget build(BuildContext context) => BizScaffold(
+        title: 'Milestones',
+        body: BizAsync<Map<String, dynamic>>(
+          load: () async {
+            final all = await BusinessOpsApi.incomingEscrows();
+            return all.firstWhere((e) => '${e['id']}' == id, orElse: () => throw 'This escrow is no longer available');
+          },
+          isEmpty: (e) => ((e['milestones'] as List?) ?? const []).isEmpty,
+          emptyIcon: Icons.flag_outlined,
+          emptyTitle: 'No milestones',
+          emptyMessage: 'This escrow is released in one payment.',
+          builder: (c, e, reload) {
+            final ms = ((e['milestones'] as List?) ?? const []).whereType<Map>().toList();
+            final open = ['funded', 'in_progress', 'release_requested'].contains(e['status']);
+            return ListView(padding: const EdgeInsets.all(20), children: [
+              BizCard(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('${e['title']}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fgColor(c))),
+                  const SizedBox(height: 8),
+                  KeyValue('Business', '${e['business_name']}'),
+                  KeyValue('Total', money(e['amount'])),
+                  KeyValue('Released', money(e['released_amount'] ?? 0)),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              for (var i = 0; i < ms.length; i++)
+                BizTile(
+                  title: '${ms[i]['title']}',
+                  subtitle: money(ms[i]['amount']) +
+                      (ms[i]['status'] == 'release_requested' ? ' · release requested' : ''),
+                  trailing: StatusChip(statusLabel('${ms[i]['status'] ?? 'pending'}'),
+                      filled: ms[i]['status'] == 'released'),
+                  onTap: !open || !['pending', 'release_requested'].contains(ms[i]['status'] ?? 'pending')
+                      ? null
+                      : () async {
+                          final pin = await confirmWithPin(c,
+                              title: 'Release milestone',
+                              message:
+                                  '${money(ms[i]['amount'])} for "${ms[i]['title']}" will be paid to ${e['business_name']}. This cannot be undone.');
+                          if (pin == null || !c.mounted) return;
+                          final ok = await runBusy(c, () => BusinessOpsApi.releaseMilestone(id, i, pin),
+                              success: 'Milestone released');
+                          if (ok != null) reload();
+                        },
+                ),
+            ]);
+          },
+        ),
       );
 }

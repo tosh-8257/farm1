@@ -207,7 +207,40 @@ class BusinessEscrowDetailPage extends StatelessWidget {
               ),
               if (ms.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                BizCard(child: Column(children: [for (final m in ms) KeyValue('${m['title']}', money(m['amount']))])),
+                BizCard(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Milestones', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+                    if (e['released_amount'] != null && (e['released_amount'] as num) > 0)
+                      KeyValue('Released so far', money(e['released_amount'])),
+                    for (var i = 0; i < ms.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(children: [
+                          Expanded(child: KeyValue('${ms[i]['title']}', money(ms[i]['amount']))),
+                          const SizedBox(width: 8),
+                          if (ms[i]['status'] == 'pending' && (s == 'funded' || s == 'in_progress' || s == 'release_requested'))
+                            TextButton(
+                              onPressed: () async {
+                                if (!await confirmAction(c,
+                                    title: 'Request milestone release?',
+                                    message: 'The buyer will be asked to release ${money(ms[i]['amount'])} for "${ms[i]['title']}".',
+                                    confirm: 'Request')) {
+                                  return;
+                                }
+                                final ok = await runBusy(c, () async {
+                                  await BusinessOpsApi.requestMilestone(id, i);
+                                  return true;
+                                }, success: 'Release requested');
+                                if (ok == true) reload();
+                              },
+                              child: Text('Request', style: TextStyle(color: fgColor(c))),
+                            )
+                          else
+                            StatusChip(statusLabel('${ms[i]['status'] ?? 'pending'}'), filled: ms[i]['status'] == 'released'),
+                        ]),
+                      ),
+                  ]),
+                ),
               ],
               const SizedBox(height: 16),
               if (s == 'created')
