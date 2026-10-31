@@ -11,7 +11,15 @@ const _black = Colors.black;
 const _grey = Color(0xFF6B6B6B);
 const _light = Color(0xFFF2F2F2);
 
-enum _Step { waiting, sendingCode, enterCode, idCheck, finishing, error }
+enum _Step {
+  waiting,
+  sendingCode,
+  enterCode,
+  idCheck,
+  finishing,
+  review,
+  error,
+}
 
 /// Shown when login comes from an untrusted phone. Pops `true` once this
 /// device is trusted (approved elsewhere or recovered) so login can retry.
@@ -147,17 +155,36 @@ class _NewDevicePageState extends State<NewDevicePage> {
         recoveryId: _recoveryId!,
         deviceId: id,
       );
-      final idCheck = (res['data'] as Map?)?['id_check']?.toString() ?? '';
+      final data = res['data'] as Map?;
+      final status = data?['status']?.toString() ?? '';
+      final idCheck = data?['id_check']?.toString() ?? '';
       if (!mounted) return;
       setState(() => _idStatus = idCheck);
-      if (idCheck == 'Approved') {
+      if (status == 'completed') {
+        _poll?.cancel();
+        Navigator.of(context).pop(true);
+      } else if (status == 'rejected') {
+        _poll?.cancel();
+        setState(() {
+          _step = _Step.error;
+          _error = 'Support could not confirm this recovery. Contact support.';
+        });
+      } else if (status == 'manual_review' || status == 'verifying') {
+        _enterReview();
+      } else if (idCheck == 'Approved' && _step != _Step.finishing) {
         _poll?.cancel();
         setState(() => _step = _Step.finishing);
-        await ApiService.completeDeviceRecovery(
+        final done = await ApiService.completeDeviceRecovery(
           recoveryId: _recoveryId!,
           deviceId: id,
         );
-        if (mounted) Navigator.of(context).pop(true);
+        final result = (done['data'] as Map?)?['status']?.toString() ?? '';
+        if (!mounted) return;
+        if (result == 'trusted') {
+          Navigator.of(context).pop(true);
+        } else {
+          _enterReview();
+        }
       } else if (idCheck == 'Declined') {
         _poll?.cancel();
         setState(() {
@@ -168,6 +195,18 @@ class _NewDevicePageState extends State<NewDevicePage> {
     } catch (e) {
       if (_step == _Step.finishing) _fail(e);
     }
+  }
+
+  /// The ID check could not be matched to the account owner automatically;
+  /// an admin reviews it. Keep polling slowly for the decision.
+  void _enterReview() {
+    if (!mounted) return;
+    if (_step != _Step.review) setState(() => _step = _Step.review);
+    _poll?.cancel();
+    _poll = Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => _checkRecovery(),
+    );
   }
 
   void _fail(Object e) {
@@ -266,6 +305,21 @@ class _NewDevicePageState extends State<NewDevicePage> {
             ),
             const SizedBox(height: 24),
             _primary('Open ID check', _openIdCheck),
+          ],
+        );
+      case _Step.review:
+        return _column(
+          icon: Icons.manage_search_outlined,
+          title: 'Under review',
+          text:
+              'We could not automatically confirm the ID belongs to this account. Our team will review it. You can keep this screen open or come back later.',
+          children: [
+            const LinearProgressIndicator(
+              color: _black,
+              backgroundColor: _light,
+            ),
+            const SizedBox(height: 24),
+            _secondary('Close', () => Navigator.of(context).pop(false)),
           ],
         );
       case _Step.error:
