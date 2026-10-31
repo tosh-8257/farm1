@@ -1,3 +1,4 @@
+import '/components/farm_coin_icon.dart';
 import 'package:flutter/material.dart';
 import '/backend/api_requests/business_ops_api.dart';
 import 'ops_ui.dart';
@@ -72,8 +73,11 @@ class _BusinessHubState extends State<BusinessHub> {
                   const SizedBox(height: 16),
                   Text('Available balance', style: TextStyle(color: mutedColor(ctx))),
                   const SizedBox(height: 4),
-                  Text(money(w['available_balance'], '${w['currency'] ?? 'FARM'}'),
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: fgColor(ctx))),
+                  Row(children: [
+                    if ('${w['currency'] ?? 'FARM'}' == 'FARM') ...[const FarmCoinIcon(size: 28), const SizedBox(width: 10)],
+                    Flexible(child: Text(money(w['available_balance'], '${w['currency'] ?? 'FARM'}'),
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: fgColor(ctx)))),
+                  ]),
                 ],
                 if (m != null) ...[
                   const SizedBox(height: 12),

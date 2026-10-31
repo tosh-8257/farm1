@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import '/components/farm_coin_icon.dart';
 import '../../core/app_theme.dart';
 import '/backend/api_requests/fees_api.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1173,14 +1174,14 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Text(
+                              Row(mainAxisSize: MainAxisSize.min, children: [const FarmCoinIcon(size: 28), const SizedBox(width: 10), Flexible(child: Text(
                                 '${walletBalance.toStringAsFixed(4)} FARM',
                                 style: GoogleFonts.plusJakartaSans(
                                   color: AppTheme.accent,
                                   fontSize: 28,
                                   fontWeight: FontWeight.bold,
                                 ),
-                              ),
+                              ))]),
                             ],
                           ),
                   ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '/components/farm_coin_icon.dart';
 import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/backend/services/api_service.dart';
@@ -922,14 +923,14 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Text(
+                          Row(mainAxisSize: MainAxisSize.min, children: [const FarmCoinIcon(size: 28), const SizedBox(width: 10), Flexible(child: Text(
                             '${walletBalance.toStringAsFixed(4)} FARM',
                             style: GoogleFonts.plusJakartaSans(
                               color: AppTheme.accent,
                               fontSize: 26,
                               fontWeight: FontWeight.bold,
                             ),
-                          ),
+                          ))]),
                         ],
                       ),
               ),

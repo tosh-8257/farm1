@@ -1,3 +1,4 @@
+import '/components/farm_coin_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/backend/api_requests/business_ops_api.dart';
@@ -17,8 +18,11 @@ class BusinessWalletPage extends StatelessWidget {
             BizCard(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Available', style: TextStyle(color: mutedColor(c))),
-                Text(money(w['available_balance'], '${w['currency'] ?? 'FARM'}'),
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: goldOn(c))),
+                Row(children: [
+                  if ('${w['currency'] ?? 'FARM'}' == 'FARM') ...[const FarmCoinIcon(size: 28), const SizedBox(width: 10)],
+                  Flexible(child: Text(money(w['available_balance'], '${w['currency'] ?? 'FARM'}'),
+                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: goldOn(c)))),
+                ]),
                 const SizedBox(height: 12),
                 KeyValue('Total balance', money(w['balance'])),
                 KeyValue('Locked in escrow', money(w['locked_balance'])),

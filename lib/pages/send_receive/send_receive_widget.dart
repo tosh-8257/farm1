@@ -17,6 +17,7 @@ import '/widgets/common/back_chevron.dart';
 import '/pages/chain_wallet/wallet_address_page.dart';
 
 import 'package:flutter/material.dart';
+import '/components/farm_coin_icon.dart';
 import '../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1863,7 +1864,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                       const SizedBox(
                                         height: 12,
                                       ),
-                                      Text(
+                                      Row(mainAxisSize: MainAxisSize.min, children: [const FarmCoinIcon(size: 30), const SizedBox(width: 10), Flexible(child: Text(
                                         '${balance.toStringAsFixed(2)} FARM',
                                         style: FlutterFlowTheme.of(context)
                                             .headlineLarge
@@ -1873,7 +1874,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                      ),
+                                      ))]),
                                     ],
                                   ),
                                 ),
