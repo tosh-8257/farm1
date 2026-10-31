@@ -71,7 +71,7 @@ class _BusinessHubState extends State<BusinessHub> {
                 ]),
                 if (w != null) ...[
                   const SizedBox(height: 16),
-                  Text('Available balance', style: TextStyle(color: mutedColor(ctx))),
+                  Text(w['kind'] == 'business' ? 'Business balance' : 'Available balance', style: TextStyle(color: mutedColor(ctx))),
                   const SizedBox(height: 4),
                   Row(children: [
                     if ('${w['currency'] ?? 'FARM'}' == 'FARM') ...[const FarmCoinIcon(size: 28), const SizedBox(width: 10)],

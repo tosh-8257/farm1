@@ -35,6 +35,9 @@ class BusinessOpsApi {
       data(await _call('GET', '/business/dashboard'));
   static Future<Map<String, dynamic>> wallet() async =>
       data(await _call('GET', '/business/wallet'));
+  /// Free move from the business wallet to the owner's personal wallet.
+  static Future<Map<String, dynamic>> moveToPersonal(num amount, String pin) async =>
+      data(await _call('POST', '/business/wallet/move-to-personal', {'amount': amount, 'pin': pin}));
   static Future<Map<String, dynamic>> analytics(String range) async =>
       data(await _call('GET', '/business/analytics${_q({'range': range})}'));
 

@@ -53,6 +53,9 @@ class _DashboardWidgetState extends State<DashboardWidget>
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
   double walletBalance = 0.0;
+  /// Separate business (merchant) balance, shown under personal when the backend has BUSINESS_WALLET_ENABLED.
+  double? businessBalance;
+  String? businessName;
   double kesEquivalent = 0.0;
   bool isBalanceLoading = true;
 
@@ -205,6 +208,11 @@ class _DashboardWidgetState extends State<DashboardWidget>
             0.0;
         kesEquivalent =
             double.tryParse((data['kes_equivalent'] ?? 0).toString()) ?? 0.0;
+        final biz = data['business_wallet'];
+        businessBalance = biz is Map
+            ? double.tryParse('${biz['available_balance'] ?? biz['balance'] ?? 0}')
+            : null;
+        businessName = biz is Map ? '${biz['name'] ?? 'Business'}' : null;
         isBalanceLoading = false;
       });
     } catch (e) {
@@ -1334,6 +1342,25 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                           lineHeight: 1.2,
                                                         ),
                                                   ),
+                                                  if (!isBalanceLoading &&
+                                                      businessBalance != null)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                            top: 4.0,
+                                                          ),
+                                                      child: Text(
+                                                        '${businessName ?? 'Business'} (merchant): ${businessBalance!.toStringAsFixed(2)} FARM',
+                                                        overflow:
+                                                            TextOverflow.ellipsis,
+                                                        style: const TextStyle(
+                                                          color: Colors.white70,
+                                                          fontSize: 12,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ),
                                                   Padding(
                                                     padding:
                                                         const EdgeInsets.only(
