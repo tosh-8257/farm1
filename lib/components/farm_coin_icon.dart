@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// FARM coin logo (black rounded square, white F). Use next to FARM balances and asset rows.
+/// FARM coin logo (white rounded square, black F-with-bars mark). Use next to FARM balances and asset rows.
 class FarmCoinIcon extends StatelessWidget {
   const FarmCoinIcon({super.key, this.size = 24});
   final double size;
