@@ -184,8 +184,8 @@ class _ProjectEditorPageState extends State<ProjectEditorPage> {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                  'Tokenize: once the project is fully funded, open it and tap "Tokenize project". '
-                  'Investors get 1 token per FARM invested, after FARM approves it.',
+                  'Tokenize: after saving, open the project and tap "Tokenize project" before it is listed. '
+                  'Supply = funding target; investors get 1 token per FARM as they invest, once FARM approves.',
                   style: TextStyle(fontSize: 12, color: mutedColor(context))),
             ),
           ]),
@@ -433,7 +433,7 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
                   child: const Text('Submit for review'),
                 ),
               ],
-              if (!['rejected', 'cancelled'].contains(status)) TokenizationCard(projectId: widget.id, projectStatus: status),
+              if (!['rejected', 'cancelled'].contains(status)) TokenizationCard(projectId: widget.id, projectStatus: status, targetAmount: p['target_amount']),
               if (canUpdate)
                 ElevatedButton(style: primaryButtonStyle(c), onPressed: _postUpdate, child: const Text('Post update to investors')),
               if (reviews.isNotEmpty) ...[
@@ -572,36 +572,48 @@ class _MilestoneEditorPageState extends State<MilestoneEditorPage> {
 
 /// Request tokenization of a funded project. FARM approves and creates the ASA.
 class TokenizationCard extends StatefulWidget {
-  const TokenizationCard({super.key, required this.projectId, this.projectStatus = 'funded'});
+  const TokenizationCard({super.key, required this.projectId, this.projectStatus = 'funded', this.targetAmount});
   final String projectId;
   final String projectStatus;
+  final dynamic targetAmount;
   @override
   State<TokenizationCard> createState() => _TokenizationCardState();
 }
 
+const _preListing = ['draft', 'more_info_required', 'submitted', 'approved'];
+
 class _TokenizationCardState extends State<TokenizationCard> {
   final _key = GlobalKey<BizAsyncState<Map<String, dynamic>>>();
 
-  Future<void> _request() async {
+  bool get funded => ['funded', 'closed'].contains(widget.projectStatus);
+  bool get preListing => _preListing.contains(widget.projectStatus);
+
+  Future<void> _request({required bool onInvest}) async {
     final n = TextEditingController();
     final u = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Tokenize project'),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          TextField(controller: n, maxLength: 32, decoration: bizInput(ctx, 'Token name (e.g. Solar Farm Shares)')),
-          TextField(
-              controller: u,
-              maxLength: 8,
-              textCapitalization: TextCapitalization.characters,
-              decoration: bizInput(ctx, 'Symbol, 1-8 letters/digits (e.g. SOLAR)')),
-          KeyValue('Price per token', '1 FARM'),
-          KeyValue('Total supply', '1 token per FARM invested'),
-          const SizedBox(height: 6),
-          Text('Supply is counted from investments when FARM approves. Nothing is minted until approved.',
-              style: TextStyle(fontSize: 12, color: mutedColor(ctx))),
-        ]),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            TextField(controller: n, maxLength: 32, decoration: bizInput(ctx, 'Token name (e.g. Solar Farm Shares)')),
+            TextField(
+                controller: u,
+                maxLength: 8,
+                textCapitalization: TextCapitalization.characters,
+                decoration: bizInput(ctx, 'Symbol, 1-8 letters/digits (e.g. SOLAR)')),
+            KeyValue('Price per token', '1 FARM'),
+            KeyValue('Total supply',
+                onInvest ? '${widget.targetAmount ?? 'Funding target'} (= funding target)' : '1 token per FARM invested'),
+            const SizedBox(height: 6),
+            Text(
+                onInvest
+                    ? 'FARM creates the token when it approves and lists the project. Each investor then gets 1 token per FARM as they invest.'
+                    : 'Supply is counted from investments when FARM approves. Nothing is minted until approved.',
+                style: TextStyle(fontSize: 12, color: mutedColor(ctx))),
+          ]),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Request')),
@@ -612,47 +624,82 @@ class _TokenizationCardState extends State<TokenizationCard> {
     n.dispose();
     u.dispose();
     if (ok != true || name.isEmpty || unit.isEmpty || !mounted) return;
-    final r = await runBusy(context, () => InvestmentsApi.requestToken(widget.projectId, name, unit),
+    final r = await runBusy(
+        context, () => InvestmentsApi.requestToken(widget.projectId, name, unit, mode: onInvest ? 'on_invest' : null),
         success: 'Requested. FARM will review it.');
     if (r != null) _key.currentState?.reload();
   }
 
-  bool get funded => ['funded', 'closed'].contains(widget.projectStatus);
+  Widget _progress(BuildContext c, Map<String, dynamic> t, Map p) {
+    int n(dynamic v) => int.tryParse('${v ?? 0}') ?? 0;
+    final total = n(p['total_units']);
+    final alloc = n(p['allocated_units']);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const SizedBox(height: 6),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: LinearProgressIndicator(
+          value: total > 0 ? (alloc / total).clamp(0, 1).toDouble() : 0,
+          minHeight: 6,
+          color: const Color(0xFFD4AF37),
+          backgroundColor: mutedColor(c).withValues(alpha: 0.2),
+        ),
+      ),
+      const SizedBox(height: 6),
+      KeyValue('Sold', '$alloc of $total ${t['unit_name']}'),
+      KeyValue('Delivered · Owed', '${p['delivered_units']} · ${p['owed_units']}'),
+      if (t['unsold_units'] != null) KeyValue('Unsold (kept by issuer)', '${t['unsold_units']}'),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: BizCard(
           child: SizedBox(
-            height: 160,
+            height: preListing ? 170 : 270,
             child: BizAsync<Map<String, dynamic>>(
               key: _key,
-              load: () => funded
-                  ? InvestmentsApi.projectToken(widget.projectId)
-                  : Future.value(<String, dynamic>{'data': null, 'enabled': false}),
+              load: () => InvestmentsApi.projectToken(widget.projectId),
               builder: (c, r, _) {
                 final t = r['data'] is Map ? Map<String, dynamic>.from(r['data'] as Map) : null;
+                final onInvestOn = r['on_invest_enabled'] == true;
+                final canOnInvest = preListing && onInvestOn;
+                final canPost = funded && r['enabled'] == true;
+                final none = t == null || t['status'] == 'rejected';
+                final p = r['progress'] is Map ? r['progress'] as Map : null;
                 return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Tokenization (Algorand TestNet)', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
                   const SizedBox(height: 6),
-                  if (t == null || t['status'] == 'rejected') ...[
+                  if (none) ...[
                     Text(
-                        !funded
-                            ? 'Available once the project is fully funded. Investors get 1 token per FARM invested.'
-                            : r['enabled'] != true
-                                ? 'Tokenization is not switched on yet.'
-                                : (t?['notes'] != null ? 'Previous request rejected: ${t!['notes']}' : 'Turn investor holdings into an Algorand token.'),
+                        t?['notes'] != null && (canOnInvest || canPost)
+                            ? 'Previous request rejected: ${t!['notes']}'
+                            : canOnInvest
+                                ? 'Tokenize now: investors get 1 token per FARM as they invest.'
+                                : canPost
+                                    ? 'Turn investor holdings into an Algorand token.'
+                                    : preListing || funded
+                                        ? 'Tokenization is not switched on yet.'
+                                        : 'Tokenization must be requested before listing (or after funding).',
                         style: TextStyle(color: mutedColor(c))),
                     const Spacer(),
                     OutlinedButton.icon(
                         style: secondaryButtonStyle(c),
-                        onPressed: funded && r['enabled'] == true ? _request : null,
+                        onPressed: canOnInvest
+                            ? () => _request(onInvest: true)
+                            : canPost
+                                ? () => _request(onInvest: false)
+                                : null,
                         icon: const Icon(Icons.token_rounded, size: 18),
                         label: const Text('Tokenize project')),
                   ] else ...[
                     KeyValue('Status', tokenStatusLabels['${t['status']}'] ?? '${t['status']}'),
                     KeyValue('Token', '${t['asset_name']} (${t['unit_name']})'),
+                    if (t['mode'] == 'on_invest' && t['status'] != 'created')
+                      Text('Created when FARM lists the project.', style: TextStyle(fontSize: 12, color: mutedColor(c))),
                     if (t['asset_id'] != null) KeyValue('Asset ID', '${t['asset_id']}'),
+                    if (t['mode'] == 'on_invest' && t['status'] == 'created' && p != null) _progress(c, t, p),
                     if (t['explorer_url'] != null)
                       TextButton(
                           onPressed: () => openDoc(c, '${t['explorer_url']}'),

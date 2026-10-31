@@ -503,16 +503,21 @@ class TokensTab extends StatelessWidget {
         isEmpty: (l) => l.isEmpty,
         emptyIcon: Icons.token_outlined,
         emptyTitle: 'No tokens yet',
-        emptyMessage: 'When a project you backed is tokenized on Algorand, your units appear here. FARM holds them for you.',
+        emptyMessage: 'When you invest in a tokenized project you get 1 token per FARM. They show here as owed until delivered to your wallet.',
         builder: (c, l, _) => ListView(padding: const EdgeInsets.all(16), children: [
           for (final a in l)
             Builder(builder: (_) {
               final t = (a['token'] as Map?) ?? const {};
+              final st = '${a['status'] ?? 'held'}';
+              final url = a['tx_url'] ?? t['explorer_url'];
               return BizTile(
                 leading: Icons.token_outlined,
                 title: '${(a['project'] as Map?)?['project_name'] ?? 'Project'}',
-                subtitle: '${a['units']} ${t['unit_name'] ?? ''} · ASA ${t['asset_id'] ?? '—'} · ${t['network'] ?? ''} · FARM custody',
-                onTap: t['explorer_url'] != null ? () => openDoc(c, '${t['explorer_url']}') : null,
+                subtitle: '${a['units']} ${t['unit_name'] ?? ''} · ASA ${t['asset_id'] ?? '—'} · ${t['network'] ?? ''}\n'
+                    '${allocationStatusLabels[st] ?? st}',
+                trailing: StatusChip(st == 'delivered' ? 'Delivered' : st == 'owed' || st == 'sending' ? 'Owed' : (allocationStatusLabels[st] ?? st).split(' ').first,
+                    filled: st == 'delivered'),
+                onTap: url != null ? () => openDoc(c, '$url') : null,
               );
             }),
         ]),

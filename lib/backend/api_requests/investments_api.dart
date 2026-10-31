@@ -68,8 +68,10 @@ class InvestmentsApi {
   // Phase 5: Algorand tokenization (backend decides everything; disabled until configured)
   static Future<List<Map<String, dynamic>>> myTokens() async => _l(await _call('GET', '/investments/tokens'));
   static Future<Map<String, dynamic>> projectToken(String id) async => await _call('GET', '/business/projects/$id/tokenization');
-  static Future<Map<String, dynamic>> requestToken(String id, String assetName, String unitName) async =>
-      _d(await _call('POST', '/business/projects/$id/tokenization', {'asset_name': assetName, 'unit_name': unitName}));
+  /// mode 'on_invest' = minted at listing, delivered to investors as they invest.
+  static Future<Map<String, dynamic>> requestToken(String id, String assetName, String unitName, {String? mode}) async =>
+      _d(await _call('POST', '/business/projects/$id/tokenization',
+          {'asset_name': assetName, 'unit_name': unitName, if (mode != null) 'mode': mode}));
   static Future<Map<String, dynamic>> setMilestones(String id, List<Map<String, dynamic>> items) async =>
       _d(await _call('PATCH', '/business/projects/$id/milestones', {'milestones': items}));
   static Future<Map<String, dynamic>> requestMilestone(String id, String mid,
@@ -139,4 +141,16 @@ const tokenStatusLabels = {
   'created': 'Created',
   'failed': 'Failed (FARM will retry)',
   'rejected': 'Rejected',
+};
+
+/// Per-investor token allocation status (tokenize-as-you-invest).
+const allocationStatusLabels = {
+  'held': 'Held by FARM',
+  'owed': 'Owed · sent when your wallet is ready',
+  'sending': 'Sending to your wallet',
+  'delivered': 'In your wallet',
+  'clawback_pending': 'Being returned (project cancelled)',
+  'clawing': 'Being returned (project cancelled)',
+  'clawed_back': 'Returned (project cancelled)',
+  'cancelled': 'Cancelled',
 };
