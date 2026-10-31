@@ -78,8 +78,16 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   final Map<String, Map<String, double?>> _withdrawLimits = {
     'BANK': {'min': 4999, 'max': 999999},
     'MOBILE_MONEY': {'min': 1499, 'max': 249999},
-    'CRYPTO': {'min': 1, 'max': null},
+    'CRYPTO': {'min': 2, 'max': null},
   };
+
+  static const double _cryptoMaxPerWithdrawalUsd = 100000;
+  double get _cryptoMaxUsd {
+    final balanceUsd = (_cryptoFarmUsdRate ?? 0) * walletBalance;
+    return balanceUsd < _cryptoMaxPerWithdrawalUsd
+        ? balanceUsd
+        : _cryptoMaxPerWithdrawalUsd;
+  }
 
   double get amount => double.tryParse(_amountCtrl.text.trim()) ?? 0;
   double get feeRate => _fees[selectedMethod] ?? 0.015;
@@ -97,7 +105,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     if (selectedMethod == 'CRYPTO') {
       return _cryptoFarmUsdRate != null &&
           _cryptoMinimumFarm != null &&
-          amount >= 1 &&
+          amount >= 2 &&
+          amount <= _cryptoMaxPerWithdrawalUsd &&
           _amountInFarm <= walletBalance;
     }
     return amount > 0 &&
@@ -119,16 +128,18 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         return 'Could not load crypto minimum: $_cryptoMinimumError';
       }
       final maxUsd = (_cryptoFarmUsdRate ?? 0) * walletBalance;
-      if (amount <= 0) {
-        return 'Range: USD 1.00+${maxUsd > 0 ? ' - USD ${maxUsd.toStringAsFixed(2)} max' : ''}';
+      // Min/Max are already shown above the message; only surface errors here.
+      if (amount <= 0) return '';
+      if (amount < 2) {
+        return 'Minimum crypto withdrawal is USD 2.00';
       }
-      if (amount < 1) {
-        return 'Minimum crypto withdrawal is USD 1.00';
+      if (amount > _cryptoMaxPerWithdrawalUsd) {
+        return 'Maximum crypto withdrawal is USD 100,000 per withdrawal';
       }
       if (_cryptoFarmUsdRate != null && _amountInFarm > walletBalance) {
         return 'Amount exceeds your available balance (USD ${maxUsd.toStringAsFixed(2)} max)';
       }
-      return 'Range: USD 1.00+${maxUsd > 0 ? ' - USD ${maxUsd.toStringAsFixed(2)} max' : ''}';
+      return '';
     }
     if (amount <= 0) {
       return 'Range: FARM ${_formatAmount(_activeWithdrawMin)}${_activeWithdrawMax == null ? '+' : ' - FARM ${_formatAmount(_activeWithdrawMax!)}'}';
@@ -1218,7 +1229,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                           children: [
                             Text(
                               selectedMethod == 'CRYPTO'
-                                  ? 'Min: USD 1.00'
+                                  ? 'Min: USD 2.00'
                                   : 'Min: FARM ${_formatAmount(_activeWithdrawMin)}',
                               style: GoogleFonts.plusJakartaSans(
                                 color: theme.secondaryText,
@@ -1228,7 +1239,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                             Text(
                               _activeWithdrawMax == null
                                   ? selectedMethod == 'CRYPTO'
-                                        ? 'Max: USD ${(_cryptoFarmUsdRate == null ? 0 : walletBalance * _cryptoFarmUsdRate!).toStringAsFixed(2)}'
+                                        ? 'Max: USD ${_cryptoMaxUsd.toStringAsFixed(2)}'
                                         : 'Max: FARM no limit'
                                   : 'Max: FARM ${_formatAmount(_activeWithdrawMax!)}',
                               style: GoogleFonts.plusJakartaSans(
@@ -1238,16 +1249,18 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _withdrawValidationMessage,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            color: amount > 0 && !_hasValidWithdrawAmount
-                                ? Colors.redAccent
-                                : theme.secondaryText,
+                        if (_withdrawValidationMessage.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _withdrawValidationMessage,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              color: amount > 0 && !_hasValidWithdrawAmount
+                                  ? Colors.redAccent
+                                  : theme.secondaryText,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
