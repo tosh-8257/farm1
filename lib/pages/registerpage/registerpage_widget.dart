@@ -7,6 +7,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
+import '/components/brand_logo.dart';
 import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/pages/loginpage/loginpage_widget.dart' show kDefaultLoginCountry;
@@ -422,62 +423,7 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                 children: [
                   Column(
                     children: [
-                      Container(
-                        width: 64.0,
-                        height: 64.0,
-                        decoration: BoxDecoration(
-                          color: FlutterFlowTheme.of(context).primaryText,
-                          borderRadius: BorderRadius.circular(16.0),
-                        ),
-                        alignment: const AlignmentDirectional(0.0, 0.0),
-                        child: SizedBox(
-                          width: 40.0,
-                          height: 50.0,
-                          child: Stack(
-                            alignment: const AlignmentDirectional(-1.0, -1.0),
-                            children: [
-                              Align(
-                                alignment: const AlignmentDirectional(0.0, 0.0),
-                                child: Container(
-                                  width: 6.0,
-                                  height: 50.0,
-                                  decoration: BoxDecoration(
-                                    color:
-                                        FlutterFlowTheme.of(context).onPrimary,
-                                    borderRadius: BorderRadius.circular(2.0),
-                                  ),
-                                ),
-                              ),
-                              Align(
-                                alignment:
-                                    const AlignmentDirectional(-1.0, -0.6),
-                                child: Container(
-                                  width: 24.0,
-                                  height: 6.0,
-                                  decoration: BoxDecoration(
-                                    color:
-                                        FlutterFlowTheme.of(context).onPrimary,
-                                    borderRadius: BorderRadius.circular(2.0),
-                                  ),
-                                ),
-                              ),
-                              Align(
-                                alignment:
-                                    const AlignmentDirectional(-1.0, 0.0),
-                                child: Container(
-                                  width: 18.0,
-                                  height: 6.0,
-                                  decoration: BoxDecoration(
-                                    color:
-                                        FlutterFlowTheme.of(context).onPrimary,
-                                    borderRadius: BorderRadius.circular(2.0),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                      const BrandLogo(size: 64.0),
                       const SizedBox(height: 16.0),
                       Text(
                         'FARM',

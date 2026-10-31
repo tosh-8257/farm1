@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:flutter/material.dart';
+import '/components/brand_logo.dart';
 import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'loginpage_model.dart';
@@ -483,57 +484,7 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 72.0,
-                      height: 72.0,
-                      decoration: BoxDecoration(
-                        color: FlutterFlowTheme.of(context).primaryText,
-                        borderRadius: BorderRadius.circular(24.0),
-                      ),
-                      alignment: const AlignmentDirectional(0.0, 0.0),
-                      child: SizedBox(
-                        width: 40.0,
-                        height: 50.0,
-                        child: Stack(
-                          alignment: const AlignmentDirectional(-1.0, -1.0),
-                          children: [
-                            Align(
-                              alignment: const AlignmentDirectional(0.0, 0.0),
-                              child: Container(
-                                width: 6.0,
-                                height: 50.0,
-                                decoration: BoxDecoration(
-                                  color: FlutterFlowTheme.of(context).onPrimary,
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Align(
-                              alignment: const AlignmentDirectional(-1.0, -0.6),
-                              child: Container(
-                                width: 24.0,
-                                height: 6.0,
-                                decoration: BoxDecoration(
-                                  color: FlutterFlowTheme.of(context).onPrimary,
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Align(
-                              alignment: const AlignmentDirectional(-1.0, 0.0),
-                              child: Container(
-                                width: 18.0,
-                                height: 6.0,
-                                decoration: BoxDecoration(
-                                  color: FlutterFlowTheme.of(context).onPrimary,
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    const BrandLogo(size: 72.0),
                     const SizedBox(height: 16.0),
                     Text(
                       'FARM',
