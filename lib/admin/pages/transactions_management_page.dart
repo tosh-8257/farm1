@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import '/core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
@@ -121,7 +122,7 @@ class _TransactionsManagementPageState extends State<TransactionsManagementPage>
       case 'processing':
         return Colors.blue;
       default:
-        return context.textSecondary;
+        return AdminColors.textSecondary;
     }
   }
 
@@ -299,7 +300,7 @@ class _TransactionsManagementPageState extends State<TransactionsManagementPage>
                                 color: cardColor,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                    color: context.onSurface.withOpacity(0.1)),
+                                    color: AdminColors.border),
                               ),
                               child: Row(children: [
                                 if (_selectedTransactions.isNotEmpty)

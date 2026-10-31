@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
@@ -186,7 +187,7 @@ class _FeeManagementPageState extends State<FeeManagementPage>
                   const SizedBox(height: 6),
                   Text('Review and update platform fee configurations.',
                       style: GoogleFonts.plusJakartaSans(
-                          color: context.onSurface.withOpacity(0.7),
+                          color: AdminColors.textSecondary,
                           fontSize: 13)),
                   const SizedBox(height: 24),
                   if (_error != null)
@@ -208,7 +209,7 @@ class _FeeManagementPageState extends State<FeeManagementPage>
                         Expanded(
                           child: Text(_error!,
                               style: GoogleFonts.plusJakartaSans(
-                                  color: context.onSurface.withOpacity(0.7))),
+                                  color: AdminColors.textSecondary)),
                         ),
                         TextButton(
                             onPressed: _load,
@@ -223,17 +224,17 @@ class _FeeManagementPageState extends State<FeeManagementPage>
                         color: _cardColor,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: context.onSurface.withOpacity(0.1)),
+                            color: AdminColors.border),
                       ),
                       child: Column(children: [
                         Icon(Icons.percent_rounded,
                             size: 32,
-                            color: context.onSurface.withOpacity(0.24)),
+                            color: AdminColors.border),
                         const SizedBox(height: 14),
                         Text('No fee configurations available',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.plusJakartaSans(
-                                color: context.onSurface.withOpacity(0.54),
+                                color: AdminColors.textSecondary,
                                 fontSize: 14)),
                       ]),
                     )
@@ -250,7 +251,7 @@ class _FeeManagementPageState extends State<FeeManagementPage>
                           color: _cardColor,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: context.onSurface.withOpacity(0.1)),
+                              color: AdminColors.border),
                         ),
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,7 +264,7 @@ class _FeeManagementPageState extends State<FeeManagementPage>
                               const SizedBox(height: 8),
                               Text(_feeDescription(fee),
                                   style: GoogleFonts.plusJakartaSans(
-                                      color: context.onSurface.withOpacity(0.6),
+                                      color: AdminColors.textSecondary,
                                       fontSize: 12)),
                               const SizedBox(height: 16),
                               Row(children: [

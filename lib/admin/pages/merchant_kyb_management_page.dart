@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
@@ -121,7 +122,7 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
           style: TextStyle(color: context.onSurface),
           decoration: InputDecoration(
             hintText: 'Reason for rejection',
-            hintStyle: TextStyle(color: context.onSurface.withOpacity(0.38)),
+            hintStyle: TextStyle(color: AdminColors.textSecondary),
             filled: true,
             fillColor: const Color(0xFF0F1724),
             border: OutlineInputBorder(
@@ -248,7 +249,7 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
         children: [
           Text(label,
               style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11, color: context.onSurface.withOpacity(0.54))),
+                  fontSize: 11, color: AdminColors.textSecondary)),
           const SizedBox(height: 2),
           SelectableText(value,
               style: GoogleFonts.plusJakartaSans(
@@ -282,7 +283,7 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                   Text(
                       'Review merchant KYB applications and decide onboarding status.',
                       style: GoogleFonts.plusJakartaSans(
-                          color: context.onSurface.withOpacity(0.7),
+                          color: AdminColors.textSecondary,
                           fontSize: 13)),
                   const SizedBox(height: 20),
                   Wrap(
@@ -301,7 +302,7 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                               style: GoogleFonts.plusJakartaSans(
                                   color: _statusFilter == status
                                       ? context.background
-                                      : context.onSurface.withOpacity(0.7),
+                                      : AdminColors.textSecondary,
                                   fontSize: 12)),
                           selected: _statusFilter == status,
                           selectedColor: AppTheme.accent,
@@ -309,7 +310,7 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                           side: BorderSide(
                               color: _statusFilter == status
                                   ? AppTheme.accent
-                                  : context.onSurface.withOpacity(0.1)),
+                                  : AdminColors.border),
                           onSelected: (_) {
                             setState(() => _statusFilter = status);
                             _load();
@@ -337,7 +338,7 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                         Expanded(
                           child: Text(_error!,
                               style: GoogleFonts.plusJakartaSans(
-                                  color: context.onSurface.withOpacity(0.7))),
+                                  color: AdminColors.textSecondary)),
                         ),
                         TextButton(
                             onPressed: _load,
@@ -352,17 +353,17 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                         color: _cardColor,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: context.onSurface.withOpacity(0.1)),
+                            color: AdminColors.border),
                       ),
                       child: Column(children: [
                         Icon(Icons.badge_rounded,
                             size: 32,
-                            color: context.onSurface.withOpacity(0.24)),
+                            color: AdminColors.border),
                         const SizedBox(height: 14),
                         Text('No merchant KYB records found',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.plusJakartaSans(
-                                color: context.onSurface.withOpacity(0.54),
+                                color: AdminColors.textSecondary,
                                 fontSize: 14)),
                       ]),
                     )
@@ -388,7 +389,7 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                           color: _cardColor,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: context.onSurface.withOpacity(0.1)),
+                              color: AdminColors.border),
                         ),
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,19 +430,19 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                               const SizedBox(height: 10),
                               Text(email,
                                   style: GoogleFonts.plusJakartaSans(
-                                      color: context.onSurface.withOpacity(0.6),
+                                      color: AdminColors.textSecondary,
                                       fontSize: 12)),
                               const SizedBox(height: 4),
                               Text(phone,
                                   style: GoogleFonts.plusJakartaSans(
-                                      color: context.onSurface.withOpacity(0.6),
+                                      color: AdminColors.textSecondary,
                                       fontSize: 12)),
                               if (created.isNotEmpty) ...[
                                 const SizedBox(height: 4),
                                 Text('Applied: $created',
                                     style: GoogleFonts.plusJakartaSans(
                                         color:
-                                            context.onSurface.withOpacity(0.38),
+                                            AdminColors.textSecondary,
                                         fontSize: 11)),
                               ],
                               const SizedBox(height: 12),

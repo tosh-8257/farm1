@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/app_theme.dart';
 import '/core/theme_extensions.dart';
@@ -234,14 +235,14 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                         Icon(item.icon,
                             color: selected
                                 ? AppTheme.onAccent
-                                : context.onSurface.withOpacity(0.38),
+                                : AdminColors.textSecondary,
                             size: 20),
                         const SizedBox(width: 12),
                         Text(item.label,
                             style: GoogleFonts.plusJakartaSans(
                               color: selected
                                   ? AppTheme.onAccent
-                                  : context.onSurface.withOpacity(0.54),
+                                  : AdminColors.textSecondary,
                               fontWeight: selected
                                   ? FontWeight.w600
                                   : FontWeight.normal,
@@ -291,7 +292,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        border: Border(bottom: BorderSide(color: AdminColors.border)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -300,8 +301,8 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
             Text('FARM Admin',
                 style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: context.onSurface)),
+                    fontSize: 17,
+                    color: AdminColors.text)),
           if (isWide)
             Text(_navItems[_selectedIndex].label,
                 style: GoogleFonts.plusJakartaSans(
@@ -309,8 +310,8 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                     fontSize: 18,
                     color: context.onSurface)),
           Row(children: [
-            Icon(Icons.notifications_none_rounded,
-                color: context.onSurface.withOpacity(0.7)),
+            const Icon(Icons.notifications_none_rounded,
+                color: AdminColors.text),
             const SizedBox(width: 12),
             GestureDetector(
               onTap: _logout,
@@ -320,7 +321,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.grey.shade300, width: 1),
+                  border: Border.all(color: AdminColors.text, width: 1),
                 ),
                 child: Row(
                   children: [
@@ -347,8 +348,8 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                   color: Color(0xFF0A0F18), shape: BoxShape.circle),
               child: Center(
                   child: Text('AD',
-                      style: TextStyle(
-                          color: context.onSurface,
+                      style: const TextStyle(
+                          color: Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.bold))),
             ),
@@ -362,7 +363,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        border: Border(top: BorderSide(color: AdminColors.border)),
       ),
       child: SafeArea(
         top: false,
@@ -394,7 +395,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                           size: 18,
                           color: selected
                               ? AppTheme.onAccent
-                              : context.onSurface.withOpacity(0.64),
+                              : AdminColors.textSecondary,
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -403,12 +404,12 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.plusJakartaSans(
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight:
-                                selected ? FontWeight.w700 : FontWeight.w500,
+                                selected ? FontWeight.w800 : FontWeight.w600,
                             color: selected
                                 ? AppTheme.onAccent
-                                : context.onSurface.withOpacity(0.7),
+                                : AdminColors.textSecondary,
                           ),
                         ),
                       ],

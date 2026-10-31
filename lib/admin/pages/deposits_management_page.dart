@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import '/core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
@@ -117,7 +118,7 @@ class _DepositsManagementPageState extends State<DepositsManagementPage>
       case 'failed':
         return context.errorColor;
       default:
-        return context.textSecondary;
+        return AdminColors.textSecondary;
     }
   }
 
@@ -196,7 +197,7 @@ class _DepositsManagementPageState extends State<DepositsManagementPage>
                               child: Text('No deposits found',
                                   style: GoogleFonts.plusJakartaSans(
                                       color:
-                                          context.onSurface.withOpacity(0.6))))
+                                          AdminColors.textSecondary)))
                           : ListView.builder(
                               padding: const EdgeInsets.all(20),
                               itemCount: _visibleDeposits.length,

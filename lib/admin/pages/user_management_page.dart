@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import '/core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
@@ -122,7 +123,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                      color: context.onSurface.withValues(alpha: 0.24),
+                      color: AdminColors.border,
                       borderRadius: BorderRadius.circular(2)),
                 ),
               ),
@@ -158,7 +159,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                         '@${user['username']}',
                         softWrap: true,
                         style: GoogleFonts.plusJakartaSans(
-                          color: context.onSurface.withValues(alpha: 0.6),
+                          color: AdminColors.textSecondary,
                           fontSize: 13,
                         ),
                       ),
@@ -257,7 +258,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                         Text(
                             'Browse users, review KYC and manage account status.',
                             style: GoogleFonts.plusJakartaSans(
-                                color: context.onSurface.withValues(alpha: 0.6),
+                                color: AdminColors.textSecondary,
                                 fontSize: 13)),
                       ],
                     ),
@@ -267,7 +268,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                       color: cardColor,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                          color: context.onSurface.withValues(alpha: 0.12)),
+                          color: AdminColors.border),
                     ),
                     padding: const EdgeInsets.all(12),
                     child: Icon(Icons.filter_list_rounded,
@@ -315,7 +316,7 @@ class _UserManagementPageState extends State<UserManagementPage>
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: context.onSurface.withValues(alpha: 0.1)),
+          border: Border.all(color: AdminColors.border),
         ),
         child: TextField(
           controller: _searchCtrl,
@@ -323,13 +324,13 @@ class _UserManagementPageState extends State<UserManagementPage>
           decoration: InputDecoration(
             hintText: 'Search users by name, phone, email...',
             hintStyle:
-                TextStyle(color: context.onSurface.withValues(alpha: 0.54)),
+                TextStyle(color: AdminColors.textSecondary),
             prefixIcon: Icon(Icons.search_rounded,
-                color: context.onSurface.withValues(alpha: 0.7)),
+                color: AdminColors.textSecondary),
             suffixIcon: _search.isNotEmpty
                 ? IconButton(
                     icon: Icon(Icons.clear_rounded,
-                        color: context.onSurface.withValues(alpha: 0.7)),
+                        color: AdminColors.textSecondary),
                     onPressed: () {
                       _searchCtrl.clear();
                       setState(() {
@@ -371,7 +372,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                           fontWeight: FontWeight.w600,
                           color: _filter == f
                               ? context.onSurface
-                              : context.onSurface.withValues(alpha: 0.7))),
+                              : AdminColors.textSecondary)),
                   selected: _filter == f,
                   selectedColor: AppTheme.accent,
                   backgroundColor: cardColor,
@@ -455,14 +456,14 @@ class _UserManagementPageState extends State<UserManagementPage>
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: context.onSurface.withValues(alpha: 0.1)),
+            border: Border.all(color: AdminColors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface.withValues(alpha: 0.54),
+                      color: AdminColors.textSecondary,
                       fontSize: 12,
                       fontWeight: FontWeight.w500)),
               const SizedBox(height: 10),
@@ -474,7 +475,7 @@ class _UserManagementPageState extends State<UserManagementPage>
               const SizedBox(height: 6),
               Text('Compared to last month',
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface.withValues(alpha: 0.38),
+                      color: AdminColors.textSecondary,
                       fontSize: 11)),
             ],
           ),
@@ -505,17 +506,18 @@ class _UserManagementPageState extends State<UserManagementPage>
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: context.onSurface.withValues(alpha: 0.1)),
+        border: Border.all(color: AdminColors.border),
+        boxShadow: AdminColors.shadow,
       ),
       child: ListTile(
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         leading: CircleAvatar(
           radius: 26,
-          backgroundColor: accent,
+          backgroundColor: AdminColors.text,
           child: Text(initial.toUpperCase(),
               style: GoogleFonts.plusJakartaSans(
-                  color: context.background,
+                  color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold)),
         ),
@@ -532,43 +534,42 @@ class _UserManagementPageState extends State<UserManagementPage>
           children: [
             const SizedBox(height: 6),
             Text(u['email'] ?? '-',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.plusJakartaSans(
-                    color: context.textSecondary, fontSize: 12)),
+                    color: AdminColors.textSecondary, fontSize: 12)),
             const SizedBox(height: 6),
             Wrap(
               runSpacing: 6,
               spacing: 6,
               children: [
-                _tag(u['kyc_status'] ?? 'none', _kycColor(u['kyc_status'])),
+                AdminStatusTag('${u['kyc_status'] ?? 'none'}', adminKycColor(u['kyc_status'])),
                 if (u['is_suspended'] == true)
-                  _tag('SUSPENDED', context.errorColor),
+                  const AdminStatusTag('SUSPENDED', AdminColors.error),
               ],
             ),
           ],
         ),
         trailing: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-                'FARM ${double.tryParse(u['balance']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0'}',
-                style: GoogleFonts.plusJakartaSans(
-                    color: context.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12)),
-            const SizedBox(height: 8),
+            FarmAmount(u['balance'], size: 12),
+            const SizedBox(height: 4),
             GestureDetector(
               onTap: () => _viewUser(u),
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: accent.withAlpha((0.18 * 255).round()),
+                  color: Colors.white,
+                  border: Border.all(color: AdminColors.text),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Text('View',
                     style: GoogleFonts.plusJakartaSans(
-                        color: accent,
+                        color: AdminColors.text,
                         fontSize: 12,
                         fontWeight: FontWeight.w700)),
               ),
@@ -587,7 +588,7 @@ class _UserManagementPageState extends State<UserManagementPage>
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.onSurface.withValues(alpha: 0.1)),
+        border: Border.all(color: AdminColors.border),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -618,16 +619,6 @@ class _UserManagementPageState extends State<UserManagementPage>
     );
   }
 
-  Widget _tag(String text, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-            color: color.withAlpha((0.14 * 255).round()),
-            borderRadius: BorderRadius.circular(12)),
-        child: Text(text.toUpperCase(),
-            style: GoogleFonts.plusJakartaSans(
-                color: color, fontSize: 10, fontWeight: FontWeight.bold)),
-      );
-
   Widget _detailRow(String label, String value) => Padding(
         padding: const EdgeInsets.only(bottom: 14),
         child: Row(
@@ -638,7 +629,7 @@ class _UserManagementPageState extends State<UserManagementPage>
               child: Text(
                 label,
                 style: GoogleFonts.plusJakartaSans(
-                  color: context.onSurface.withValues(alpha: 0.54),
+                  color: AdminColors.textSecondary,
                   fontSize: 13,
                 ),
               ),
@@ -659,16 +650,4 @@ class _UserManagementPageState extends State<UserManagementPage>
         ),
       );
 
-  Color _kycColor(String? s) {
-    switch (s) {
-      case 'verified':
-        return context.successColor;
-      case 'pending':
-        return context.warningColor;
-      case 'rejected':
-        return context.errorColor;
-      default:
-        return context.textSecondary;
-    }
-  }
 }
