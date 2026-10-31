@@ -1,3 +1,4 @@
+import '/services/auth/device_identity.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -95,6 +96,13 @@ class RefreshManager {
       '[RefreshManager] Starting token refresh (failures=$_consecutiveFailures).',
     );
 
+    String? deviceId;
+    try {
+      deviceId = await DeviceIdentity.instance.deviceId();
+    } catch (_) {
+      deviceId = null;
+    }
+
     try {
       final response = await _client
           .post(
@@ -103,7 +111,10 @@ class RefreshManager {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
             },
-            body: jsonEncode({'refresh_token': refreshToken}),
+            body: jsonEncode({
+              'refresh_token': refreshToken,
+              if (deviceId != null) 'device_id': deviceId,
+            }),
           )
           .timeout(const Duration(seconds: 10));
 

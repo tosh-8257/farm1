@@ -3,7 +3,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import '/pages/devices/trusted_devices_page.dart';
 
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -125,6 +126,9 @@ class NotificationService {
 
   static Future<void> _handleForegroundMessage(RemoteMessage message) async {
     final payload = _payloadFromMessage(message);
+    if (message.data['type'] == 'device_approval') {
+      _promptDeviceApproval(message.notification?.body);
+    }
     FFAppState().unreadNotificationCount =
         FFAppState().unreadNotificationCount + 1;
 
@@ -198,6 +202,37 @@ class NotificationService {
     } catch (_) {}
   }
 
+  /// "Approve new device" prompt on the trusted phone while FARM is open.
+  static void _promptDeviceApproval(String? body) {
+    final context = appNavigatorKey.currentContext;
+    if (context == null) return;
+    showDialog<void>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('Approve new device?'),
+        content: Text(body ?? 'A new device is trying to sign in to FARM.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            child: const Text('Later'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(c);
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const TrustedDevicesPage()),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.black),
+            child: const Text('Review'),
+          ),
+        ],
+      ),
+    );
+  }
+
   static void _navigatePendingTap() {
     final payload = _pendingTapPayload;
     final context = appNavigatorKey.currentContext;
@@ -207,6 +242,13 @@ class NotificationService {
     final type = metadata is Map<String, dynamic>
         ? metadata['event']?.toString().toLowerCase() ?? payload['type']?.toString().toLowerCase() ?? 'general'
         : payload['type']?.toString().toLowerCase() ?? 'general';
+    if (type == 'device_approval') {
+      _pendingTapPayload = null;
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const TrustedDevicesPage()));
+      return;
+    }
     String route;
     if (type.contains('transfer')) {
       route = '/allTransactions';

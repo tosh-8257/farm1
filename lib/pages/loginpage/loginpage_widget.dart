@@ -14,6 +14,8 @@ import '/services/auth/biometric_login_service.dart';
 import '/services/auth/session_store_service.dart';
 import '/pages/forgot_password_page/forgot_password_page_widget.dart';
 import '/pages/otppage/otppage_widget.dart';
+import '/pages/devices/new_device_page.dart';
+import '/services/auth/device_identity.dart';
 
 /// Create a premium black and white fintech login page for FARM App.
 ///
@@ -313,6 +315,20 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
       }
 
       await _finalizeSuccessfulLogin(response);
+    } on NewDeviceRequiredException catch (e) {
+      if (!mounted) return;
+      setState(() => isLoading = false);
+      final approved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => NewDevicePage(pendingDeviceId: e.pendingDeviceId),
+        ),
+      );
+      // Approved on the trusted phone or recovered: sign in again; this
+      // phone is now trusted, so the signed challenge passes.
+      if (approved == true && mounted) {
+        await handleLogin();
+      }
+      return;
     } catch (e) {
       if (mounted) {
         final errorMsg = e.toString();

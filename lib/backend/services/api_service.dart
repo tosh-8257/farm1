@@ -15,11 +15,17 @@ class ApiServiceException implements Exception {
     required this.statusCode,
     required this.message,
     this.retryAfterSeconds,
+    this.code,
+    this.data,
   });
 
   final int statusCode;
   final String message;
   final int? retryAfterSeconds;
+
+  /// Machine-readable error code from the backend, e.g. NEW_DEVICE.
+  final String? code;
+  final Map<String, dynamic>? data;
 
   @override
   String toString() => message;
@@ -301,6 +307,16 @@ class ApiService {
             : 'Server error (${response.statusCode})',
       );
     }
+    if (decoded['code'] is String) {
+      throw ApiServiceException(
+        statusCode: response.statusCode,
+        message: message.isNotEmpty
+            ? message
+            : 'Request failed (${response.statusCode})',
+        code: decoded['code'] as String,
+        data: decoded,
+      );
+    }
     throw Exception(message.isNotEmpty
         ? message
         : 'Request failed (${response.statusCode})');
@@ -312,6 +328,7 @@ class ApiService {
     required String password,
     String? turnstileToken,
     String? countryCode,
+    Map<String, dynamic>? device,
   }) =>
       _request(
         method: 'POST',
@@ -320,6 +337,7 @@ class ApiService {
           {
             'identifier': identifier,
             'password': password,
+            if (device != null) 'device': device,
           },
           turnstileToken: turnstileToken,
         ),
@@ -332,6 +350,7 @@ class ApiService {
     required String firebaseToken,
     String? countryCode,
     String? turnstileToken,
+    Map<String, dynamic>? device,
   }) =>
       _request(
         method: 'POST',
@@ -340,6 +359,7 @@ class ApiService {
           {
             'identifier': identifier,
             'firebaseIdToken': firebaseToken,
+            if (device != null) 'device': device,
           },
           turnstileToken: turnstileToken,
         ),
@@ -544,11 +564,92 @@ class ApiService {
 
   static Future<Map<String, dynamic>> refreshToken({
     required String refreshToken,
+    String? deviceId,
   }) =>
       _request(
         method: 'POST',
         path: '/auth/refresh',
-        body: {'refresh_token': refreshToken},
+        body: {
+          'refresh_token': refreshToken,
+          if (deviceId != null) 'device_id': deviceId,
+        },
+        requiresAuth: false,
+      );
+
+  // ── Device binding ────────────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> deviceChallenge({
+    required String deviceId,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/device/challenge',
+        body: {'device_id': deviceId},
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> pendingDeviceStatus({
+    required String pendingDeviceId,
+    required String deviceId,
+  }) =>
+      _request(
+        method: 'GET',
+        path: '/auth/device/pending/$pendingDeviceId'
+            '?device_id=${Uri.encodeQueryComponent(deviceId)}',
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> listTrustedDevices() =>
+      _request(method: 'GET', path: '/auth/device/list');
+
+  /// action: approve | reject | revoke
+  static Future<Map<String, dynamic>> decideDevice({
+    required String id,
+    required String action,
+  }) =>
+      _request(method: 'POST', path: '/auth/device/$id/$action');
+
+  static Future<Map<String, dynamic>> startDeviceRecovery({
+    required String pendingDeviceId,
+    required String deviceId,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/device/recovery/start',
+        body: {'pending_device_id': pendingDeviceId, 'device_id': deviceId},
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> verifyDeviceRecoveryOtp({
+    required String recoveryId,
+    required String deviceId,
+    required String otp,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/device/recovery/verify-otp',
+        body: {'recovery_id': recoveryId, 'device_id': deviceId, 'otp': otp},
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> deviceRecoveryStatus({
+    required String recoveryId,
+    required String deviceId,
+  }) =>
+      _request(
+        method: 'GET',
+        path: '/auth/device/recovery/$recoveryId'
+            '?device_id=${Uri.encodeQueryComponent(deviceId)}',
+        requiresAuth: false,
+      );
+
+  static Future<Map<String, dynamic>> completeDeviceRecovery({
+    required String recoveryId,
+    required String deviceId,
+  }) =>
+      _request(
+        method: 'POST',
+        path: '/auth/device/recovery/complete',
+        body: {'recovery_id': recoveryId, 'device_id': deviceId},
         requiresAuth: false,
       );
 

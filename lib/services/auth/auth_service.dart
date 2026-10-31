@@ -1,3 +1,4 @@
+import '/services/auth/device_identity.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
@@ -108,12 +109,22 @@ class AuthService {
     try {
       final normalizedIdentifier = identifier.trim();
 
-      final response = await ApiService.login(
-        identifier: normalizedIdentifier,
-        password: password,
-        turnstileToken: turnstileToken,
-        countryCode: countryCode,
-      );
+      final Map<String, dynamic> response;
+      try {
+        response = await ApiService.login(
+          identifier: normalizedIdentifier,
+          password: password,
+          turnstileToken: turnstileToken,
+          countryCode: countryCode,
+          device: await DeviceIdentity.instance.loginProof(),
+        );
+      } on ApiServiceException catch (e) {
+        final pendingId = e.data?['pending_device_id']?.toString();
+        if (e.code == 'NEW_DEVICE' && pendingId != null) {
+          throw NewDeviceRequiredException(pendingId);
+        }
+        rethrow;
+      }
 
       final normalized = normalizeLoginResponse(response);
       final responseData = normalized['data'] as Map<String, dynamic>? ?? {};
@@ -139,6 +150,8 @@ class AuthService {
       }
 
       return normalized;
+    } on NewDeviceRequiredException {
+      rethrow;
     } on AuthException catch (e) {
       throw Exception('Login error: ${e.message}');
     } catch (e) {
@@ -153,12 +166,22 @@ class AuthService {
     String? turnstileToken,
   }) async {
     try {
-      final response = await ApiService.completeFirebaseLogin(
-        identifier: identifier,
-        firebaseToken: firebaseToken,
-        countryCode: countryCode,
-        turnstileToken: turnstileToken,
-      );
+      final Map<String, dynamic> response;
+      try {
+        response = await ApiService.completeFirebaseLogin(
+          identifier: identifier,
+          firebaseToken: firebaseToken,
+          countryCode: countryCode,
+          turnstileToken: turnstileToken,
+          device: await DeviceIdentity.instance.loginProof(),
+        );
+      } on ApiServiceException catch (e) {
+        final pendingId = e.data?['pending_device_id']?.toString();
+        if (e.code == 'NEW_DEVICE' && pendingId != null) {
+          throw NewDeviceRequiredException(pendingId);
+        }
+        rethrow;
+      }
 
       final responseData = response['data'] as Map<String, dynamic>? ?? {};
       final farmJwt = responseData['access_token'] as String? ?? '';
@@ -181,6 +204,8 @@ class AuthService {
         'user': backendUser,
         'loginMethod': 'firebase',
       };
+    } on NewDeviceRequiredException {
+      rethrow;
     } catch (e) {
       throw Exception('Firebase login failed: $e');
     }
