@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/backend/api_requests/ai_api.dart';
+import '/backend/services/api_service.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'voice_input.dart';
 import '/pages/business/ops/ops_ui.dart';
@@ -317,9 +319,15 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
         }
       });
     } catch (e) {
+      final lowBalance = e is ApiServiceException && e.statusCode == 402;
       setState(() {
-        _lastFailed = text;
-        _items.add({'role': 'error', 'content': friendlyError(e)});
+        // Retrying can't help when the balance is too low; offer a top-up instead.
+        _lastFailed = lowBalance ? null : text;
+        _items.add({
+          'role': 'error',
+          'content': friendlyError(e),
+          if (lowBalance) 'low_balance': true,
+        });
       });
     }
     if (mounted) setState(() => _sending = false);
@@ -347,6 +355,11 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
           Icon(Icons.error_outline, size: 18, color: mutedColor(c)),
           const SizedBox(width: 6),
           Expanded(child: Text('${m['content']}', style: TextStyle(color: mutedColor(c)))),
+          if (m['low_balance'] == true)
+            TextButton(
+                key: const ValueKey('mkulima-top-up'),
+                onPressed: () => c.push('/depositpage'),
+                child: Text('Top up', style: TextStyle(color: fgColor(c), fontWeight: FontWeight.w700))),
           if (_lastFailed != null && identical(m, _items.last))
             TextButton(
                 onPressed: () {
