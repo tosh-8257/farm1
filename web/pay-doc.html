@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#146c43" />
+    <meta name="robots" content="noindex" />
+    <title>FARM Secure Checkout</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, sans-serif;
+        color: #17231d;
+        background: #f3f6f4;
+        font-synthesis: none;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        padding: 24px 16px;
+        display: grid;
+        place-items: center;
+      }
+      main {
+        width: min(100%, 520px);
+        padding: 28px;
+        background: #fff;
+        border: 1px solid #e1e8e3;
+        border-radius: 18px;
+        box-shadow: 0 8px 30px #123b2a18;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.65rem;
+      }
+      p {
+        line-height: 1.5;
+        color: #56635b;
+      }
+      button,
+      input,
+      select {
+        width: 100%;
+        min-height: 50px;
+        border-radius: 10px;
+        font: inherit;
+      }
+      button {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border: 0;
+        background: #146c43;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.secondary {
+        border: 1px solid #ccd6cf;
+        background: #fff;
+        color: #145333;
+      }
+      button:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+      label {
+        display: block;
+        margin: 18px 0 7px;
+        font-weight: 700;
+      }
+      input,
+      select {
+        padding: 12px;
+        border: 1px solid #ccd6cf;
+        background: #fff;
+        color: #17231d;
+      }
+      input:focus,
+      select:focus {
+        outline: 2px solid #146c43;
+        outline-offset: 1px;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .fine-print {
+        font-size: 0.9rem;
+      }
+      #message {
+        min-height: 24px;
+        margin-bottom: 0;
+        color: #a12622;
+        font-weight: 700;
+      }
+      @media (max-width: 480px) {
+        main {
+          padding: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="title">Loading…</h1>
+      <p id="business"></p>
+      <p id="desc"></p>
+      <p id="amount" style="font-size:28px;font-weight:bold"></p>
+      <p id="kes"></p>
+      <div id="choices" class="hidden">
+        <button id="app-pay" type="button">Open in FARM app</button>
+        <form id="checkout">
+          <label for="method">Payment method</label>
+          <select id="method" required>
+            <option value="mpesa">M-Pesa</option>
+            <option value="card">Card</option>
+            <option value="bank">Bank transfer</option>
+            <option value="crypto">Crypto</option>
+          </select>
+          <label for="email">Email for your receipt</label>
+          <input id="email" type="email" maxlength="255" autocomplete="email" required placeholder="you@example.com" />
+          <button id="submit" type="submit">Pay on the web</button>
+        </form>
+      </div>
+      <p id="message" role="status" aria-live="polite"></p>
+      <p class="fine-print">The business is credited after the payment provider confirms payment.</p>
+    </main>
+    <script>
+      (() => {
+        const api = "https://farm-backend-r64g.onrender.com/api/pay/data";
+        const path = location.pathname.split("/").filter(Boolean);
+        // /pay/l/<code> or /pay/i/<invoice>
+        const kind = path[1];
+        const ref = path.slice(2).join("/");
+        const $ = (id) => document.getElementById(id);
+        const msg = $("message");
+        const request = async (url, options) => {
+          const r = await fetch(url, options);
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            const e = j.message;
+            throw new Error(Array.isArray(e) ? e.join(", ") : e || "Request failed.");
+          }
+          return j.data;
+        };
+        const base = `${api}/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`;
+        (async () => {
+          try {
+            if (!["l", "i"].includes(kind) || !ref) throw new Error("Invalid payment link.");
+            const t = await request(base);
+            document.title = `${t.title} · FARM Secure Checkout`;
+            $("title").textContent = t.title;
+            $("business").textContent = t.business_name || "";
+            $("desc").textContent = t.description || "";
+            $("amount").textContent = `${Number(t.amount).toFixed(2)} FARM`;
+            if (t.amount_kes != null) $("kes").textContent = `about KES ${Number(t.amount_kes).toFixed(2)}`;
+            if (t.payable) $("choices").classList.remove("hidden");
+            else msg.textContent = `This ${kind === "l" ? "payment link" : "invoice"} cannot be paid (${t.state}).`;
+            $("app-pay").addEventListener("click", () => {
+              const u = new URL("farm://farm.com/pay-business");
+              u.searchParams.set(kind === "l" ? "code" : "invoice", t.ref);
+              location.href = u.toString();
+            });
+          } catch (e) {
+            $("title").textContent = "Not available";
+            msg.textContent = e.message;
+          }
+        })();
+        $("checkout").addEventListener("submit", async (ev) => {
+          ev.preventDefault();
+          const b = $("submit");
+          b.disabled = true;
+          b.textContent = "Preparing secure checkout…";
+          msg.textContent = "";
+          try {
+            const d = await request(`${base}/checkout`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({ method: $("method").value, email: $("email").value.trim() }),
+            });
+            location.href = d.url;
+          } catch (e) {
+            msg.textContent = e.message;
+            b.disabled = false;
+            b.textContent = "Pay on the web";
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
