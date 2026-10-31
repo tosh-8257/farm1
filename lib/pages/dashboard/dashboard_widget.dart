@@ -29,6 +29,7 @@ import '/utils/transaction_peer_resolver.dart';
 import '/utils/transaction_history_utils.dart';
 import '/services/transaction_receipt_service.dart';
 import 'package:flutter/material.dart';
+import '/pages/mkulima/mkulima_pages.dart';
 import '../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1581,16 +1582,20 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                         updateCallback: () =>
                                             safeSetState(() {}),
                                         child: QuickActionWidget(
-                                          action:
-                                              'navigate:${QRScannerWidget.routeName}',
+                                          key: const ValueKey(
+                                              'dashboard-mkulima-action'),
+                                          onTap: () => Navigator.of(context)
+                                              .push(MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      const MkulimaHubPage())),
                                           icon: Icon(
-                                            Icons.qr_code_scanner_rounded,
+                                            Icons.smart_toy_outlined,
                                             color: FlutterFlowTheme.of(
                                               context,
                                             ).primaryText,
                                             size: 24.0,
                                           ),
-                                          label: 'Scan',
+                                          label: 'Mkulima',
                                         ),
                                       ),
                                       wrapWithModel(

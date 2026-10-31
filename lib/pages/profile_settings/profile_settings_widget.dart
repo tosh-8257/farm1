@@ -1,4 +1,3 @@
-import '/pages/mkulima/mkulima_pages.dart';
 import '/pages/security/sessions_page.dart';
 import '/pages/security/change_password_page.dart';
 import '/pages/verify_email_page/verify_email_page_widget.dart';
@@ -945,21 +944,6 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                         .primaryText,
                                   ),
                                   label: 'Devices & login history',
-                                ),
-                              ),
-                              // MKULIMA AI ASSISTANT
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.of(context).push(MaterialPageRoute(
-                                      builder: (_) => const MkulimaHubPage()));
-                                },
-                                child: SettingsActionTileWidget(
-                                  icon: Icon(
-                                    Icons.smart_toy_outlined,
-                                    color: FlutterFlowTheme.of(context)
-                                        .primaryText,
-                                  ),
-                                  label: 'Mkulima',
                                 ),
                               ),
                               // TRAVEL

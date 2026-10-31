@@ -11,12 +11,16 @@ class QuickActionWidget extends StatefulWidget {
     String? action,
     this.icon,
     String? label,
+    this.onTap,
   })  : action = action ?? 'navigate:SendReceive',
         label = label ?? 'Send';
 
   final String action;
   final Widget? icon;
   final String label;
+
+  /// Optional custom tap handler; when set it is used instead of [action].
+  final VoidCallback? onTap;
 
   @override
   State<QuickActionWidget> createState() => _QuickActionWidgetState();
@@ -48,6 +52,10 @@ class _QuickActionWidgetState extends State<QuickActionWidget> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        if (widget.onTap != null) {
+          widget.onTap!();
+          return;
+        }
         if (widget.action.startsWith('navigate:')) {
           final routeName = widget.action.replaceFirst('navigate:', '');
           context.pushNamed(routeName);
