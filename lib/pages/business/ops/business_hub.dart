@@ -90,15 +90,15 @@ class _BusinessHubState extends State<BusinessHub> {
             ),
             const SizedBox(height: 12),
             Row(children: [
-              _stat(ctx, 'Open invoices', '${inv['count'] ?? 0}'),
+              _stat(ctx, 'Open invoices', '${inv['count'] ?? 0}', () => const InvoicesPage()),
               const SizedBox(width: 10),
-              _stat(ctx, 'Active links', '${d['active_payment_links'] ?? 0}'),
+              _stat(ctx, 'Active links', '${d['active_payment_links'] ?? 0}', () => const PaymentLinksPage()),
             ]),
             const SizedBox(height: 10),
             Row(children: [
-              _stat(ctx, 'Pending payouts', '${d['pending_payouts'] ?? 0}'),
+              _stat(ctx, 'Pending payouts', '${d['pending_payouts'] ?? 0}', () => const PayoutsPage()),
               const SizedBox(width: 10),
-              _stat(ctx, 'Open escrows', '${d['open_escrows'] ?? 0}'),
+              _stat(ctx, 'Open escrows', '${d['open_escrows'] ?? 0}', () => const BusinessEscrowsPage()),
             ]),
             const SizedBox(height: 20),
             Text('Tools', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(ctx))),
@@ -149,14 +149,35 @@ class _BusinessHubState extends State<BusinessHub> {
     );
   }
 
-  Widget _stat(BuildContext c, String label, String value) => Expanded(
-        child: BizCard(
-          padding: const EdgeInsets.all(14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: fgColor(c))),
-            const SizedBox(height: 4),
-            Text(label, style: TextStyle(fontSize: 12, color: mutedColor(c))),
-          ]),
+  Widget _stat(BuildContext c, String label, String value, Widget Function() page) => Expanded(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            splashColor: const Color(0x33D4AF37),
+            highlightColor: const Color(0x14D4AF37),
+            onTap: () async {
+              await pushPage(c, page());
+              _key.currentState?.reload();
+            },
+            child: Semantics(
+              button: true,
+              label: '$label: $value',
+              child: BizCard(
+                padding: const EdgeInsets.all(14),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: fgColor(c))),
+                      const SizedBox(height: 4),
+                      Text(label, style: TextStyle(fontSize: 12, color: mutedColor(c))),
+                    ]),
+                  ),
+                  const Icon(Icons.chevron_right, size: 18, color: Color(0xFFD4AF37)),
+                ]),
+              ),
+            ),
+          ),
         ),
       );
 }
