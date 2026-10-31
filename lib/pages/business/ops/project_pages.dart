@@ -4,6 +4,7 @@ import '/backend/api_requests/investments_api.dart';
 import '/backend/services/api_service.dart';
 import '/pages/investments/investment_pages.dart' show openDoc, MilestoneList;
 import 'ops_ui.dart';
+import '/pages/investments/project_funds_page.dart';
 
 String _lbl(Map<String, String> m, dynamic k) => m['$k'] ?? '${k ?? '—'}';
 
@@ -722,6 +723,10 @@ class _TokenizationCardState extends State<TokenizationCard> {
                             onPressed: () => pushPage(c, HolderIncomePage(projectId: widget.projectId)),
                             icon: const Icon(Icons.payments_outlined, size: 18),
                             label: const Text('Pay token holders')),
+                      TextButton.icon(
+                          onPressed: () => pushPage(c, ProjectFundsPage(projectId: widget.projectId, owner: true)),
+                          icon: const Icon(Icons.account_balance_outlined, size: 18),
+                          label: const Text('Project funds')),
                     ]),
                   ],
                 ]);
@@ -770,7 +775,7 @@ class _HolderIncomePageState extends State<HolderIncomePage> {
                   decoration: bizInput(ctx, 'Amount in FARM')),
               TextField(controller: desc, maxLength: 500, decoration: bizInput(ctx, 'Note for holders (optional)')),
               Text(
-                  'Paid from your FARM wallet after FARM approves. Split by how many tokens each holder has at payout time. No fee.',
+                  'Paid from your FARM wallet after FARM approves. FARM keeps a 2% fee; holders split the rest by how many tokens they have at payout time.',
                   style: TextStyle(fontSize: 12, color: mutedColor(ctx))),
             ]),
           ),

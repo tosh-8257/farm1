@@ -5,6 +5,7 @@ import '../../core/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/backend/api_requests/investments_api.dart';
 import '/pages/business/ops/ops_ui.dart';
+import 'project_funds_page.dart';
 
 String _label(Map<String, String> m, dynamic k) => m['$k'] ?? '${k ?? '—'}';
 
@@ -201,6 +202,13 @@ class ProjectDetailPage extends StatelessWidget {
               section('Risks', p['risk_factors']),
               section('Team', p['team']),
               MilestoneList(p),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                    onPressed: () => pushPage(c, ProjectFundsPage(projectId: id)),
+                    icon: const Icon(Icons.timeline_rounded, size: 18),
+                    label: Text('Funds timeline', style: TextStyle(color: fgColor(c)))),
+              ),
               if (docs.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Text('Documents', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),

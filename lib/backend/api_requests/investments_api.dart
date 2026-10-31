@@ -83,6 +83,25 @@ class InvestmentsApi {
   static Future<Map<String, dynamic>> requestDistribution(String id, num amount, String kind, String description) async =>
       await _call('POST', '/business/projects/$id/distributions',
           {'amount': amount, 'kind': kind, if (description.isNotEmpty) 'description': description});
+  // Project funds flow (server enforces caps, pause, recipients and fees).
+  static Future<Map<String, dynamic>> fundsTimeline(String id, {bool owner = false}) async => _d(await _call(
+      'GET', owner ? '/business/projects/$id/funds-timeline' : '/marketplace/projects/$id/funds-timeline'));
+  /// Pay another FARM business's invoice (number) or payment link (code) from project funds.
+  static Future<Map<String, dynamic>> spendProjectFunds(String id,
+          {required String kind, required String ref, required String pin, String? tag, String? note, required String key}) async =>
+      await _call('POST', '/business/projects/$id/spend', {
+        'kind': kind,
+        'ref': ref,
+        'pin': pin,
+        'idempotency_key': key,
+        if (tag != null && tag.isNotEmpty) 'tag': tag,
+        if (note != null && note.isNotEmpty) 'note': note,
+      });
+  static Future<Map<String, dynamic>> depositReturns(String id, num amount, String pin, {String? note}) async =>
+      await _call('POST', '/business/projects/$id/returns',
+          {'amount': amount, 'pin': pin, if (note != null && note.isNotEmpty) 'note': note});
+  static Future<Map<String, dynamic>> setFundsSettings(String id, Map<String, dynamic> body) async =>
+      await _call('PATCH', '/business/projects/$id/funds-settings', body);
   /// Sell tokens back to FARM (1 FARM each) from the project's 15% buyback fund. Needs admin approval.
   static Future<Map<String, dynamic>> sellBack(String allocationId, int units) async =>
       await _call('POST', '/investments/tokens/$allocationId/sell-back', {'units': units});
