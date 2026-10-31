@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert' as convert;
 
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/widgets/revenue_overview_chart.dart';
@@ -55,6 +56,14 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
   final TextEditingController _farmToUsdCtrl = TextEditingController();
 
   bool _isCreatingAdmin = false;
+
+  // Current USD/KES rate metadata from /admin/currency-rates/current.
+  String? _rateSource;
+  bool _rateOverride = false;
+  bool _rateLiveEnabled = false;
+  bool _rateStale = false;
+  DateTime? _rateUpdatedAt;
+  bool _clearingOverride = false;
 
   Timer? _refreshTimer;
 
@@ -410,7 +419,8 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
+              Expanded(
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -430,6 +440,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                     ),
                   ),
                 ],
+              ),
               ),
               Icon(Icons.people, color: accent),
             ],
@@ -594,14 +605,15 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         // Title column. On small screens show a visible logout button here.
-        Column(
+        Expanded(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Superadmin Dashboard',
               style: GoogleFonts.plusJakartaSans(
                 color: Colors.white,
-                fontSize: 28,
+                fontSize: 24,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -644,6 +656,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
               ),
             ],
           ],
+        ),
         ),
 
         // Right-side quick actions (wallet + logout). Shield icon removed.
@@ -760,7 +773,8 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
+              Expanded(
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -780,6 +794,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                     ),
                   ),
                 ],
+              ),
               ),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -954,7 +969,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                 () => _openAdminPage(const UserManagementPage())),
             _kpiCard(
                 'Total Revenue',
-                '${data['total_revenue'] ?? 0} FARM',
+                '${formatFarmAmount(data['total_revenue'])} FARM',
                 'platform fees',
                 accent,
                 cardColor,
@@ -966,8 +981,8 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                 accent,
                 cardColor,
                 () => _openAdminPage(const TransactionsManagementPage())),
-            _kpiCard('System Health', '${data['system_health'] ?? 98}%',
-                'operational', accent, cardColor, null),
+            _kpiCard('System Checks', _checksSummary(data),
+                'live checks passing', accent, cardColor, null),
           ],
         ),
       ],
@@ -1047,6 +1062,16 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
     );
   }
 
+  static const _streamColors = <Color>[
+    Color(0xFF4ADE80),
+    Color(0xFF60A5FA),
+    Color(0xFFC084FC),
+    Color(0xFFFB923C),
+    Color(0xFF2DD4BF),
+    Color(0xFFF472B6),
+    Color(0xFFFACC15),
+  ];
+
   Widget _buildKYCEarnings(
       Map<String, dynamic> data, Color cardColor, Color accent, Color muted) {
     double amount(String key) {
@@ -1070,6 +1095,12 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
     final releaseCount = count('escrow_release_count');
     final withdrawCount = count('withdraw_transaction_count', 'withdraw_count');
     final merchantSalesCount = count('merchant_sales_count');
+    final streams = (data['revenue_streams'] is List)
+        ? (data['revenue_streams'] as List)
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m))
+            .toList()
+        : const <Map<String, dynamic>>[];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1126,6 +1157,38 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                 ],
               ),
               const SizedBox(height: 24),
+              if (streams.isNotEmpty) ...[
+                for (var i = 0; i < streams.length; i++) ...[
+                  _earningsBreakdownCard(
+                    '${streams[i]['label'] ?? streams[i]['type']}',
+                    '${formatFarmAmount(streams[i]['total'])} FARM',
+                    'From ${streams[i]['count'] ?? 0} transactions',
+                    _streamColors[i % _streamColors.length],
+                    cardColor,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Container(
+                  padding: const EdgeInsets.only(top: 12),
+                  decoration: const BoxDecoration(
+                      border: Border(top: BorderSide(color: Colors.white24))),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text('Total (${streams.length} streams)',
+                            style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                      Text('${formatFarmAmount(data['total_revenue'])} FARM',
+                          style: GoogleFonts.plusJakartaSans(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ),
+              ] else ...[
               Row(
                 children: [
                   Expanded(
@@ -1165,6 +1228,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                 Colors.orange,
                 cardColor,
               ),
+              ],
             ],
           ),
         ),
@@ -1246,7 +1310,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Escrows, withdrawals, and merchant sales',
+                      'Wallet balance. Fee totals by stream are below.',
                       style: GoogleFonts.plusJakartaSans(
                         color: Colors.white54,
                         fontSize: 12,
@@ -1332,7 +1396,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
           Text(
             description,
             style: GoogleFonts.plusJakartaSans(
-              color: Colors.white54,
+              color: Colors.white70,
               fontSize: 11,
             ),
           ),
@@ -1341,14 +1405,53 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
     );
   }
 
+  List<Map<String, dynamic>> _systemChecks(Map<String, dynamic> data) {
+    final raw = data['system_checks'];
+    final list = raw is Map ? raw['checks'] : raw;
+    if (list is! List) return const [];
+    return list
+        .whereType<Map>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+  }
+
+  String _checksSummary(Map<String, dynamic> data) {
+    final checks =
+        _systemChecks(data).where((c) => c['status'] != 'disabled').toList();
+    if (checks.isEmpty) return '—';
+    final ok = checks.where((c) => c['status'] == 'ok').length;
+    return '$ok/${checks.length}';
+  }
+
   Widget _buildSystemHealth(
       Map<String, dynamic> data, Color cardColor, Color accent, Color muted) {
+    final checks = _systemChecks(data);
+    final active = checks.where((c) => c['status'] != 'disabled');
+    final hasError = active.any((c) => c['status'] == 'error');
+    final hasWarn = active.any((c) => c['status'] == 'degraded');
+    final overall = checks.isEmpty
+        ? 'Unavailable'
+        : hasError
+            ? 'Issue'
+            : hasWarn
+                ? 'Attention'
+                : 'Operational';
+    final overallColor = checks.isEmpty
+        ? Colors.white54
+        : hasError
+            ? const Color(0xFFF87171)
+            : hasWarn
+                ? const Color(0xFFFBBF24)
+                : const Color(0xFF4ADE80);
+    final rawChecked =
+        data['system_checks'] is Map ? data['system_checks']['checked_at'] : null;
+    final checkedAt = DateTime.tryParse('${rawChecked ?? ''}')?.toLocal();
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: Colors.white24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1368,28 +1471,49 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.15),
+                  color: overallColor.withValues(alpha: 0.15),
+                  border: Border.all(color: overallColor.withValues(alpha: 0.6)),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'Operational',
+                  overall,
                   style: GoogleFonts.plusJakartaSans(
-                    color: Colors.green,
+                    color: overallColor,
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
+          if (checkedAt != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Checked ${checkedAt.hour.toString().padLeft(2, '0')}:${checkedAt.minute.toString().padLeft(2, '0')}',
+              style: GoogleFonts.plusJakartaSans(color: muted, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 16),
-          _healthItem('API Servers', '99.8%', Colors.green, cardColor),
-          const SizedBox(height: 12),
-          _healthItem('Database', '99.9%', Colors.green, cardColor),
-          const SizedBox(height: 12),
-          _healthItem('Payment Gateway', '99.5%', Colors.green, cardColor),
-          const SizedBox(height: 12),
-          _healthItem('Storage', '98.7%', Colors.orange, cardColor),
+          if (checks.isEmpty)
+            Text(
+              'Live checks are not available from the server yet.',
+              style: GoogleFonts.plusJakartaSans(color: muted, fontSize: 13),
+            )
+          else
+            for (final c in checks) ...[
+              _healthItem(
+                '${c['name'] ?? ''}',
+                '${c['detail'] ?? c['status'] ?? ''}',
+                switch ('${c['status']}') {
+                  'ok' => const Color(0xFF4ADE80),
+                  'degraded' => const Color(0xFFFBBF24),
+                  'error' => const Color(0xFFF87171),
+                  _ => Colors.white60,
+                },
+                cardColor,
+              ),
+              const SizedBox(height: 12),
+            ],
         ],
       ),
     );
@@ -1400,13 +1524,17 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          name,
-          style: GoogleFonts.plusJakartaSans(
-            color: Colors.white70,
-            fontSize: 13,
+        Expanded(
+          child: Text(
+            name,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
+        const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
@@ -1500,7 +1628,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
 
       final response = await ApiManager.instance.makeApiCall(
         callName: 'superadminCurrencyRate',
-        apiUrl: '${AppConfig.api}/admin/currency-rates',
+        apiUrl: '${AppConfig.api}/admin/currency-rates/current',
         callType: ApiCallType.GET,
         headers: {
           'Authorization': 'Bearer $token',
@@ -1511,21 +1639,30 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
       );
 
       final decoded = response.jsonBody as Map<String, dynamic>?;
-      final rows = decoded?['data'] as List<dynamic>? ?? [];
-      if (rows.isEmpty) {
-        _usdToKesCtrl.text = '150';
-        _farmToUsdCtrl.text = '0.00666667';
-        return;
-      }
-
-      final current = rows.first as Map<String, dynamic>;
-      final usdKes = (current['usd_kes_rate'] ?? 150).toString();
-      final farmUsd =
-          (current['farm_usd_rate'] ?? (1 / double.parse(usdKes)).toString())
-              .toString();
+      final raw = decoded?['data'];
+      final current = raw is Map
+          ? Map<String, dynamic>.from(raw)
+          : (raw is List && raw.isNotEmpty && raw.first is Map)
+              ? Map<String, dynamic>.from(raw.first as Map)
+              : null;
+      if (current == null) return;
+      final usdKes =
+          double.tryParse('${current['usd_kes_rate'] ?? ''}') ?? 0;
+      if (usdKes <= 0) return;
+      final farmUsd = double.tryParse('${current['farm_usd_rate'] ?? ''}') ??
+          (1 / usdKes);
       if (mounted) {
-        _usdToKesCtrl.text = usdKes;
-        _farmToUsdCtrl.text = farmUsd;
+        setState(() {
+          _usdToKesCtrl.text = usdKes.toStringAsFixed(2);
+          _farmToUsdCtrl.text = farmUsd.toStringAsFixed(6);
+          _rateSource = current['source']?.toString();
+          _rateOverride = current['is_override'] == true;
+          _rateLiveEnabled = current['live_enabled'] == true;
+          _rateStale = current['stale'] == true;
+          _rateUpdatedAt = DateTime.tryParse(
+                  '${current['updated_at'] ?? current['effective_at'] ?? ''}')
+              ?.toLocal();
+        });
       }
     } catch (e, st) {
       debugPrint('[SuperadminDashboardPage] _loadCurrencyRate failed: $e');
@@ -1587,6 +1724,54 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
     }
   }
 
+  Future<void> _useLiveRate() async {
+    setState(() => _clearingOverride = true);
+    try {
+      final token = await AdminApiService.getValidAccessToken();
+      if (token.isEmpty) throw Exception('Not authenticated');
+      final response = await ApiManager.instance.makeApiCall(
+        callName: 'superadminClearRateOverride',
+        apiUrl: '${AppConfig.api}/admin/currency-rates/override',
+        callType: ApiCallType.DELETE,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        params: {},
+        returnBody: true,
+      );
+      if (!response.succeeded) {
+        throw Exception(
+            (response.jsonBody as Map?)?['message'] ?? 'Could not switch to live');
+      }
+      await _loadCurrencyRate();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _clearingOverride = false);
+    }
+  }
+
+  String _rateStatusText() {
+    final at = _rateUpdatedAt;
+    final when = at == null
+        ? 'unknown time'
+        : '${at.day.toString().padLeft(2, '0')}/${at.month.toString().padLeft(2, '0')} '
+            '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
+    if (_rateOverride) return 'Manual override · set $when';
+    if (_rateSource == 'live') {
+      return _rateStale
+          ? 'Live feed unavailable · last live rate $when'
+          : 'Live market rate · updated $when';
+    }
+    if (_rateLiveEnabled) return 'Live feed pending · last set $when';
+    return 'Manual rate · set $when';
+  }
+
   Widget _buildCurrencyConversionRatesSection(
       Color cardColor, Color accent, Color muted) {
     return Container(
@@ -1610,8 +1795,33 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
           ),
           const SizedBox(height: 8),
           Text(
-            'Set the authoritative USD/KES rate. FARM is fixed at 1 KES and all crypto conversion values are derived from this single source.',
-            style: GoogleFonts.plusJakartaSans(color: muted, fontSize: 13),
+            'USD/KES comes from the live market feed. Saving a value sets a manual override.',
+            style: GoogleFonts.plusJakartaSans(color: muted, fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(
+                _rateOverride
+                    ? Icons.edit_note_rounded
+                    : (_rateSource == 'live' && !_rateStale)
+                        ? Icons.wifi_tethering_rounded
+                        : Icons.schedule_rounded,
+                size: 16,
+                color: (_rateSource == 'live' && !_rateStale && !_rateOverride)
+                    ? const Color(0xFF4ADE80)
+                    : const Color(0xFFFBBF24),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _rateStatusText(),
+                  key: const ValueKey('superadmin-rate-status'),
+                  style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           if (_loadingCurrencyRate)
@@ -1621,29 +1831,41 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
                 'USD → KES', _usdToKesCtrl, 'Example: 150.00', accent),
             const SizedBox(height: 16),
             _buildRateField(
-                'FARM → USD', _farmToUsdCtrl, 'Auto-derived', accent),
+                'FARM → USD (derived)', _farmToUsdCtrl, 'Auto-derived', accent),
             const SizedBox(height: 20),
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ElevatedButton(
                   onPressed: _savingCurrencyRate ? null : _saveCurrencyRate,
                   style: ElevatedButton.styleFrom(
   foregroundColor: AppTheme.onAccent,backgroundColor: AppTheme.accent),
                   child: Text(
-                    _savingCurrencyRate ? 'Saving...' : 'Save Conversion Rate',
+                    _savingCurrencyRate ? 'Saving...' : 'Save manual override',
                     style: GoogleFonts.plusJakartaSans(
                       color: AppTheme.onAccent,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    '1 FARM = 1 KES and 1 FARM = 1 / USD_KES_RATE USD. USDC and USDT use the same derived value.',
-                    style:
-                        GoogleFonts.plusJakartaSans(color: muted, fontSize: 12),
+                if (_rateOverride && _rateLiveEnabled) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _clearingOverride ? null : _useLiveRate,
+                    icon: const Icon(Icons.wifi_tethering_rounded, size: 18),
+                    label: Text(_clearingOverride ? 'Switching...' : 'Use live rate'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white54),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
                   ),
+                ],
+                const SizedBox(height: 12),
+                Text(
+                  '1 FARM = 1 KES. 1 FARM = 1 ÷ (USD/KES) USD; USDC and USDT use the same value.',
+                  style: GoogleFonts.plusJakartaSans(
+                      color: muted, fontSize: 12, height: 1.4),
                 ),
               ],
             ),

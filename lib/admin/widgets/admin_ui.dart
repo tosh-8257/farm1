@@ -14,6 +14,7 @@ class AdminColors {
   static const success = Color(0xFF15803D); // 5.0:1 on white
   static const error = Color(0xFFB91C1C); // 6.5:1 on white
   static const warning = Color(0xFF92400E); // 7.1:1 on white
+  static const info = Color(0xFF1D4ED8); // 6.7:1 on white
   static Color get accent => AppTheme.accent;
 
   static List<BoxShadow> get shadow => [
@@ -217,3 +218,23 @@ Color adminKycColor(Object? s) {
       return AdminColors.textSecondary;
   }
 }
+
+/// Search field decoration with a white fill, solid border and readable hint,
+/// independent of the ambient theme.
+InputDecoration adminSearchDecoration(String hint) => InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: AdminColors.textSecondary, fontSize: 14),
+      prefixIcon: const Icon(Icons.search_rounded, color: AdminColors.text),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AdminColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AdminColors.text, width: 1.4),
+      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+    );
