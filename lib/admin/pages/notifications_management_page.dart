@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
@@ -116,14 +117,14 @@ class _NotificationsManagementPageState
             const SizedBox(height: 6),
             Text('Send a notification to your users',
                 style: GoogleFonts.plusJakartaSans(
-                    color: context.onSurface.withOpacity(0.6), fontSize: 13)),
+                    color: AdminColors.textSecondary, fontSize: 13)),
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: cardColor,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: context.onSurface.withOpacity(0.1)),
+                border: Border.all(color: AdminColors.border),
               ),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,7 +170,7 @@ class _NotificationsManagementPageState
                           side: BorderSide(
                               color: _type == t
                                   ? AppTheme.accent
-                                  : context.onSurface.withOpacity(0.2)),
+                                  : AdminColors.border),
                           onSelected: (_) => setState(() => _type = t),
                         ),
                     ]),
@@ -192,7 +193,7 @@ class _NotificationsManagementPageState
                           side: BorderSide(
                               color: _recipientMode == mode
                                   ? AppTheme.accent
-                                  : context.onSurface.withOpacity(0.2)),
+                                  : AdminColors.border),
                           onSelected: (_) => setState(() => _recipientMode = mode),
                         ),
                     ]),
@@ -210,7 +211,7 @@ class _NotificationsManagementPageState
                       Text(
                         'Example: user_123, user@example.com, +254700000000',
                         style: GoogleFonts.plusJakartaSans(
-                            color: context.onSurface.withOpacity(0.6),
+                            color: AdminColors.textSecondary,
                             fontSize: 11),
                       ),
                     ],
@@ -237,7 +238,7 @@ class _NotificationsManagementPageState
                           side: BorderSide(
                               color: _audience == a
                                   ? AppTheme.accent
-                                  : context.onSurface.withOpacity(0.2)),
+                                  : AdminColors.border),
                           onSelected: (_) => setState(() => _audience = a),
                         ),
                     ]),
@@ -309,11 +310,11 @@ class _NotificationsManagementPageState
                       color: cardColor,
                       borderRadius: BorderRadius.circular(14),
                       border:
-                          Border.all(color: context.onSurface.withOpacity(0.1)),
+                          Border.all(color: AdminColors.border),
                     ),
                     child: Row(children: [
                       Icon(Icons.article_rounded,
-                          size: 18, color: context.onSurface.withOpacity(0.7)),
+                          size: 18, color: AdminColors.textSecondary),
                       const SizedBox(width: 12),
                       Expanded(
                           child: Column(
@@ -326,13 +327,13 @@ class _NotificationsManagementPageState
                                     color: context.onSurface)),
                             Text(t['body']!,
                                 style: GoogleFonts.plusJakartaSans(
-                                    color: context.onSurface.withOpacity(0.6),
+                                    color: AdminColors.textSecondary,
                                     fontSize: 11),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
                           ])),
                       Icon(Icons.arrow_forward_ios_rounded,
-                          size: 14, color: context.onSurface.withOpacity(0.54)),
+                          size: 14, color: AdminColors.textSecondary),
                     ]),
                   ),
                 )),
@@ -346,20 +347,20 @@ class _NotificationsManagementPageState
       style: GoogleFonts.plusJakartaSans(
           fontWeight: FontWeight.w600,
           fontSize: 13,
-          color: context.onSurface.withOpacity(0.7)));
+          color: AdminColors.textSecondary));
 
   InputDecoration _inputDec(String hint) => InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.plusJakartaSans(
-            color: context.onSurface.withOpacity(0.54), fontSize: 13),
+            color: AdminColors.textSecondary, fontSize: 13),
         filled: true,
         fillColor: const Color(0xFF0F1724),
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: context.onSurface.withOpacity(0.1))),
+            borderSide: BorderSide(color: AdminColors.border)),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: context.onSurface.withOpacity(0.1))),
+            borderSide: BorderSide(color: AdminColors.border)),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       );

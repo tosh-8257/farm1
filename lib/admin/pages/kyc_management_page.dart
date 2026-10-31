@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -195,10 +196,10 @@ class _KycManagementPageState extends State<KycManagementPage>
                               fontWeight: FontWeight.bold, fontSize: 14)),
                       Text(user['phone'] ?? '-',
                           style: GoogleFonts.plusJakartaSans(
-                              color: context.textSecondary, fontSize: 12)),
+                              color: AdminColors.textSecondary, fontSize: 12)),
                       Text('Doc: ${doc['document_type'] ?? 'N/A'}',
                           style: GoogleFonts.plusJakartaSans(
-                              color: context.textSecondary, fontSize: 12)),
+                              color: AdminColors.textSecondary, fontSize: 12)),
                     ])),
                 Container(
                   padding:
@@ -231,7 +232,7 @@ class _KycManagementPageState extends State<KycManagementPage>
                 child: SelectableText(
                   'ID: ${doc['document_number']}',
                   style: GoogleFonts.plusJakartaSans(
-                    color: context.textSecondary,
+                    color: AdminColors.textSecondary,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -350,12 +351,12 @@ class _KycManagementPageState extends State<KycManagementPage>
                               if (user['email'] != null)
                                 Text(user['email'],
                                     style: GoogleFonts.plusJakartaSans(
-                                        color: context.textSecondary,
+                                        color: AdminColors.textSecondary,
                                         fontSize: 12)),
                               if (user['phone'] != null)
                                 Text(user['phone'],
                                     style: GoogleFonts.plusJakartaSans(
-                                        color: context.textSecondary,
+                                        color: AdminColors.textSecondary,
                                         fontSize: 12)),
                             ]),
                       )
@@ -600,7 +601,7 @@ class _KycManagementPageState extends State<KycManagementPage>
         Text(label,
             textAlign: TextAlign.center,
             style: GoogleFonts.plusJakartaSans(
-                fontSize: 12, color: context.textSecondary)),
+                fontSize: 12, color: AdminColors.textSecondary)),
       ]),
     );
   }
@@ -637,7 +638,7 @@ class _KycManagementPageState extends State<KycManagementPage>
           child: Text(value.toString(),
               softWrap: true,
               style: GoogleFonts.plusJakartaSans(
-                  color: context.textSecondary,
+                  color: AdminColors.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w500)),
         ),

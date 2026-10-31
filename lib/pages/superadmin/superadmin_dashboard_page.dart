@@ -391,7 +391,8 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
   Future<void> _openAdminPage(Widget page) async {
     if (!mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => page),
+      MaterialPageRoute(
+          builder: (_) => Theme(data: AppTheme.lightTheme(), child: page)),
     );
   }
 

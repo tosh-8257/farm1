@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -77,13 +78,13 @@ class _EscrowManagementPageState extends State<EscrowManagementPage>
           style: TextStyle(color: context.onSurface),
           decoration: InputDecoration(
               hintText: 'Resolution note...',
-              hintStyle: TextStyle(color: context.onSurface.withOpacity(0.54)),
+              hintStyle: TextStyle(color: AdminColors.textSecondary),
               border: OutlineInputBorder(
                   borderSide:
-                      BorderSide(color: context.onSurface.withOpacity(0.1))),
+                      BorderSide(color: AdminColors.border)),
               enabledBorder: OutlineInputBorder(
                   borderSide:
-                      BorderSide(color: context.onSurface.withOpacity(0.1)))),
+                      BorderSide(color: AdminColors.border))),
           maxLines: 3,
         ),
         actions: [
@@ -91,7 +92,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage>
               onPressed: () => Navigator.pop(context),
               child: Text('Cancel',
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface.withOpacity(0.7)))),
+                      color: AdminColors.textSecondary))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
   foregroundColor: AppTheme.onAccent,
@@ -138,7 +139,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage>
       case 'refunded':
         return context.warningColor;
       default:
-        return context.textSecondary;
+        return AdminColors.textSecondary;
     }
   }
 
@@ -183,7 +184,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage>
                               child: Text('No escrow contracts',
                                   style: GoogleFonts.plusJakartaSans(
                                       color:
-                                          context.onSurface.withOpacity(0.6))))
+                                          AdminColors.textSecondary)))
                           : ListView.builder(
                               padding: const EdgeInsets.all(20),
                               itemCount: _escrows
@@ -331,7 +332,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage>
             ? Border.all(
                 color: context.errorColor.withAlpha((0.4 * 255).round()),
                 width: 1.5)
-            : Border.all(color: context.onSurface.withOpacity(0.1)),
+            : Border.all(color: AdminColors.border),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -552,7 +553,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage>
         decoration: BoxDecoration(
           color: context.onSurface.withOpacity(0.06),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: context.onSurface.withOpacity(0.12)),
+          border: Border.all(color: AdminColors.border),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -616,7 +617,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage>
               child: Text(
                 label,
                 style: GoogleFonts.plusJakartaSans(
-                  color: context.onSurface.withOpacity(0.54),
+                  color: AdminColors.textSecondary,
                   fontSize: 12,
                 ),
               ),

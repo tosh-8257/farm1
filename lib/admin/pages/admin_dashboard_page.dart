@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/app_theme.dart';
 import '/core/theme_extensions.dart';
@@ -128,7 +129,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               Text(
                 'Loading dashboard data...',
                 style: GoogleFonts.plusJakartaSans(
-                  color: context.onSurface.withOpacity(0.7),
+                  color: AdminColors.textSecondary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -147,7 +148,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final bgColor = Colors.white;
     final cardColor = Colors.white;
     final accent = AppTheme.accentOn(bgColor);
-    final muted = context.onSurface.withOpacity(0.7);
+    const muted = AdminColors.textSecondary;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -358,13 +359,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: context.onSurface.withOpacity(0.12)),
-            boxShadow: [
-              BoxShadow(
-                  color: context.background.withAlpha((0.18 * 255).round()),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8)),
-            ],
+            border: Border.all(color: AdminColors.border),
+            boxShadow: AdminColors.shadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,7 +376,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.plusJakartaSans(
-                          color: context.onSurface.withOpacity(0.7),
+                          color: AdminColors.textSecondary,
                           fontSize: isNarrow ? 13 : 15,
                           height: 1.15,
                           fontWeight: FontWeight.w700,
@@ -411,7 +407,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface.withOpacity(0.54),
+                      color: AdminColors.textSecondary,
                       fontSize: isNarrow ? 12 : 14,
                       height: 1.15,
                       fontWeight: FontWeight.w600)),
@@ -436,34 +432,34 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     fontWeight: FontWeight.w800)),
             Text('Manage the platform',
                 style: GoogleFonts.plusJakartaSans(
-                    color: context.onSurface.withOpacity(0.54),
+                    color: AdminColors.textSecondary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600)),
           ],
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 14,
-          runSpacing: 14,
+        AdminQuickActionGrid(
           children: [
-            _actionChip('Manage Users', Icons.manage_accounts_rounded, accent,
-                cardColor, () => _navigateTo(const UserManagementPage())),
-            _actionChip(
-                'Review Deposits',
-                Icons.account_balance_rounded,
-                accent,
-                cardColor,
-                () => _navigateTo(const DepositsManagementPage())),
-            _actionChip('Withdrawals', Icons.outbox_rounded, accent, cardColor,
-                () => _navigateTo(const WithdrawalsManagementPage())),
-            _actionChip('Escrows', Icons.verified_user_rounded, accent,
-                cardColor, () => _navigateTo(const EscrowManagementPage())),
-            _actionChip(
-                'Notifications',
-                Icons.campaign_rounded,
-                accent,
-                cardColor,
-                () => _navigateTo(const NotificationsManagementPage())),
+            AdminQuickActionTile(
+                label: 'Manage Users',
+                icon: Icons.manage_accounts_rounded,
+                onTap: () => _navigateTo(const UserManagementPage())),
+            AdminQuickActionTile(
+                label: 'Review Deposits',
+                icon: Icons.account_balance_rounded,
+                onTap: () => _navigateTo(const DepositsManagementPage())),
+            AdminQuickActionTile(
+                label: 'Withdrawals',
+                icon: Icons.outbox_rounded,
+                onTap: () => _navigateTo(const WithdrawalsManagementPage())),
+            AdminQuickActionTile(
+                label: 'Escrows',
+                icon: Icons.verified_user_rounded,
+                onTap: () => _navigateTo(const EscrowManagementPage())),
+            AdminQuickActionTile(
+                label: 'Notifications',
+                icon: Icons.campaign_rounded,
+                onTap: () => _navigateTo(const NotificationsManagementPage())),
           ],
         ),
       ],
@@ -483,53 +479,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         Container(
           decoration: BoxDecoration(
             color: cardColor,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: context.onSurface.withOpacity(0.1)),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AdminColors.border),
+            boxShadow: AdminColors.shadow,
           ),
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(12),
             child: _recentTransactions(),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _actionChip(String label, IconData icon, Color accent, Color cardColor,
-      VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: context.onSurface.withOpacity(0.12)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: accent.withAlpha((0.16 * 255).round()),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: accent, size: 18),
-              ),
-              const SizedBox(width: 12),
-              Text(label,
-                  style: GoogleFonts.plusJakartaSans(
-                      color: context.onSurface,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700)),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -546,70 +505,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   child: Center(child: Text('No transactions yet')))
               : Column(
                   children: list.map((t) {
-                    final isCredit = ['deposit', 'escrow_release', 'roi_payout']
-                        .contains(t['transaction_type']);
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                            color: context.onSurface.withOpacity(0.1)),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 12),
+                    final tx = Map<String, dynamic>.from(t as Map);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: AdminActivityTile(
+                        tx: tx,
                         onTap: () => TransactionReceiptService.showDetails(
                           context,
-                          t,
+                          tx,
                           fetchLatest: true,
                           detailsLoader: AdminApiService.getTransactionDetails,
-                        ),
-                        leading: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: isCredit
-                                ? context.successColor
-                                    .withAlpha((0.16 * 255).round())
-                                : context.errorColor
-                                    .withAlpha((0.16 * 255).round()),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isCredit
-                                ? Icons.south_west_rounded
-                                : Icons.north_east_rounded,
-                            color: isCredit
-                                ? context.successColor
-                                : context.errorColor,
-                            size: 20,
-                          ),
-                        ),
-                        title: Text(
-                          (t['transaction_type'] ?? '')
-                              .toString()
-                              .replaceAll('_', ' ')
-                              .toUpperCase(),
-                          style: GoogleFonts.plusJakartaSans(
-                              color: context.onSurface,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 15),
-                        ),
-                        subtitle: Text(t['transaction_reference'] ?? '',
-                            style: GoogleFonts.plusJakartaSans(
-                                color: context.onSurface.withOpacity(0.7),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500)),
-                        trailing: Text(
-                          '${isCredit ? '+' : '-'}${_fmt(t['amount'] ?? 0)} FARM',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: isCredit
-                                ? context.successColor
-                                : context.errorColor,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
                         ),
                       ),
                     );
@@ -641,10 +546,4 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         ),
       );
 
-  String _fmt(dynamic v) {
-    final n = double.tryParse(v.toString()) ?? 0;
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(0)}K';
-    return n.toStringAsFixed(2);
-  }
 }

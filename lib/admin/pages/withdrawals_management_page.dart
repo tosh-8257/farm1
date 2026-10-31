@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/admin/widgets/admin_ui.dart';
 import '/core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
@@ -304,7 +305,7 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage>
       case 'failed':
         return context.errorColor;
       default:
-        return context.textSecondary;
+        return AdminColors.textSecondary;
     }
   }
 
@@ -420,7 +421,7 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage>
                               child: Text('No withdrawal requests',
                                   style: GoogleFonts.plusJakartaSans(
                                       color:
-                                          context.onSurface.withOpacity(0.6))))
+                                          AdminColors.textSecondary)))
                           : ListView.builder(
                               padding: const EdgeInsets.all(20),
                               itemCount: _visibleWithdrawals.length,
