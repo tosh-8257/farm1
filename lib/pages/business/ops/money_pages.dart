@@ -127,7 +127,7 @@ class _BusinessChainCard extends StatelessWidget {
     final addr = '${a['address']}';
     return BizCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Business account on Algorand', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+        Text('Receive on Algorand (business)', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
         const SizedBox(height: 4),
         Text('Your business FARM is held on-chain in this account, separate from your personal one.',
             style: TextStyle(fontSize: 12, color: mutedColor(c))),
@@ -144,7 +144,7 @@ class _BusinessChainCard extends StatelessWidget {
         SelectableText(addr, style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: fgColor(c))),
         Text(
           ready
-              ? 'FARM on Algorand (${a['network'] ?? ''}). Customers pay you through QR, invoices and payment links.'
+              ? 'Receive FARM or ALGO here on Algorand (${a['network'] ?? ''}); it is credited to your business balance. Only send on Algorand; other networks or tokens may be lost. ALGO converts to FARM at the live rate.'
               : 'Setting up this account. Do not send funds yet.',
           style: TextStyle(fontSize: 11, color: mutedColor(c)),
         ),
