@@ -1,5 +1,7 @@
 build/
-.env
+# .env is tracked (comments only, declared asset); keep local values in .env.local
+.env.local
+.env.local-backup
 .dart_tool/
 build/
 android/.kotlin/

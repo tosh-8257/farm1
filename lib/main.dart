@@ -37,8 +37,9 @@ void main() async {
 
   // Load dotenv early to avoid NotInitializedError when Env is referenced.
   try {
-    await dotenv.load();
-    debugPrint('Loaded environment variables from .env');
+    // isOptional: a missing or empty .env falls back to production defaults.
+    await dotenv.load(isOptional: true);
+    debugPrint('Environment loaded (.env optional)');
   } catch (e) {
     debugPrint('Could not load .env (it may be missing): $e');
   }

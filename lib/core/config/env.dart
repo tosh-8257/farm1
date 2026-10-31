@@ -1,26 +1,68 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Centralized access to all environment variables.
-/// This ensures a single source of truth for configuration across the app.
+///
+/// Precedence: `--dart-define=KEY=value` > `.env` asset > production default.
+/// A missing or empty `.env` never breaks startup.
 class Env {
-  static final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+  static const productionApiUrl = 'https://farm-backend-r64g.onrender.com';
+  static const productionFrontendUrl = 'https://www.farmapp.africa';
 
-  static final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  static String _read(String key, String define, String fallback) {
+    if (define.isNotEmpty) return define;
+    final v = dotenv.isInitialized ? dotenv.env[key]?.trim() : null;
+    return (v == null || v.isEmpty) ? fallback : v;
+  }
 
-  static final apiBaseUrl =
-      dotenv.env['API_URL'] ??
-      (const String.fromEnvironment('API_URL', defaultValue: '').isNotEmpty
-          ? const String.fromEnvironment('API_URL')
-          : 'http://127.0.0.1:3000');
+  static final supabaseUrl = _read(
+    'SUPABASE_URL',
+    const String.fromEnvironment('SUPABASE_URL'),
+    '',
+  );
 
-  static final frontendUrl =
-      dotenv.env['FRONTEND_URL'] ?? 'http://localhost:4200';
+  static final supabaseAnonKey = _read(
+    'SUPABASE_ANON_KEY',
+    const String.fromEnvironment('SUPABASE_ANON_KEY'),
+    '',
+  );
 
-  static final appScheme = dotenv.env['APP_SCHEME'] ?? 'farm';
+  static final apiBaseUrl = _trimSlash(
+    _read('API_URL', const String.fromEnvironment('API_URL'), productionApiUrl),
+  );
 
-  static final appHost = dotenv.env['APP_HOST'] ?? 'farm.com';
+  /// Socket.IO base (falls back to the API URL).
+  static final backendUrl = _trimSlash(
+    _read(
+      'BACKEND_URL',
+      const String.fromEnvironment('BACKEND_URL'),
+      _read('API_BASE_URL', '', apiBaseUrl),
+    ),
+  );
 
-  static final apiVersion = '/api/v1';
+  static final frontendUrl = _trimSlash(
+    _read(
+      'FRONTEND_URL',
+      const String.fromEnvironment('FRONTEND_URL'),
+      productionFrontendUrl,
+    ),
+  );
+
+  static final appScheme = _read(
+    'APP_SCHEME',
+    const String.fromEnvironment('APP_SCHEME'),
+    'farm',
+  );
+
+  static final appHost = _read(
+    'APP_HOST',
+    const String.fromEnvironment('APP_HOST'),
+    Uri.parse(frontendUrl).host,
+  );
+
+  static const apiVersion = '/api/v1';
 
   static String get api => '$apiBaseUrl$apiVersion';
+
+  static String _trimSlash(String s) =>
+      s.endsWith('/') ? s.substring(0, s.length - 1) : s;
 }

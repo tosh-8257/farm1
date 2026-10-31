@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '/core/config/env.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '/flutter_flow/flutter_flow_util.dart';
@@ -52,10 +52,7 @@ class SocketService {
   }
 
   void _connect() {
-    final backendUrl = dotenv.env['BACKEND_URL'] ??
-        dotenv.env['API_BASE_URL'] ??
-        dotenv.env['API_URL'] ??
-        'http://localhost:3000';
+    final backendUrl = Env.backendUrl;
 
     final normalizedUrl =
         backendUrl.endsWith('/ws') ? backendUrl : '$backendUrl/ws';
