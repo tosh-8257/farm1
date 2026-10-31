@@ -178,6 +178,17 @@ class _ProjectEditorPageState extends State<ProjectEditorPage> {
           _tf('duration_months', 'Duration (months)', number: true),
           Text('Do not promise returns. FARM does not display or guarantee returns.',
               style: TextStyle(fontSize: 12, color: mutedColor(context))),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.token_rounded, size: 16, color: Color(0xFFD4AF37)),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                  'Tokenize: once the project is fully funded, open it and tap "Tokenize project". '
+                  'Investors get 1 token per FARM invested, after FARM approves it.',
+                  style: TextStyle(fontSize: 12, color: mutedColor(context))),
+            ),
+          ]),
         ]),
       ),
       Step(
@@ -422,7 +433,7 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
                   child: const Text('Submit for review'),
                 ),
               ],
-              if (['funded', 'closed'].contains(status)) TokenizationCard(projectId: widget.id),
+              if (!['rejected', 'cancelled'].contains(status)) TokenizationCard(projectId: widget.id, projectStatus: status),
               if (canUpdate)
                 ElevatedButton(style: primaryButtonStyle(c), onPressed: _postUpdate, child: const Text('Post update to investors')),
               if (reviews.isNotEmpty) ...[
@@ -561,8 +572,9 @@ class _MilestoneEditorPageState extends State<MilestoneEditorPage> {
 
 /// Request tokenization of a funded project. FARM approves and creates the ASA.
 class TokenizationCard extends StatefulWidget {
-  const TokenizationCard({super.key, required this.projectId});
+  const TokenizationCard({super.key, required this.projectId, this.projectStatus = 'funded'});
   final String projectId;
+  final String projectStatus;
   @override
   State<TokenizationCard> createState() => _TokenizationCardState();
 }
@@ -576,10 +588,19 @@ class _TokenizationCardState extends State<TokenizationCard> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Request tokenization'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: n, maxLength: 32, decoration: bizInput(ctx, 'Token name')),
-          TextField(controller: u, maxLength: 8, decoration: bizInput(ctx, 'Unit name (e.g. SOLAR)')),
+        title: const Text('Tokenize project'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          TextField(controller: n, maxLength: 32, decoration: bizInput(ctx, 'Token name (e.g. Solar Farm Shares)')),
+          TextField(
+              controller: u,
+              maxLength: 8,
+              textCapitalization: TextCapitalization.characters,
+              decoration: bizInput(ctx, 'Symbol, 1-8 letters/digits (e.g. SOLAR)')),
+          KeyValue('Price per token', '1 FARM'),
+          KeyValue('Total supply', '1 token per FARM invested'),
+          const SizedBox(height: 6),
+          Text('Supply is counted from investments when FARM approves. Nothing is minted until approved.',
+              style: TextStyle(fontSize: 12, color: mutedColor(ctx))),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -596,15 +617,19 @@ class _TokenizationCardState extends State<TokenizationCard> {
     if (r != null) _key.currentState?.reload();
   }
 
+  bool get funded => ['funded', 'closed'].contains(widget.projectStatus);
+
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: BizCard(
           child: SizedBox(
-            height: 150,
+            height: 160,
             child: BizAsync<Map<String, dynamic>>(
               key: _key,
-              load: () => InvestmentsApi.projectToken(widget.projectId),
+              load: () => funded
+                  ? InvestmentsApi.projectToken(widget.projectId)
+                  : Future.value(<String, dynamic>{'data': null, 'enabled': false}),
               builder: (c, r, _) {
                 final t = r['data'] is Map ? Map<String, dynamic>.from(r['data'] as Map) : null;
                 return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -612,13 +637,18 @@ class _TokenizationCardState extends State<TokenizationCard> {
                   const SizedBox(height: 6),
                   if (t == null || t['status'] == 'rejected') ...[
                     Text(
-                        r['enabled'] == true
-                            ? (t?['notes'] != null ? 'Previous request rejected: ${t!['notes']}' : 'Represent investor holdings as an Algorand asset.')
-                            : 'Tokenization is not available yet.',
+                        !funded
+                            ? 'Available once the project is fully funded. Investors get 1 token per FARM invested.'
+                            : r['enabled'] != true
+                                ? 'Tokenization is not switched on yet.'
+                                : (t?['notes'] != null ? 'Previous request rejected: ${t!['notes']}' : 'Turn investor holdings into an Algorand token.'),
                         style: TextStyle(color: mutedColor(c))),
                     const Spacer(),
-                    if (r['enabled'] == true)
-                      OutlinedButton(style: secondaryButtonStyle(c), onPressed: _request, child: const Text('Request tokenization')),
+                    OutlinedButton.icon(
+                        style: secondaryButtonStyle(c),
+                        onPressed: funded && r['enabled'] == true ? _request : null,
+                        icon: const Icon(Icons.token_rounded, size: 18),
+                        label: const Text('Tokenize project')),
                   ] else ...[
                     KeyValue('Status', tokenStatusLabels['${t['status']}'] ?? '${t['status']}'),
                     KeyValue('Token', '${t['asset_name']} (${t['unit_name']})'),
