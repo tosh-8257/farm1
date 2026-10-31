@@ -146,7 +146,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final s = _stats;
     final bgColor = Colors.white;
     final cardColor = Colors.white;
-    final accent = const Color(0xFFEAF2FF);
+    final accent = AppTheme.accentOn(bgColor);
     final muted = context.onSurface.withOpacity(0.7);
 
     return Scaffold(

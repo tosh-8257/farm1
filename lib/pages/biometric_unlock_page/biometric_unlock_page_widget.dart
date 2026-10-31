@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/services/biometric_lock_service.dart';
@@ -145,7 +146,8 @@ class _BiometricUnlockPageWidgetState extends State<BiometricUnlockPageWidget> {
                 ElevatedButton(
                   onPressed: _attemptUnlock,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: FlutterFlowTheme.of(context).primary,
+  foregroundColor: AppTheme.onAccent,
+                    backgroundColor: AppTheme.accent,
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                   ),
                   child: Text('common.retry'.tr()),

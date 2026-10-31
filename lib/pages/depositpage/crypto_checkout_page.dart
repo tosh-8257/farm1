@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -353,8 +354,8 @@ class _CryptoCheckoutPageState extends State<CryptoCheckoutPage> {
         height: 50,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: _brand,
-            foregroundColor: Colors.white,
+            backgroundColor: AppTheme.accent,
+            foregroundColor: AppTheme.onAccent,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -364,7 +365,7 @@ class _CryptoCheckoutPageState extends State<CryptoCheckoutPage> {
                   width: 22,
                   height: 22,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white))
+                      strokeWidth: 2, color: AppTheme.onAccent))
               : Text('Next step', style: _t(16, w: FontWeight.w700, c: Colors.white)),
         ),
       ),

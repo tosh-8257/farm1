@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
@@ -222,7 +223,7 @@ class _UserManagementPageState extends State<UserManagementPage>
   Widget build(BuildContext context) {
     final bgColor = Colors.white;
     final cardColor = Colors.white;
-    final accent = const Color(0xFFEAF2FF);
+    final accent = AppTheme.accentOn(bgColor);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -372,7 +373,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                               ? context.onSurface
                               : context.onSurface.withValues(alpha: 0.7))),
                   selected: _filter == f,
-                  selectedColor: context.onSurface.withValues(alpha: 0.12),
+                  selectedColor: AppTheme.accent,
                   backgroundColor: cardColor,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),

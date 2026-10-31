@@ -5,6 +5,7 @@ import '/components/security_note_widget.dart';
 
 import '/backend/services/api_service.dart';
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -407,10 +408,10 @@ class _PinSetupPageWidgetState
                   text: 'Verify PIN',
                   options: FFButtonOptions(
                     height: context.responsiveValue(55),
-                    color: FlutterFlowTheme.of(context).primary,
+                    color: AppTheme.accent,
                     textStyle:
                         TextStyle(
-                      color: FlutterFlowTheme.of(context).onPrimary,
+                      color: AppTheme.onAccent,
                       fontSize: 16,
                       fontWeight:
                           FontWeight.bold,

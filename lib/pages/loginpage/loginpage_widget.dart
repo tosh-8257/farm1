@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'loginpage_model.dart';
 export 'loginpage_model.dart';
@@ -805,12 +806,10 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
                         width: double.infinity,
                         height: 56.0,
                         padding: const EdgeInsets.symmetric(vertical: 0.0),
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFF1F1F1F)
-                            : FlutterFlowTheme.of(context).primary,
+                        color: AppTheme.accent,
                         textStyle:
                             FlutterFlowTheme.of(context).titleSmall.override(
-                                  color: Colors.white,
+                                  color: AppTheme.onAccent,
                                   fontWeight: FontWeight.w600,
                                 ),
                         borderSide: const BorderSide(

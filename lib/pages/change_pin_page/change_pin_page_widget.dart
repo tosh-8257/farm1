@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import '/backend/services/api_service.dart';
 import '/core/theme_extensions.dart';
 import '/widgets/common/back_chevron.dart';
@@ -368,9 +369,8 @@ class _ChangePinPageWidgetState
                       ? null
                       : submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : Colors.black,
+  foregroundColor: AppTheme.onAccent,
+                    backgroundColor: AppTheme.accent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -380,18 +380,14 @@ class _ChangePinPageWidgetState
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.black
-                                  : Colors.white,
+                              color: AppTheme.onAccent,
                               strokeWidth: 2,
                             ),
                           )
                         : Text(
                             "Save PIN",
                             style: TextStyle(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.black
-                                  : Colors.white,
+                              color: AppTheme.onAccent,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),

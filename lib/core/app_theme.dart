@@ -31,6 +31,12 @@ class AppTheme {
     return c;
   }
 
+  /// The primary-action button style: accent fill, black text.
+  static ButtonStyle primaryButtonStyle() => ElevatedButton.styleFrom(
+    backgroundColor: accent,
+    foregroundColor: onAccent,
+  );
+
   /// WCAG 2.x contrast ratio between two opaque colours.
   static double contrastRatio(Color a, Color b) {
     final la = a.computeLuminance(), lb = b.computeLuminance();

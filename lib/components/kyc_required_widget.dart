@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -99,9 +100,6 @@ class _KycRequiredWidgetState extends State<KycRequiredWidget>
   @override
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final buttonColor = isDarkMode ? Colors.black : Colors.white;
-    final buttonTextColor = isDarkMode ? Colors.white : Colors.black;
     final title = _isApproved
         ? 'KYC approved'
         : _isPending
@@ -158,8 +156,8 @@ class _KycRequiredWidgetState extends State<KycRequiredWidget>
                             : const {'startDidit': 'true'},
                       ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: buttonColor,
-                  foregroundColor: buttonTextColor,
+                  backgroundColor: AppTheme.accent,
+                  foregroundColor: AppTheme.onAccent,
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -179,7 +177,7 @@ class _KycRequiredWidgetState extends State<KycRequiredWidget>
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w800,
                     fontSize: 18,
-                    color: buttonTextColor,
+                    color: AppTheme.onAccent,
                   ),
                 ),
               ),

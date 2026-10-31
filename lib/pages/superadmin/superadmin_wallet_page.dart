@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import '/backend/services/api_service.dart';
@@ -375,7 +376,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
   Widget build(BuildContext context) {
     final bgColor = const Color(0xFF0B1320);
     final cardColor = const Color(0xFF111B2A);
-    final accent = const Color(0xFFD4AF37);
+    const accent = AppTheme.accent;
     final muted = Colors.white70;
 
     if (_loading) {
@@ -414,11 +415,12 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _loadWalletData,
-                style: ElevatedButton.styleFrom(backgroundColor: accent),
+                style: ElevatedButton.styleFrom(
+  foregroundColor: AppTheme.onAccent,backgroundColor: AppTheme.accent),
                 child: Text(
                   'Retry',
                   style: GoogleFonts.plusJakartaSans(
-                    color: Colors.black,
+                    color: AppTheme.onAccent,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -532,8 +534,8 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
                       icon: const Icon(Icons.lock_reset_rounded),
                       label: const Text('Change PIN'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        foregroundColor: Colors.black,
+                        backgroundColor: AppTheme.accent,
+                        foregroundColor: AppTheme.onAccent,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -570,7 +572,8 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
                 child: ElevatedButton(
                   onPressed: _processWithdrawal,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: accent,
+  foregroundColor: AppTheme.onAccent,
+                    backgroundColor: AppTheme.accent,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -579,7 +582,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
                   child: Text(
                     'Withdraw Funds',
                     style: GoogleFonts.plusJakartaSans(
-                      color: Colors.black,
+                      color: AppTheme.onAccent,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -748,7 +751,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
           Text(
             '${currency.toUpperCase()} ${balance.toStringAsFixed(2)}',
             style: GoogleFonts.plusJakartaSans(
-              color: Colors.white,
+              color: AppTheme.accent,
               fontSize: 42,
               fontWeight: FontWeight.w900,
             ),
@@ -1214,8 +1217,8 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: accent,
-                  foregroundColor: Colors.black,
+                  backgroundColor: AppTheme.accent,
+                  foregroundColor: AppTheme.onAccent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),

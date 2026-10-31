@@ -18,7 +18,7 @@ class BusinessWalletPage extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Available', style: TextStyle(color: mutedColor(c))),
                 Text(money(w['available_balance'], '${w['currency'] ?? 'FARM'}'),
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: fgColor(c))),
+                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: goldOn(c))),
                 const SizedBox(height: 12),
                 KeyValue('Total balance', money(w['balance'])),
                 KeyValue('Locked in escrow', money(w['locked_balance'])),

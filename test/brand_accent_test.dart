@@ -72,4 +72,16 @@ void main() {
     expect(f.colorFilter, const ColorFilter.mode(AppTheme.accent, BlendMode.multiply));
     expect(FarmMark.asset, startsWith('assets/'));
   });
+
+  test('primaryButtonStyle is gold with black text', () {
+    final style = AppTheme.primaryButtonStyle();
+    expect(style.backgroundColor!.resolve({}), AppTheme.accent);
+    expect(style.foregroundColor!.resolve({}), AppTheme.onAccent);
+  });
+
+  test('gold balance figures stay readable on white admin surfaces', () {
+    final gold = AppTheme.accentOn(Colors.white);
+    expect(AppTheme.contrastRatio(gold, Colors.white), greaterThanOrEqualTo(4.5));
+    expect(AppTheme.contrastRatio(AppTheme.accent, Colors.black), greaterThanOrEqualTo(4.5));
+  });
 }

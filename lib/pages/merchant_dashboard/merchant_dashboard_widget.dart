@@ -12,6 +12,7 @@ import '/utils/merchant_qr_utils.dart';
 import '/services/transaction_receipt_service.dart';
 
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 
@@ -729,19 +730,15 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                     onPressed: applyingMerchant ? null : applyMerchant,
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
+                          AppTheme.accent,
                       foregroundColor:
-                          Theme.of(context).brightness == Brightness.dark
-                              ? Colors.black
-                              : Colors.white,
+                          AppTheme.onAccent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                     child: applyingMerchant
-                        ? const CircularProgressIndicator(color: Colors.white)
+                        ? const CircularProgressIndicator(color: AppTheme.onAccent)
                         : const Text('Submit Application'),
                   ),
                 ),
@@ -817,20 +814,16 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                         onPressed: payoutLoading ? null : requestPayout,
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
-                              Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black,
+                              AppTheme.accent,
                           foregroundColor:
-                              Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.black
-                                  : Colors.white,
+                              AppTheme.onAccent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
                         child: payoutLoading
                             ? const CircularProgressIndicator(
-                                color: Colors.white)
+                                color: AppTheme.onAccent)
                             : const Text('Submit Payout Request'),
                       ),
                     ),
@@ -992,15 +985,9 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                                         ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor:
-                                    Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white
-                                        : Colors.black,
+                                    AppTheme.accent,
                                 foregroundColor:
-                                    Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.black
-                                        : Colors.white,
+                                    AppTheme.onAccent,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(18),
                                 ),

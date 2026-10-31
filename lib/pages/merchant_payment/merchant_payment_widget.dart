@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/backend/services/api_service.dart';
 import '/services/transaction_authentication_service.dart';
@@ -374,8 +375,6 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         leading: const BackChevron(),
@@ -494,13 +493,14 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
                   onPressed:
                       _loadingQrPayload ? null : _promptBiometricForPinField,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark ? Colors.white : theme.primary,
+  foregroundColor: AppTheme.onAccent,
+                    backgroundColor: AppTheme.accent,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
                   ),
                   child: Text('Continue',
                       style: theme.titleMedium.copyWith(
-                          color: isDark ? Colors.black : Colors.white,
+                          color: AppTheme.onAccent,
                           fontWeight: FontWeight.bold)),
                 ),
               ),
@@ -524,20 +524,17 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
                   onPressed:
                       isLoading || _loadingQrPayload ? null : _submitPayment,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark ? Colors.white : theme.primary,
+  foregroundColor: AppTheme.onAccent,
+                    backgroundColor: AppTheme.accent,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
                   ),
                   child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const CircularProgressIndicator(color: AppTheme.onAccent)
                       : Builder(builder: (context) {
-                          final isDark =
-                              Theme.of(context).brightness == Brightness.dark;
-                          final textColor =
-                              isDark ? Colors.black : Colors.white;
                           return Text('Pay Merchant',
                               style: theme.titleMedium.copyWith(
-                                  color: textColor,
+                                  color: AppTheme.onAccent,
                                   fontWeight: FontWeight.bold));
                         }),
                 ),

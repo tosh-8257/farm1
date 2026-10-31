@@ -391,7 +391,7 @@ class PortfolioPage extends StatelessWidget {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text('Total invested', style: TextStyle(color: mutedColor(c))),
                         Text(money(d['total_invested']),
-                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: fgColor(c))),
+                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: goldOn(c))),
                         Text('Amount you put in. This is not a valuation or a promised return.',
                             style: TextStyle(fontSize: 12, color: mutedColor(c))),
                       ]),

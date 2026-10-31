@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
@@ -388,7 +389,7 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage>
   Widget build(BuildContext context) {
     final bgColor = Colors.white;
     final cardColor = Colors.white;
-    final accent = const Color(0xFFEAF2FF);
+    final accent = AppTheme.accentOn(bgColor);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -854,15 +855,13 @@ class _WithdrawalsManagementPageState extends State<WithdrawalsManagementPage>
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           color: _statusFilter == s
-                              ? Colors.white
+                              ? AppTheme.onAccent
                               : Colors.black)),
                   selected: _statusFilter == s,
-                  selectedColor:
-                      _statusFilter == s ? Colors.black : Colors.white,
-                  backgroundColor:
-                      _statusFilter == s ? Colors.black : Colors.white,
+                  selectedColor: AppTheme.accent,
+                  backgroundColor: Colors.white,
                   side: BorderSide(
-                      color: _statusFilter == s ? Colors.black : Colors.black54,
+                      color: _statusFilter == s ? AppTheme.accent : Colors.black54,
                       width: 1),
                   onSelected: (_) {
                     setState(() {

@@ -3,6 +3,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'project_card_model.dart';
 export 'project_card_model.dart';
@@ -274,7 +275,8 @@ class _ProjectCardWidgetState extends State<ProjectCardWidget> {
                               width: double.infinity,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: FlutterFlowTheme.of(context).primary,
+  foregroundColor: AppTheme.onAccent,
+                                  backgroundColor: AppTheme.accent,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14.0),
                                   ),
@@ -284,7 +286,7 @@ class _ProjectCardWidgetState extends State<ProjectCardWidget> {
                                   'Invest',
                                   style: FlutterFlowTheme.of(context).titleSmall.override(
                                         fontFamily: 'Plus Jakarta Sans',
-                                        color: FlutterFlowTheme.of(context).onPrimary,
+                                        color: AppTheme.onAccent,
                                         fontWeight: FontWeight.bold,
                                       ),
                                 ),

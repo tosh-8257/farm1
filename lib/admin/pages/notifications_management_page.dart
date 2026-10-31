@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
@@ -99,7 +100,6 @@ class _NotificationsManagementPageState
   Widget build(BuildContext context) {
     final bgColor = Colors.white;
     final cardColor = Colors.white;
-    final accent = const Color(0xFFEAF2FF);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -161,14 +161,14 @@ class _NotificationsManagementPageState
                               style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
                                   color: _type == t
-                                      ? Colors.white
+                                      ? AppTheme.onAccent
                                       : context.onSurface)),
                           selected: _type == t,
-                          selectedColor: Colors.black,
+                          selectedColor: AppTheme.accent,
                           backgroundColor: Colors.white,
                           side: BorderSide(
                               color: _type == t
-                                  ? Colors.black
+                                  ? AppTheme.accent
                                   : context.onSurface.withOpacity(0.2)),
                           onSelected: (_) => setState(() => _type = t),
                         ),
@@ -184,14 +184,14 @@ class _NotificationsManagementPageState
                               style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
                                   color: _recipientMode == mode
-                                      ? Colors.white
+                                      ? AppTheme.onAccent
                                       : context.onSurface)),
                           selected: _recipientMode == mode,
-                          selectedColor: Colors.black,
+                          selectedColor: AppTheme.accent,
                           backgroundColor: Colors.white,
                           side: BorderSide(
                               color: _recipientMode == mode
-                                  ? Colors.black
+                                  ? AppTheme.accent
                                   : context.onSurface.withOpacity(0.2)),
                           onSelected: (_) => setState(() => _recipientMode = mode),
                         ),
@@ -229,14 +229,14 @@ class _NotificationsManagementPageState
                               style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
                                   color: _audience == a
-                                      ? Colors.white
+                                      ? AppTheme.onAccent
                                       : context.onSurface)),
                           selected: _audience == a,
-                          selectedColor: Colors.black,
+                          selectedColor: AppTheme.accent,
                           backgroundColor: Colors.white,
                           side: BorderSide(
                               color: _audience == a
-                                  ? Colors.black
+                                  ? AppTheme.accent
                                   : context.onSurface.withOpacity(0.2)),
                           onSelected: (_) => setState(() => _audience = a),
                         ),
@@ -247,7 +247,8 @@ class _NotificationsManagementPageState
                       height: 52,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: accent,
+  foregroundColor: AppTheme.onAccent,
+                          backgroundColor: AppTheme.accent,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
                         ),
@@ -257,14 +258,14 @@ class _NotificationsManagementPageState
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
-                                    color: context.onSurface, strokeWidth: 2))
+                                    color: AppTheme.onAccent, strokeWidth: 2))
                             : Icon(Icons.send_rounded,
-                                color: context.onBackground.withOpacity(0.87)),
+                                color: AppTheme.onAccent),
                         label: Text(
                             _sending ? 'Sending...' : 'Send Notification',
                             style: GoogleFonts.plusJakartaSans(
                                 fontWeight: FontWeight.bold,
-                                color: context.onBackground.withOpacity(0.87))),
+                                color: AppTheme.onAccent)),
                       ),
                     ),
                   ]),

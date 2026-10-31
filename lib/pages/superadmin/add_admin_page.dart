@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/admin/services/admin_api_service.dart';
@@ -92,7 +93,7 @@ class _AddAdminPageState extends State<AddAdminPage> {
           borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFD4AF37))),
+          borderSide: const BorderSide(color: AppTheme.accent)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
@@ -110,7 +111,6 @@ class _AddAdminPageState extends State<AddAdminPage> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = const Color(0xFFD4AF37);
     return Scaffold(
       backgroundColor: const Color(0xFF0B1320),
       appBar: AppBar(
@@ -323,7 +323,8 @@ class _AddAdminPageState extends State<AddAdminPage> {
                   child: ElevatedButton(
                     onPressed: _isSubmitting ? null : _submit,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: accent,
+  foregroundColor: AppTheme.onAccent,
+                      backgroundColor: AppTheme.accent,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
                     ),
@@ -338,7 +339,7 @@ class _AddAdminPageState extends State<AddAdminPage> {
                           )
                         : Text('Create Admin',
                             style: GoogleFonts.plusJakartaSans(
-                                color: Colors.black,
+                                color: AppTheme.onAccent,
                                 fontWeight: FontWeight.w700)),
                   ),
                 ),

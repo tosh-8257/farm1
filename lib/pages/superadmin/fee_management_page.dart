@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
 import '/admin/services/admin_api_service.dart';
@@ -17,7 +18,7 @@ class _FeeManagementPageState extends State<FeeManagementPage>
     with AdminPageRefreshMixin<FeeManagementPage> {
   final _bgColor = Colors.white;
   final _cardColor = Colors.white;
-  final _accent = const Color(0xFFEAF2FF);
+  final _accent = AppTheme.accentOn(Colors.white);
 
   List<dynamic> _fees = [];
   bool _loading = true;
@@ -304,7 +305,8 @@ class _FeeManagementPageState extends State<FeeManagementPage>
                                   height: 48,
                                   child: ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: _accent,
+  foregroundColor: AppTheme.onAccent,
+                                      backgroundColor: AppTheme.accent,
                                       shape: RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(14)),
@@ -316,15 +318,13 @@ class _FeeManagementPageState extends State<FeeManagementPage>
                                             width: 18,
                                             height: 18,
                                             child: CircularProgressIndicator(
-                                                color: context.onBackground
-                                                    .withOpacity(0.87),
+                                                color: AppTheme.onAccent,
                                                 strokeWidth: 2),
                                           )
                                         : Text('Save',
                                             style: GoogleFonts.plusJakartaSans(
                                                 fontWeight: FontWeight.bold,
-                                                color: context.onBackground
-                                                    .withOpacity(0.87))),
+                                                color: AppTheme.onAccent)),
                                   ),
                                 ),
                               ]),

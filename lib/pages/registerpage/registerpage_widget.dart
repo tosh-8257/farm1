@@ -7,6 +7,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/pages/loginpage/loginpage_widget.dart' show kDefaultLoginCountry;
 import 'registerpage_model.dart';
@@ -957,15 +958,13 @@ class _RegisterpageWidgetState extends State<RegisterpageWidget> {
                         0.0,
                         0.0,
                       ),
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF1F1F1F)
-                          : FlutterFlowTheme.of(context).primary,
+                      color: AppTheme.accent,
                       textStyle:
                           FlutterFlowTheme.of(context).titleSmall.override(
                                 font: GoogleFonts.interTight(
                                   fontWeight: FontWeight.w600,
                                 ),
-                                color: Colors.white,
+                                color: AppTheme.onAccent,
                                 letterSpacing: 0.0,
                                 fontWeight: FontWeight.w600,
                               ),

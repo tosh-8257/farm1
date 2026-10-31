@@ -911,8 +911,9 @@ class _BiometricSecurityPageWidgetState
                               : enableBiometrics,
                       style:
                           ElevatedButton.styleFrom(
+  foregroundColor: AppTheme.onAccent,
                         backgroundColor:
-                            context.onSurface,
+                            AppTheme.accent,
                         elevation: 0,
                         shape:
                             RoundedRectangleBorder(
@@ -930,7 +931,7 @@ class _BiometricSecurityPageWidgetState
                                 child:
                                     CircularProgressIndicator(
                                   strokeWidth: 2.6,
-                                  color: context.background,
+                                  color: AppTheme.onAccent,
                                 ),
                               )
                               : Row(
@@ -942,7 +943,7 @@ class _BiometricSecurityPageWidgetState
                                     Icons
                                         .fingerprint_rounded,
                                     color:
-                                        context.background,
+                                        AppTheme.onAccent,
                                     size: 24,
                                   ),
                                   const SizedBox(
@@ -955,7 +956,7 @@ class _BiometricSecurityPageWidgetState
                                         GoogleFonts
                                             .plusJakartaSans(
                                       color:
-                                          context.background,
+                                          AppTheme.onAccent,
                                       fontWeight:
                                           FontWeight
                                               .w800,

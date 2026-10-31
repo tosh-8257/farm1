@@ -17,6 +17,7 @@ import '/widgets/common/back_chevron.dart';
 import '/pages/chain_wallet/wallet_address_page.dart';
 
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1311,7 +1312,8 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+  foregroundColor: AppTheme.onAccent,
+                      backgroundColor: AppTheme.accent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(18),
                       ),
@@ -1654,7 +1656,8 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                               req['id'], personUsername, amount);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+  foregroundColor: AppTheme.onAccent,
+                          backgroundColor: AppTheme.accent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
                           ),
@@ -1865,9 +1868,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                         style: FlutterFlowTheme.of(context)
                                             .headlineLarge
                                             .override(
-                                              color: isDark
-                                                  ? Colors.white
-                                                  : Colors.black,
+                                              color: FlutterFlowTheme.of(context).brandAccentText,
                                               font: GoogleFonts.plusJakartaSans(
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -2164,8 +2165,9 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                             onPressed:
                                                 _promptBiometricForPinField,
                                             style: ElevatedButton.styleFrom(
+  foregroundColor: AppTheme.onAccent,
                                               backgroundColor:
-                                                  selectedTabBackground,
+                                                  AppTheme.accent,
                                               shape: RoundedRectangleBorder(
                                                 borderRadius:
                                                     BorderRadius.circular(
@@ -2178,7 +2180,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                               style: TextStyle(
                                                 fontSize: 18,
                                                 fontWeight: FontWeight.bold,
-                                                color: Colors.white,
+                                                color: AppTheme.onAccent,
                                               ),
                                             ),
                                           ),
@@ -2221,8 +2223,9 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                             onPressed:
                                                 isSending ? null : sendFunds,
                                             style: ElevatedButton.styleFrom(
+  foregroundColor: AppTheme.onAccent,
                                               backgroundColor:
-                                                  selectedTabBackground,
+                                                  AppTheme.accent,
                                               shape: RoundedRectangleBorder(
                                                 borderRadius:
                                                     BorderRadius.circular(
@@ -2232,7 +2235,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                             ),
                                             child: isSending
                                                 ? const CircularProgressIndicator(
-                                                    color: Colors.white,
+                                                    color: AppTheme.onAccent,
                                                   )
                                                 : const Text(
                                                     'Send FARM',
@@ -2240,7 +2243,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                                       fontSize: 18,
                                                       fontWeight:
                                                           FontWeight.bold,
-                                                      color: Colors.white,
+                                                      color: AppTheme.onAccent,
                                                     ),
                                                   ),
                                           ),
@@ -2424,8 +2427,9 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                                 ? null
                                                 : requestFunds,
                                             style: ElevatedButton.styleFrom(
+  foregroundColor: AppTheme.onAccent,
                                               backgroundColor:
-                                                  selectedTabBackground,
+                                                  AppTheme.accent,
                                               shape: RoundedRectangleBorder(
                                                 borderRadius:
                                                     BorderRadius.circular(
@@ -2435,7 +2439,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                             ),
                                             child: isRequesting
                                                 ? const CircularProgressIndicator(
-                                                    color: Colors.white,
+                                                    color: AppTheme.onAccent,
                                                   )
                                                 : const Text(
                                                     'Request FARM',
@@ -2443,7 +2447,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                                       fontSize: 18,
                                                       fontWeight:
                                                           FontWeight.bold,
-                                                      color: Colors.white,
+                                                      color: AppTheme.onAccent,
                                                     ),
                                                   ),
                                           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
@@ -16,7 +17,7 @@ class MerchantKybManagementPage extends StatefulWidget {
 class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
   final _bgColor = Colors.white;
   final _cardColor = Colors.white;
-  final _accent = const Color(0xFFEAF2FF);
+  final _accent = AppTheme.accentOn(Colors.white);
 
   List<dynamic> _merchants = [];
   bool _loading = true;
@@ -303,11 +304,11 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                                       : context.onSurface.withOpacity(0.7),
                                   fontSize: 12)),
                           selected: _statusFilter == status,
-                          selectedColor: _accent,
+                          selectedColor: AppTheme.accent,
                           backgroundColor: _cardColor,
                           side: BorderSide(
                               color: _statusFilter == status
-                                  ? _accent
+                                  ? AppTheme.accent
                                   : context.onSurface.withOpacity(0.1)),
                           onSelected: (_) {
                             setState(() => _statusFilter = status);
@@ -492,7 +493,8 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                                   Expanded(
                                     child: ElevatedButton(
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: _accent,
+  foregroundColor: AppTheme.onAccent,
+                                        backgroundColor: AppTheme.accent,
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
                                                 BorderRadius.circular(14)),
@@ -506,8 +508,7 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                                               width: 18,
                                               height: 18,
                                               child: CircularProgressIndicator(
-                                                  color: context.onBackground
-                                                      .withOpacity(0.87),
+                                                  color: AppTheme.onAccent,
                                                   strokeWidth: 2),
                                             )
                                           : Text('Approve',
@@ -515,9 +516,7 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
                                                   GoogleFonts.plusJakartaSans(
                                                       fontWeight:
                                                           FontWeight.bold,
-                                                      color: context
-                                                          .onBackground
-                                                          .withOpacity(0.87))),
+                                                      color: AppTheme.onAccent)),
                                     ),
                                   ),
                                 ])

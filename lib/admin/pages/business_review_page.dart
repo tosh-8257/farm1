@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/backend/api_requests/business_ops_api.dart';
 import '/pages/business/business_kyb_logic.dart';
@@ -72,7 +73,7 @@ class _BusinessReviewPageState extends State<BusinessReviewPage> {
                 child: ChoiceChip(
                   label: Text(f.value),
                   selected: _filter == f.key,
-                  selectedColor: Colors.black,
+                  selectedColor: AppTheme.accent,
                   backgroundColor: Colors.white,
                   side: const BorderSide(color: Colors.black26),
                   labelStyle: TextStyle(color: _filter == f.key ? Colors.white : Colors.black),
@@ -313,7 +314,7 @@ class _DetailState extends State<_BusinessReviewDetail> {
                   if (b['status'] == 'under_review') ...[
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(50)),
+                          backgroundColor: AppTheme.accent, foregroundColor: AppTheme.onAccent, minimumSize: const Size.fromHeight(50)),
                       onPressed: _busy ? null : () => _decide('approve'),
                       child: const Text('Approve'),
                     ),

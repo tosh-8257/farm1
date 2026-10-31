@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/core/app_theme.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/backend/api_requests/business_api_service.dart';
 
@@ -7,6 +8,10 @@ import '/backend/api_requests/business_api_service.dart';
 Color fgColor(BuildContext c) => FlutterFlowTheme.of(c).primaryText;
 Color mutedColor(BuildContext c) => FlutterFlowTheme.of(c).secondaryText;
 Color cardColor(BuildContext c) => FlutterFlowTheme.of(c).secondaryBackground;
+
+/// Brand gold for headline money figures, darkened as needed for contrast
+/// against the card surface.
+Color goldOn(BuildContext c) => AppTheme.accentOn(cardColor(c));
 Color borderColor(BuildContext c) => FlutterFlowTheme.of(c).alternate;
 
 ButtonStyle primaryButtonStyle(BuildContext c) {

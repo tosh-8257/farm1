@@ -994,13 +994,9 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                             ),
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor:
-                                                  FlutterFlowTheme.of(
-                                                    context,
-                                                  ).primary,
+                                                  AppTheme.accent,
                                               foregroundColor:
-                                                  FlutterFlowTheme.of(
-                                                    context,
-                                                  ).secondaryBackground,
+                                                  AppTheme.onAccent,
                                               padding:
                                                   const EdgeInsets.symmetric(
                                                     vertical: 12.0,
@@ -1019,9 +1015,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                     context,
                                                   ).titleSmall.override(
                                                     fontWeight: FontWeight.w600,
-                                                    color: FlutterFlowTheme.of(
-                                                      context,
-                                                    ).secondaryBackground,
+                                                    color: AppTheme.onAccent,
                                                   ),
                                             ),
                                           ),

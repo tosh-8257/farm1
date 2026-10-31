@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/core/theme_extensions.dart';
@@ -93,7 +94,8 @@ class _EscrowManagementPageState extends State<EscrowManagementPage>
                       color: context.onSurface.withOpacity(0.7)))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF90CAF9)),
+  foregroundColor: AppTheme.onAccent,
+                backgroundColor: AppTheme.accent),
             onPressed: () async {
               Navigator.pop(context);
               try {
@@ -112,7 +114,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage>
             },
             child: Text('Confirm',
                 style: GoogleFonts.plusJakartaSans(
-                    color: context.onBackground.withOpacity(0.87))),
+                    color: AppTheme.onAccent)),
           ),
         ],
       ),
@@ -144,7 +146,7 @@ class _EscrowManagementPageState extends State<EscrowManagementPage>
   Widget build(BuildContext context) {
     final bgColor = Colors.white;
     final cardColor = Colors.white;
-    final accent = const Color(0xFFEAF2FF);
+    final accent = AppTheme.accentOn(bgColor);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -239,12 +241,12 @@ class _EscrowManagementPageState extends State<EscrowManagementPage>
                       style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: _filter == f ? Colors.white : Colors.black)),
+                          color: _filter == f ? AppTheme.onAccent : Colors.black)),
                   selected: _filter == f,
-                  selectedColor: _filter == f ? Colors.black : Colors.white,
-                  backgroundColor: _filter == f ? Colors.black : Colors.white,
+                  selectedColor: AppTheme.accent,
+                  backgroundColor: Colors.white,
                   side: BorderSide(
-                      color: _filter == f ? Colors.black : Colors.black54,
+                      color: _filter == f ? AppTheme.accent : Colors.black54,
                       width: 1),
                   onSelected: (_) {
                     setState(() {
