@@ -2,6 +2,16 @@
 
 Every public page widget (files containing a Scaffold) under lib/, rendered one at a time in a scratch clone with no login, against a LOCAL MOCK backend returning generic SAMPLE rows; every screenshot carries a 'SAMPLE DATA' strip. Writes return 503. Production never contacted.
 
+
+## Design note: colour
+
+Black, white and grey everywhere, plus ONE accent: classic gold `#D4AF37`, used sparingly. It is defined once as `kBrandAccent` in `lib/core/app_theme.dart`; every use reads `AppTheme.accent` (or the FlutterFlow tokens `brandAccent` / `onBrandAccent` / `brandAccentText`), so changing that constant re-themes the app.
+
+- Where gold is used: the FARM coin mark (`FarmMark`, splash), primary buttons (Elevated/Filled theme: gold fill, black text, about 10:1), wallet balance figure on the dashboard card (gold on black, about 10:1), active nav tab/indicator (TabBar indicator, admin nav), onboarding art loop arc and tallest bar, selected chips (gold fill, black label), focus rings.
+- Gold text on a light background uses `AppTheme.accentOn(background)`, a darker gold derived from the same constant that meets WCAG AA 4.5:1; fills always carry black text.
+- Never gold: error, success, warning or info states, switches, checkboxes, radios, body text. Everything else stays monochrome.
+- Screenshots below predate the accent.
+
 | Sheet | Widget | Source | Status | File |
 |---|---|---|---|---|
 | admin | AddAdminPage | lib/pages/superadmin/add_admin_page.dart | captured | superadmin__AddAdminPage.png |

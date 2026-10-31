@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 
 import '/backend/services/api_service.dart';
@@ -587,11 +588,11 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
     return ChoiceChip(
       label: Text(label),
       selected: selected,
-      selectedColor: Theme.of(context).primaryColor,
+      selectedColor: AppTheme.accent,
       backgroundColor: Theme.of(context).colorScheme.surface,
       labelStyle: TextStyle(
         color: selected
-            ? Theme.of(context).colorScheme.onPrimary
+            ? AppTheme.onAccent
             : Theme.of(context).textTheme.bodyMedium?.color,
       ),
       shape: const StadiumBorder(),
@@ -607,11 +608,11 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
     return ChoiceChip(
       label: Text(label),
       selected: selected,
-      selectedColor: Theme.of(context).primaryColor,
+      selectedColor: AppTheme.accent,
       backgroundColor: Theme.of(context).colorScheme.surface,
       labelStyle: TextStyle(
         color: selected
-            ? Theme.of(context).colorScheme.onPrimary
+            ? AppTheme.onAccent
             : Theme.of(context).textTheme.bodyMedium?.color,
       ),
       shape: const StadiumBorder(),

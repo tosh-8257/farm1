@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/backend/api_requests/developer_api.dart';
@@ -473,8 +474,8 @@ class _UsageState extends State<ApiUsagePage> {
                   child: ChoiceChip(
                     label: Text(r),
                     selected: _range == r,
-                    selectedColor: fgColor(context),
-                    labelStyle: TextStyle(color: _range == r ? Theme.of(context).scaffoldBackgroundColor : fgColor(context)),
+                    selectedColor: AppTheme.accent,
+                    labelStyle: TextStyle(color: _range == r ? AppTheme.onAccent : fgColor(context)),
                     onSelected: (_) => setState(() => _range = r),
                   ),
                 ),

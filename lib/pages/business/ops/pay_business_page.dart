@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/app_theme.dart';
 import '/backend/api_requests/business_ops_api.dart';
 import '/backend/api_requests/fees_api.dart';
 import 'ops_ui.dart';
@@ -22,7 +23,8 @@ class PayBusinessPage extends StatelessWidget {
             TabBar(
               labelColor: fgColor(context),
               unselectedLabelColor: mutedColor(context),
-              indicatorColor: fgColor(context),
+              indicatorColor: AppTheme.accent,
+              indicatorWeight: 3,
               tabs: const [Tab(text: 'Link code'), Tab(text: 'Invoice'), Tab(text: 'Escrow')],
             ),
             Expanded(

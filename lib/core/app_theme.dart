@@ -1,6 +1,43 @@
 import 'package:flutter/material.dart';
 
+/// THE brand accent. Change this one constant to re-theme every accent use.
+/// Design rule: black, white and grey everywhere, plus this single accent,
+/// used sparingly (FARM mark, primary buttons, wallet balance figures,
+/// active nav tab/indicator, onboarding art highlight, selected chips,
+/// focus rings). Never for error or success states.
+const Color kBrandAccent = Color(0xFFD4AF37); // classic gold
+
 class AppTheme {
+  // ── Accent (all derived from kBrandAccent) ─────────────────────────────
+  /// Accent fill (buttons, chips, indicators, art).
+  static const accent = kBrandAccent;
+
+  /// Text/icons drawn ON an accent fill. Black on gold is ~10:1.
+  static const onAccent = Color(0xFF000000);
+
+  /// Accent for text, thin lines and focus rings on the given background,
+  /// darkened just enough to reach [minContrast] (WCAG AA 4.5:1 by default).
+  /// On dark backgrounds the pure accent already passes and is returned.
+  static Color accentOn(Color background, {double minContrast = 4.5}) {
+    var hsl = HSLColor.fromColor(accent);
+    var c = accent;
+    var guard = 0;
+    while (contrastRatio(c, background) < minContrast && guard++ < 100) {
+      final lighter = background.computeLuminance() < 0.5;
+      final l = (hsl.lightness + (lighter ? 0.01 : -0.01)).clamp(0.0, 1.0);
+      hsl = hsl.withLightness(l);
+      c = hsl.toColor();
+    }
+    return c;
+  }
+
+  /// WCAG 2.x contrast ratio between two opaque colours.
+  static double contrastRatio(Color a, Color b) {
+    final la = a.computeLuminance(), lb = b.computeLuminance();
+    final hi = la > lb ? la : lb, lo = la > lb ? lb : la;
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
   // Light theme colors
   static const lightPrimary = Color(0xFF000000);
   static const lightSecondary = Color(0xFF6B7280);
@@ -51,7 +88,8 @@ class AppTheme {
       cardColor: lightSurface,
       colorScheme: const ColorScheme.light(
         primary: lightPrimary,
-        secondary: lightSecondary,
+        secondary: accent,
+        onSecondary: onAccent,
         tertiary: lightTertiary,
         surface: lightSurface,
         error: lightError,
@@ -83,7 +121,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: lightSurface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: lightBorder),
@@ -94,7 +135,10 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: lightPrimary, width: 2),
+          borderSide: BorderSide(
+            color: accentOn(lightSurface, minContrast: 3),
+            width: 2,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -105,8 +149,8 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: lightPrimary,
-          foregroundColor: lightBackground,
+          backgroundColor: accent,
+          foregroundColor: onAccent,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
@@ -118,9 +162,7 @@ class AppTheme {
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: lightPrimary,
-        ),
+        style: TextButton.styleFrom(foregroundColor: lightPrimary),
       ),
       iconTheme: const IconThemeData(color: lightTextPrimary),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
@@ -129,7 +171,9 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: lightSurface,
-        selectedColor: lightPrimary,
+        selectedColor: accent,
+        secondaryLabelStyle: const TextStyle(color: onAccent),
+        checkmarkColor: onAccent,
         labelStyle: const TextStyle(color: lightTextPrimary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
@@ -138,18 +182,56 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: lightBackground,
-        selectedItemColor: lightPrimary,
+        selectedItemColor: accentOn(lightBackground, minContrast: 3),
         unselectedItemColor: lightTextTertiary,
       ),
-      navigationRailTheme: const NavigationRailThemeData(
+      navigationRailTheme: NavigationRailThemeData(
         backgroundColor: lightBackground,
-        selectedIconTheme: IconThemeData(color: lightPrimary),
+        selectedIconTheme: IconThemeData(
+          color: accentOn(lightBackground, minContrast: 3),
+        ),
+        indicatorColor: accent,
         unselectedIconTheme: IconThemeData(color: lightTextTertiary),
       ),
-      drawerTheme: const DrawerThemeData(
-        backgroundColor: lightBackground,
+      drawerTheme: const DrawerThemeData(backgroundColor: lightBackground),
+      tabBarTheme: TabBarThemeData(
+        indicatorColor: accent,
+        indicator: const UnderlineTabIndicator(
+          borderSide: BorderSide(color: accent, width: 3),
+        ),
+        labelColor: lightTextPrimary,
+        unselectedLabelColor: lightTextTertiary,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: onAccent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      focusColor: accent.withValues(alpha: 0.24),
+      // Toggles stay monochrome: the accent is not a generic "on" colour.
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? lightPrimary : null,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? lightPrimary.withValues(alpha: 0.5)
+              : null,
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? lightPrimary : null,
+        ),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? lightPrimary : null,
+        ),
       ),
     );
   }
@@ -164,7 +246,8 @@ class AppTheme {
       cardColor: darkSurface,
       colorScheme: const ColorScheme.dark(
         primary: darkPrimary,
-        secondary: darkSecondary,
+        secondary: accent,
+        onSecondary: onAccent,
         tertiary: darkTertiary,
         surface: darkSurface,
         error: darkError,
@@ -196,7 +279,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: darkSurface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: darkBorder),
@@ -207,7 +293,10 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: darkPrimary, width: 2),
+          borderSide: BorderSide(
+            color: accentOn(darkSurface, minContrast: 3),
+            width: 2,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -218,8 +307,8 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: darkPrimary,
-          foregroundColor: darkBackground,
+          backgroundColor: accent,
+          foregroundColor: onAccent,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
@@ -231,9 +320,7 @@ class AppTheme {
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: darkPrimary,
-        ),
+        style: TextButton.styleFrom(foregroundColor: darkPrimary),
       ),
       iconTheme: const IconThemeData(color: darkTextPrimary),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
@@ -242,7 +329,9 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: darkSurface,
-        selectedColor: darkPrimary,
+        selectedColor: accent,
+        secondaryLabelStyle: const TextStyle(color: onAccent),
+        checkmarkColor: onAccent,
         labelStyle: const TextStyle(color: darkTextPrimary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
@@ -251,18 +340,54 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: darkSurface,
-        selectedItemColor: darkPrimary,
+        selectedItemColor: accent,
         unselectedItemColor: darkTextTertiary,
       ),
-      navigationRailTheme: const NavigationRailThemeData(
+      navigationRailTheme: NavigationRailThemeData(
         backgroundColor: darkSurface,
-        selectedIconTheme: IconThemeData(color: darkPrimary),
+        selectedIconTheme: const IconThemeData(color: accent),
+        indicatorColor: accent,
         unselectedIconTheme: IconThemeData(color: darkTextTertiary),
       ),
-      drawerTheme: const DrawerThemeData(
-        backgroundColor: darkSurface,
+      drawerTheme: const DrawerThemeData(backgroundColor: darkSurface),
+      tabBarTheme: TabBarThemeData(
+        indicatorColor: accent,
+        indicator: const UnderlineTabIndicator(
+          borderSide: BorderSide(color: accent, width: 3),
+        ),
+        labelColor: darkTextPrimary,
+        unselectedLabelColor: darkTextTertiary,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: onAccent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      focusColor: accent.withValues(alpha: 0.24),
+      // Toggles stay monochrome: the accent is not a generic "on" colour.
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? darkPrimary : null,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? darkPrimary.withValues(alpha: 0.5)
+              : null,
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? darkPrimary : null,
+        ),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? darkPrimary : null,
+        ),
       ),
     );
   }

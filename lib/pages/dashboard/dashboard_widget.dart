@@ -28,6 +28,7 @@ import '/utils/transaction_peer_resolver.dart';
 import '/utils/transaction_history_utils.dart';
 import '/services/transaction_receipt_service.dart';
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1335,16 +1336,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                                     FontWeight
                                                                         .w800,
                                                               ),
-                                                          color:
-                                                              Theme.of(
-                                                                    context,
-                                                                  ).brightness ==
-                                                                  Brightness
-                                                                      .dark
-                                                              ? Colors.white
-                                                              : FlutterFlowTheme.of(
-                                                                  context,
-                                                                ).onPrimary,
+                                                          // Black card in both modes: gold passes AA.
+                                                          color: AppTheme.accent,
                                                           letterSpacing: 0.0,
                                                           fontWeight:
                                                               FontWeight.w800,

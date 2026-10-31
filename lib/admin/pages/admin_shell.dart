@@ -226,23 +226,21 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: selected
-                          ? context.onSurface.withOpacity(0.12)
-                          : Colors.transparent,
+                      color: selected ? AppTheme.accent : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
                         Icon(item.icon,
                             color: selected
-                                ? context.onSurface
+                                ? AppTheme.onAccent
                                 : context.onSurface.withOpacity(0.38),
                             size: 20),
                         const SizedBox(width: 12),
                         Text(item.label,
                             style: GoogleFonts.plusJakartaSans(
                               color: selected
-                                  ? context.onSurface
+                                  ? AppTheme.onAccent
                                   : context.onSurface.withOpacity(0.54),
                               fontWeight: selected
                                   ? FontWeight.w600
@@ -385,9 +383,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: selected
-                          ? const Color(0xFFEAF2FF)
-                          : Colors.transparent,
+                      color: selected ? AppTheme.accent : Colors.transparent,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
@@ -397,7 +393,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                           item.icon,
                           size: 18,
                           color: selected
-                              ? const Color(0xFF0D47A1)
+                              ? AppTheme.onAccent
                               : context.onSurface.withOpacity(0.64),
                         ),
                         const SizedBox(height: 4),
@@ -411,7 +407,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                             fontWeight:
                                 selected ? FontWeight.w700 : FontWeight.w500,
                             color: selected
-                                ? const Color(0xFF0D47A1)
+                                ? AppTheme.onAccent
                                 : context.onSurface.withOpacity(0.7),
                           ),
                         ),

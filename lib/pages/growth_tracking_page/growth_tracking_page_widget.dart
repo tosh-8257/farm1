@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/backend/services/api_service.dart';
@@ -364,8 +365,8 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
   Widget _periodChip(String label, String value) {
     final selected = _selectedPeriod == value;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final selectedFillColor = isDarkMode ? Colors.white : Colors.black;
-    final selectedTextColor = isDarkMode ? Colors.black : Colors.white;
+    const selectedFillColor = AppTheme.accent;
+    const selectedTextColor = AppTheme.onAccent;
     final unselectedTextColor = isDarkMode ? Colors.white : Colors.black87;
 
     return ChoiceChip(

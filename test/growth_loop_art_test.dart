@@ -1,4 +1,5 @@
 import 'package:farm/components/growth_loop_art.dart';
+import 'package:farm/core/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -9,11 +10,14 @@ GrowthLoopPainter _painter(WidgetTester t) =>
         as GrowthLoopPainter;
 
 void main() {
-  test('onboarding art uses only black/white/grey', () {
+  test('onboarding art is monochrome plus only the brand accent', () {
     for (final ink in [Colors.black, Colors.white]) {
-      for (final c in GrowthLoopPainter(0.3, ink).palette()) {
+      final p = GrowthLoopPainter(0.3, ink);
+      for (final c in p.palette()) {
         expect(_isGreyscale(c), isTrue, reason: '$c');
       }
+      expect(p.accents(), [AppTheme.accent]);
+      expect(AppTheme.accent, kBrandAccent);
     }
   });
 

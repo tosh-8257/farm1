@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../components/farm_mark.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/pages/onboarding/onboarding_widget.dart';
 
@@ -32,12 +34,7 @@ class _SplashPageState extends State<SplashPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'assets/images/app_logo.png',
-              width: 72,
-              height: 72,
-              fit: BoxFit.contain,
-            ),
+            const FarmMark(size: 72),
             const SizedBox(height: 16),
             Text('FARM',
                 style: theme.titleLarge.copyWith(fontWeight: FontWeight.w800)),

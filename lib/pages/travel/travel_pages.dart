@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import '/backend/api_requests/travel_api.dart';
 import '/pages/business/ops/ops_ui.dart';
 import 'hotel_pages.dart';
@@ -94,11 +95,11 @@ class _CategoriesState extends State<_Categories> {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  avatar: Icon(icon, size: 16, color: _sel == name ? Theme.of(c).scaffoldBackgroundColor : fgColor(c)),
+                  avatar: Icon(icon, size: 16, color: _sel == name ? AppTheme.onAccent : fgColor(c)),
                   label: Text(name),
                   selected: _sel == name,
-                  selectedColor: fgColor(c),
-                  labelStyle: TextStyle(color: _sel == name ? Theme.of(c).scaffoldBackgroundColor : fgColor(c)),
+                  selectedColor: AppTheme.accent,
+                  labelStyle: TextStyle(color: _sel == name ? AppTheme.onAccent : fgColor(c)),
                   onSelected: (_) => setState(() => _sel = name),
                 ),
               ),

@@ -2,7 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Onboarding illustration in brand colours only (black, white, grey):
+import '../core/app_theme.dart';
+
+/// Onboarding illustration in brand colours (black, white, grey + the gold
+/// accent on the loop arc and the tallest bar):
 /// bars that rise one after another inside a slowly turning loop.
 /// Drawn locally, no network asset. With reduced motion the loop is still
 /// and the bars are shown at full height.
@@ -56,9 +59,10 @@ class _GrowthLoopArtState extends State<GrowthLoopArt> with TickerProviderStateM
 
 class GrowthLoopPainter extends CustomPainter {
   /// [barsT] is the bar-cycle position 0..1; null draws the bars full.
-  GrowthLoopPainter(this.t, this.ink, {this.barsT});
+  GrowthLoopPainter(this.t, this.ink, {this.barsT, this.accent = AppTheme.accent});
   final double t;
   final Color ink;
+  final Color accent;
   final double? barsT;
 
   static const grey = Color(0xFF9E9E9E);
@@ -91,7 +95,7 @@ class GrowthLoopPainter extends CustomPainter {
       ..strokeWidth = 6);
     canvas.drawArc(Rect.fromCircle(center: c, radius: r), -math.pi / 2 + t * 2 * math.pi, math.pi * 1.2, false,
         Paint()
-          ..color = ink
+          ..color = accent
           ..style = PaintingStyle.stroke
           ..strokeCap = StrokeCap.round
           ..strokeWidth = 6);
@@ -102,14 +106,17 @@ class GrowthLoopPainter extends CustomPainter {
       if (h <= 0.5) continue;
       canvas.drawRRect(
         RRect.fromRectAndRadius(Rect.fromLTWH(left + i * (w + gap), base - h, w, h), const Radius.circular(4)),
-        Paint()..color = i == bars - 1 ? ink : grey,
+        Paint()..color = i == bars - 1 ? accent : grey,
       );
     }
   }
 
-  /// Every colour this painter can use, for brand checks.
+  /// Every monochrome colour this painter can use, for brand checks.
   List<Color> palette() => [ink, grey, lightGrey];
 
+  /// The only non-grey colour drawn (arc + tallest bar).
+  List<Color> accents() => [accent];
+
   @override
-  bool shouldRepaint(GrowthLoopPainter old) => old.t != t || old.ink != ink || old.barsT != barsT;
+  bool shouldRepaint(GrowthLoopPainter old) => old.t != t || old.ink != ink || old.barsT != barsT || old.accent != accent;
 }

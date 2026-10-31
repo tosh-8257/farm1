@@ -59,6 +59,11 @@ abstract class FlutterFlowTheme {
   late Color secondaryText;
   late Color primaryBackground;
   late Color secondaryBackground;
+  /// Brand accent (gold) from AppTheme.accent; use sparingly.
+  late Color brandAccent;
+  late Color onBrandAccent;
+  /// Brand accent for text/lines on the page background (WCAG AA).
+  late Color brandAccentText;
   late Color accent1;
   late Color accent2;
   late Color accent3;
@@ -183,6 +188,9 @@ class LightModeTheme extends FlutterFlowTheme {
   late Color secondaryText = AppTheme.lightTextSecondary;
   late Color primaryBackground = AppTheme.lightBackground;
   late Color secondaryBackground = AppTheme.lightSurface;
+  late Color brandAccent = AppTheme.accent;
+  late Color onBrandAccent = AppTheme.onAccent;
+  late Color brandAccentText = AppTheme.accentOn(AppTheme.lightBackground);
   late Color accent1 = AppTheme.lightInfo.withOpacity(0.3);
   late Color accent2 = AppTheme.lightSuccess.withOpacity(0.3);
   late Color accent3 = AppTheme.lightSecondary.withOpacity(0.4);
@@ -398,6 +406,9 @@ class DarkModeTheme extends FlutterFlowTheme {
   late Color secondaryText = AppTheme.darkTextSecondary;
   late Color primaryBackground = AppTheme.darkBackground;
   late Color secondaryBackground = AppTheme.darkSurface;
+  late Color brandAccent = AppTheme.accent;
+  late Color onBrandAccent = AppTheme.onAccent;
+  late Color brandAccentText = AppTheme.accentOn(AppTheme.darkBackground);
   late Color accent1 = AppTheme.darkInfo.withOpacity(0.3);
   late Color accent2 = AppTheme.darkSuccess.withOpacity(0.3);
   late Color accent3 = AppTheme.darkSecondary.withOpacity(0.4);

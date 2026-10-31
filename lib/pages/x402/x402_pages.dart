@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import '/backend/api_requests/x402_api.dart';
 import '/pages/business/ops/ops_ui.dart';
@@ -169,8 +170,8 @@ class _NewResourcePageState extends State<_NewResourcePage> {
               ChoiceChip(
                 label: Text(o),
                 selected: v == o,
-                selectedColor: fgColor(context),
-                labelStyle: TextStyle(color: v == o ? Theme.of(context).scaffoldBackgroundColor : fgColor(context)),
+                selectedColor: AppTheme.accent,
+                labelStyle: TextStyle(color: v == o ? AppTheme.onAccent : fgColor(context)),
                 onSelected: (_) => setState(() => on(o)),
               ),
           ]),

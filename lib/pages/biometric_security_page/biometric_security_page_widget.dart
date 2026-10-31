@@ -3,6 +3,7 @@ import '/core/theme_extensions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
@@ -848,11 +849,11 @@ class _BiometricSecurityPageWidgetState
                               ChoiceChip(
                                 label: Text('Face ID'),
                                 selected: selectedBiometricMethod == 'faceID',
-                                selectedColor: context.onSurface,
+                                selectedColor: AppTheme.accent,
                                 backgroundColor: context.onSurface.withOpacity(0.06),
                                 labelStyle: TextStyle(
                                   color: selectedBiometricMethod == 'faceID'
-                                      ? context.background
+                                      ? AppTheme.onAccent
                                       : context.onSurface,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -865,11 +866,11 @@ class _BiometricSecurityPageWidgetState
                               ChoiceChip(
                                 label: Text('Fingerprint'),
                                 selected: selectedBiometricMethod == 'fingerprint',
-                                selectedColor: context.onSurface,
+                                selectedColor: AppTheme.accent,
                                 backgroundColor: context.onSurface.withOpacity(0.06),
                                 labelStyle: TextStyle(
                                   color: selectedBiometricMethod == 'fingerprint'
-                                      ? context.background
+                                      ? AppTheme.onAccent
                                       : context.onSurface,
                                   fontWeight: FontWeight.w600,
                                 ),
