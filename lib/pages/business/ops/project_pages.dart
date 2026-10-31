@@ -17,35 +17,38 @@ class _BusinessProjectsPageState extends State<BusinessProjectsPage> {
   final _key = GlobalKey<BizAsyncState<List<Map<String, dynamic>>>>();
   @override
   Widget build(BuildContext context) => BizScaffold(
-        title: 'Investment projects',
-        fab: BizFab(
-          label: 'New project',
-          onPressed: () async {
-            await pushPage(context, const ProjectEditorPage());
-            _key.currentState?.reload();
-          },
-        ),
-        body: BizAsync<List<Map<String, dynamic>>>(
-          key: _key,
-          load: InvestmentsApi.myProjects,
-          isEmpty: (l) => l.isEmpty,
-          emptyIcon: Icons.account_tree_outlined,
-          emptyTitle: 'No projects yet',
-          emptyMessage: 'Create a project, add documents and submit it for FARM review. Approved projects can be listed for investors.',
-          builder: (c, l, reload) => ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 90), children: [
-            for (final p in l)
-              BizTile(
-                title: '${p['project_name']}',
-                subtitle: '${_lbl(sectorLabels, p['sector'])} · ${money(p['raised_amount'])} of ${money(p['target_amount'])}',
-                trailing: StatusChip(_lbl(projectStatusLabels, p['status']), filled: p['status'] == 'listed'),
-                onTap: () async {
-                  await pushPage(c, BusinessProjectDetailPage(id: '${p['id']}'));
-                  reload();
-                },
-              ),
-          ]),
-        ),
-      );
+    title: 'Investment projects',
+    fab: BizFab(
+      label: 'New project',
+      onPressed: () async {
+        await pushPage(context, const ProjectEditorPage());
+        _key.currentState?.reload();
+      },
+    ),
+    body: BizAsync<List<Map<String, dynamic>>>(
+      key: _key,
+      load: InvestmentsApi.myProjects,
+      isEmpty: (l) => l.isEmpty,
+      emptyIcon: Icons.account_tree_outlined,
+      emptyTitle: 'No projects yet',
+      emptyMessage: 'Create a project, add documents and submit it for FARM review. Approved projects can be listed for investors.',
+      builder: (c, l, reload) => ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+        children: [
+          for (final p in l)
+            BizTile(
+              title: '${p['project_name']}',
+              subtitle: '${_lbl(sectorLabels, p['sector'])} · ${money(p['raised_amount'])} of ${money(p['target_amount'])}',
+              trailing: StatusChip(_lbl(projectStatusLabels, p['status']), filled: p['status'] == 'listed'),
+              onTap: () async {
+                await pushPage(c, BusinessProjectDetailPage(id: '${p['id']}'));
+                reload();
+              },
+            ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Multi-step create / edit form. Server validates everything again.
@@ -62,8 +65,19 @@ class _ProjectEditorPageState extends State<ProjectEditorPage> {
   String _sector = 'agriculture';
   String _instrument = 'equity';
   static const _fields = [
-    'project_name', 'summary', 'location', 'country', 'banner_image', 'description', 'target_amount',
-    'minimum_investment', 'maximum_investment', 'duration_months', 'use_of_funds', 'risk_factors', 'team',
+    'project_name',
+    'summary',
+    'location',
+    'country',
+    'banner_image',
+    'description',
+    'target_amount',
+    'minimum_investment',
+    'maximum_investment',
+    'duration_months',
+    'use_of_funds',
+    'risk_factors',
+    'team',
   ];
 
   @override
@@ -119,8 +133,10 @@ class _ProjectEditorPageState extends State<ProjectEditorPage> {
     }
     final id = widget.existing?['id'];
     final r = await runBusy(
-        context, () => id == null ? InvestmentsApi.createProject(b) : InvestmentsApi.updateProject('$id', b),
-        success: 'Saved as draft');
+      context,
+      () => id == null ? InvestmentsApi.createProject(b) : InvestmentsApi.updateProject('$id', b),
+      success: 'Saved as draft',
+    );
     if (r != null && mounted) {
       if (id == null) {
         Navigator.pop(context);
@@ -132,25 +148,25 @@ class _ProjectEditorPageState extends State<ProjectEditorPage> {
   }
 
   Widget _tf(String k, String label, {int lines = 1, bool number = false, String? hint}) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: TextField(
-          controller: _t[k],
-          minLines: lines,
-          maxLines: lines == 1 ? 1 : 12,
-          keyboardType: number ? const TextInputType.numberWithOptions(decimal: true) : null,
-          decoration: bizInput(context, label, hint: hint),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 12),
+    child: TextField(
+      controller: _t[k],
+      minLines: lines,
+      maxLines: lines == 1 ? 1 : 12,
+      keyboardType: number ? const TextInputType.numberWithOptions(decimal: true) : null,
+      decoration: bizInput(context, label, hint: hint),
+    ),
+  );
 
   Widget _drop(String label, String value, Map<String, String> items, ValueChanged<String> on) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: DropdownButtonFormField<String>(
-          initialValue: value,
-          decoration: bizInput(context, label),
-          items: [for (final e in items.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
-          onChanged: (v) => setState(() => on(v!)),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 12),
+    child: DropdownButtonFormField<String>(
+      initialValue: value,
+      decoration: bizInput(context, label),
+      items: [for (final e in items.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
+      onChanged: (v) => setState(() => on(v!)),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -158,48 +174,60 @@ class _ProjectEditorPageState extends State<ProjectEditorPage> {
       Step(
         title: const Text('Basics'),
         isActive: _step >= 0,
-        content: Column(children: [
-          _tf('project_name', 'Project name'),
-          _drop('Sector', _sector, sectorLabels, (v) => _sector = v),
-          _tf('summary', 'One-line summary', lines: 2),
-          _tf('location', 'Location', hint: 'Town, county'),
-          _tf('country', 'Country code', hint: 'KE'),
-          _tf('banner_image', 'Cover image link (https)'),
-        ]),
+        content: Column(
+          children: [
+            _tf('project_name', 'Project name'),
+            _drop('Sector', _sector, sectorLabels, (v) => _sector = v),
+            _tf('summary', 'One-line summary', lines: 2),
+            _tf('location', 'Location', hint: 'Town, county'),
+            _tf('country', 'Country code', hint: 'KE'),
+            _tf('banner_image', 'Cover image link (https)'),
+          ],
+        ),
       ),
       Step(
         title: const Text('Funding'),
         isActive: _step >= 1,
-        content: Column(children: [
-          _drop('Instrument', _instrument, instrumentLabels, (v) => _instrument = v),
-          _tf('target_amount', 'Funding target (FARM)', number: true),
-          _tf('minimum_investment', 'Minimum per investor (FARM)', number: true),
-          _tf('maximum_investment', 'Maximum per investor (optional)', number: true),
-          _tf('duration_months', 'Duration (months)', number: true),
-          Text('Do not promise returns. FARM does not display or guarantee returns.',
-              style: TextStyle(fontSize: 12, color: mutedColor(context))),
-          const SizedBox(height: 8),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Icon(Icons.token_rounded, size: 16, color: Color(0xFFD4AF37)),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                  'Tokenize: after saving, open the project and tap "Tokenize project" before it is listed. '
-                  'Supply = funding target; investors get 1 token per FARM as they invest, once FARM approves.',
-                  style: TextStyle(fontSize: 12, color: mutedColor(context))),
+        content: Column(
+          children: [
+            _drop('Instrument', _instrument, instrumentLabels, (v) => _instrument = v),
+            _tf('target_amount', 'Funding target (FARM)', number: true),
+            _tf('minimum_investment', 'Minimum per investor (FARM)', number: true),
+            _tf('maximum_investment', 'Maximum per investor (optional)', number: true),
+            _tf('duration_months', 'Duration (months)', number: true),
+            Text(
+              'Do not promise returns. FARM does not display or guarantee returns.',
+              style: TextStyle(fontSize: 12, color: mutedColor(context)),
             ),
-          ]),
-        ]),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.token_rounded, size: 16, color: Color(0xFFD4AF37)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Tokenize: after saving, open the project and tap "Tokenize project" before it is listed. '
+                    'Supply = funding target; investors get 1 token per FARM as they invest, once FARM approves.',
+                    style: TextStyle(fontSize: 12, color: mutedColor(context)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
       Step(
         title: const Text('Details'),
         isActive: _step >= 2,
-        content: Column(children: [
-          _tf('description', 'Description', lines: 4),
-          _tf('use_of_funds', 'Use of funds', lines: 3),
-          _tf('risk_factors', 'Key risks', lines: 3),
-          _tf('team', 'Team (optional)', lines: 3),
-        ]),
+        content: Column(
+          children: [
+            _tf('description', 'Description', lines: 4),
+            _tf('use_of_funds', 'Use of funds', lines: 3),
+            _tf('risk_factors', 'Key risks', lines: 3),
+            _tf('team', 'Team (optional)', lines: 3),
+          ],
+        ),
       ),
     ];
     return BizScaffold(
@@ -212,14 +240,17 @@ class _ProjectEditorPageState extends State<ProjectEditorPage> {
         onStepCancel: _step > 0 ? () => setState(() => _step--) : null,
         controlsBuilder: (c, d) => Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Row(children: [
-            ElevatedButton(
+          child: Row(
+            children: [
+              ElevatedButton(
                 style: primaryButtonStyle(c),
                 onPressed: d.onStepContinue,
-                child: Text(_step == steps.length - 1 ? 'Save draft' : 'Next')),
-            const SizedBox(width: 10),
-            if (_step > 0) OutlinedButton(style: secondaryButtonStyle(c), onPressed: d.onStepCancel, child: const Text('Back')),
-          ]),
+                child: Text(_step == steps.length - 1 ? 'Save draft' : 'Next'),
+              ),
+              const SizedBox(width: 10),
+              if (_step > 0) OutlinedButton(style: secondaryButtonStyle(c), onPressed: d.onStepCancel, child: const Text('Back')),
+            ],
+          ),
         ),
       ),
     );
@@ -240,10 +271,12 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
   Future<void> _addDoc(Map<String, dynamic> p) async {
     final kind = await showDialog<String>(
       context: context,
-      builder: (ctx) => SimpleDialog(title: const Text('Document type'), children: [
-        for (final e in documentKindLabels.entries)
-          SimpleDialogOption(onPressed: () => Navigator.pop(ctx, e.key), child: Text(e.value)),
-      ]),
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Document type'),
+        children: [
+          for (final e in documentKindLabels.entries) SimpleDialogOption(onPressed: () => Navigator.pop(ctx, e.key), child: Text(e.value)),
+        ],
+      ),
     );
     if (kind == null || !mounted) return;
     final picked = await FilePicker.pickFiles(
@@ -267,11 +300,14 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Post update to investors'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: t, decoration: bizInput(ctx, 'Title')),
-          const SizedBox(height: 10),
-          TextField(controller: b, minLines: 3, maxLines: 8, decoration: bizInput(ctx, 'Update')),
-        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: t, decoration: bizInput(ctx, 'Title')),
+            const SizedBox(height: 10),
+            TextField(controller: b, minLines: 3, maxLines: 8, decoration: bizInput(ctx, 'Update')),
+          ],
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Post')),
@@ -293,11 +329,14 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Request release: ${m['title']}'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: ev, minLines: 3, maxLines: 8, decoration: bizInput(ctx, 'What was completed?')),
-          const SizedBox(height: 10),
-          TextField(controller: url, decoration: bizInput(ctx, 'Evidence link (https, optional)')),
-        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: ev, minLines: 3, maxLines: 8, decoration: bizInput(ctx, 'What was completed?')),
+            const SizedBox(height: 10),
+            TextField(controller: url, decoration: bizInput(ctx, 'Evidence link (https, optional)')),
+          ],
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Request')),
@@ -308,151 +347,188 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
     ev.dispose();
     url.dispose();
     if (ok != true || e.isEmpty || !mounted) return;
-    final r = await runBusy(context,
-        () => InvestmentsApi.requestMilestone(widget.id, '${m['id']}', evidence: e, evidenceUrl: u),
-        success: 'Release requested. FARM will review it.');
+    final r = await runBusy(
+      context,
+      () => InvestmentsApi.requestMilestone(widget.id, '${m['id']}', evidence: e, evidenceUrl: u),
+      success: 'Release requested. FARM will review it.',
+    );
     if (r != null) _reload();
   }
 
   @override
   Widget build(BuildContext context) => BizScaffold(
-        title: 'Project',
-        body: BizAsync<Map<String, dynamic>>(
-          key: _key,
-          load: () => InvestmentsApi.myProject(widget.id),
-          builder: (c, p, reload) {
-            final status = '${p['status']}';
-            final editable = status == 'draft' || status == 'more_info_required';
-            final docs = ((p['documents'] as List?) ?? const []).whereType<Map>().toList();
-            final have = docs.map((d) => '${d['kind']}').toSet();
-            final required = ((p['required_documents'] as List?) ?? const []).map((e) => '$e').toList();
-            final reviews = ((p['reviews'] as List?) ?? const []).whereType<Map>().toList();
-            final summary = ((p['investment_summary'] as List?) ?? const []).whereType<Map>().toList();
-            final canUpdate = ['listed', 'funded', 'closed'].contains(status);
-            return ListView(padding: const EdgeInsets.all(16), children: [
-              BizCard(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Expanded(
-                        child: Text('${p['project_name']}',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fgColor(c)))),
-                    StatusChip(_lbl(projectStatusLabels, status), filled: true),
-                  ]),
+    title: 'Project',
+    body: BizAsync<Map<String, dynamic>>(
+      key: _key,
+      load: () => InvestmentsApi.myProject(widget.id),
+      builder: (c, p, reload) {
+        final status = '${p['status']}';
+        final editable = status == 'draft' || status == 'more_info_required';
+        final docs = ((p['documents'] as List?) ?? const []).whereType<Map>().toList();
+        final have = docs.map((d) => '${d['kind']}').toSet();
+        final required = ((p['required_documents'] as List?) ?? const []).map((e) => '$e').toList();
+        final reviews = ((p['reviews'] as List?) ?? const []).whereType<Map>().toList();
+        final summary = ((p['investment_summary'] as List?) ?? const []).whereType<Map>().toList();
+        final canUpdate = ['listed', 'funded', 'closed'].contains(status);
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            BizCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${p['project_name']}',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fgColor(c)),
+                        ),
+                      ),
+                      StatusChip(_lbl(projectStatusLabels, status), filled: true),
+                    ],
+                  ),
                   const SizedBox(height: 10),
                   KeyValue('Sector', _lbl(sectorLabels, p['sector'])),
                   KeyValue('Instrument', _lbl(instrumentLabels, p['instrument_type'])),
                   KeyValue('Target', money(p['target_amount'])),
                   KeyValue('Raised', money(p['raised_amount'])),
                   KeyValue('Minimum', money(p['minimum_investment'])),
-                  for (final s in summary)
-                    KeyValue(_lbl(projectStatusLabels, s['status']), '${s['count']} · ${money(s['amount'])}'),
-                ]),
+                  for (final s in summary) KeyValue(_lbl(projectStatusLabels, s['status']), '${s['count']} · ${money(s['amount'])}'),
+                ],
               ),
-              if ((p['review_notes'] ?? '').toString().isNotEmpty) ...[
-                const SizedBox(height: 10),
-                BizCard(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Notes from FARM review', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+            ),
+            if ((p['review_notes'] ?? '').toString().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              BizCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Notes from FARM review',
+                      style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)),
+                    ),
                     const SizedBox(height: 6),
                     Text('${p['review_notes']}', style: TextStyle(color: fgColor(c))),
-                  ]),
+                  ],
                 ),
-              ],
-              const SizedBox(height: 16),
-              Row(children: [
-                Expanded(child: Text('Documents', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)))),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Documents',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)),
+                  ),
+                ),
                 if (!['rejected', 'closed', 'cancelled'].contains(status))
                   TextButton.icon(
                     onPressed: () => _addDoc(p),
                     icon: Icon(Icons.upload_file, color: fgColor(c)),
                     label: Text('Add', style: TextStyle(color: fgColor(c))),
                   ),
-              ]),
-              for (final k in required.where((k) => !have.contains(k)))
-                Text('Required: ${_lbl(documentKindLabels, k)}', style: TextStyle(color: mutedColor(c))),
-              for (final d in docs)
-                BizTile(
-                  leading: Icons.description_outlined,
-                  title: '${d['title']}',
-                  subtitle: '${_lbl(documentKindLabels, d['kind'])} · visible to ${d['visibility']}',
-                  onTap: () => openDoc(c, '${d['url']}'),
-                  trailing: editable
-                      ? IconButton(
-                          icon: Icon(Icons.delete_outline, color: mutedColor(c)),
-                          onPressed: () async {
-                            final r = await runBusy(c, () async {
-                              await InvestmentsApi.removeDocument(widget.id, '${d['id']}');
-                              return true;
-                            });
-                            if (r == true) reload();
-                          })
-                      : null,
-                ),
-              MilestoneList(p, trailing: (m) {
+              ],
+            ),
+            for (final k in required.where((k) => !have.contains(k)))
+              Text('Required: ${_lbl(documentKindLabels, k)}', style: TextStyle(color: mutedColor(c))),
+            for (final d in docs)
+              BizTile(
+                leading: Icons.description_outlined,
+                title: '${d['title']}',
+                subtitle: '${_lbl(documentKindLabels, d['kind'])} · visible to ${d['visibility']}',
+                onTap: () => openDoc(c, '${d['url']}'),
+                trailing: editable
+                    ? IconButton(
+                        icon: Icon(Icons.delete_outline, color: mutedColor(c)),
+                        onPressed: () async {
+                          final r = await runBusy(c, () async {
+                            await InvestmentsApi.removeDocument(widget.id, '${d['id']}');
+                            return true;
+                          });
+                          if (r == true) reload();
+                        },
+                      )
+                    : null,
+              ),
+            MilestoneList(
+              p,
+              trailing: (m) {
                 if (!['funded', 'closed'].contains(status)) return null;
                 if (!['planned', 'returned'].contains('${m['status']}')) return null;
                 return TextButton(
-                    onPressed: () => _requestRelease(m),
-                    child: Text('Request', style: TextStyle(color: fgColor(c))));
-              }),
-              if (editable)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () async {
-                      final r = await pushPage<bool>(c, MilestoneEditorPage(project: p));
-                      if (r == true) reload();
-                    },
-                    icon: Icon(Icons.flag_outlined, color: fgColor(c)),
-                    label: Text(((p['milestones'] as List?) ?? const []).isEmpty ? 'Set milestones (required)' : 'Edit milestones',
-                        style: TextStyle(color: fgColor(c))),
-                  ),
-                ),
-              const SizedBox(height: 16),
-              if (editable) ...[
-                OutlinedButton(
-                  style: secondaryButtonStyle(c),
+                  onPressed: () => _requestRelease(m),
+                  child: Text('Request', style: TextStyle(color: fgColor(c))),
+                );
+              },
+            ),
+            if (editable)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
                   onPressed: () async {
-                    final r = await pushPage<bool>(c, ProjectEditorPage(existing: p));
+                    final r = await pushPage<bool>(c, MilestoneEditorPage(project: p));
                     if (r == true) reload();
                   },
-                  child: const Text('Edit details'),
-                ),
-                const SizedBox(height: 10),
-                ElevatedButton(
-                  style: primaryButtonStyle(c),
-                  onPressed: () async {
-                    final ok = await confirmAction(c,
-                        title: 'Submit for review?',
-                        message: 'FARM will review this project. You cannot edit it while it is under review.',
-                        confirm: 'Submit');
-                    if (!ok || !c.mounted) return;
-                    final r = await runBusy(c, () => InvestmentsApi.submitProject(widget.id), success: 'Submitted for review');
-                    if (r != null) reload();
-                  },
-                  child: const Text('Submit for review'),
-                ),
-              ],
-              if (!['rejected', 'cancelled'].contains(status)) TokenizationCard(projectId: widget.id, projectStatus: status, targetAmount: p['target_amount']),
-              if (canUpdate)
-                ElevatedButton(style: primaryButtonStyle(c), onPressed: _postUpdate, child: const Text('Post update to investors')),
-              if (reviews.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text('Review history', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
-                const SizedBox(height: 8),
-                for (final r in reviews)
-                  BizTile(
-                    title: _lbl(projectStatusLabels, r['to_status']),
-                    subtitle: '${shortDate(r['created_at'])}${r['notes'] != null ? ' · ${r['notes']}' : ''}',
+                  icon: Icon(Icons.flag_outlined, color: fgColor(c)),
+                  label: Text(
+                    ((p['milestones'] as List?) ?? const []).isEmpty ? 'Set milestones (required)' : 'Edit milestones',
+                    style: TextStyle(color: fgColor(c)),
                   ),
-              ],
-              const SizedBox(height: 24),
-            ]);
-          },
-        ),
-      );
+                ),
+              ),
+            const SizedBox(height: 16),
+            if (editable) ...[
+              OutlinedButton(
+                style: secondaryButtonStyle(c),
+                onPressed: () async {
+                  final r = await pushPage<bool>(c, ProjectEditorPage(existing: p));
+                  if (r == true) reload();
+                },
+                child: const Text('Edit details'),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                style: primaryButtonStyle(c),
+                onPressed: () async {
+                  final ok = await confirmAction(
+                    c,
+                    title: 'Submit for review?',
+                    message: 'FARM will review this project. You cannot edit it while it is under review.',
+                    confirm: 'Submit',
+                  );
+                  if (!ok || !c.mounted) return;
+                  final r = await runBusy(c, () => InvestmentsApi.submitProject(widget.id), success: 'Submitted for review');
+                  if (r != null) reload();
+                },
+                child: const Text('Submit for review'),
+              ),
+            ],
+            if (!['rejected', 'cancelled'].contains(status))
+              TokenizationCard(projectId: widget.id, projectStatus: status, targetAmount: p['target_amount']),
+            if (canUpdate)
+              ElevatedButton(style: primaryButtonStyle(c), onPressed: _postUpdate, child: const Text('Post update to investors')),
+            if (reviews.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Review history',
+                style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)),
+              ),
+              const SizedBox(height: 8),
+              for (final r in reviews)
+                BizTile(
+                  title: _lbl(projectStatusLabels, r['to_status']),
+                  subtitle: '${shortDate(r['created_at'])}${r['notes'] != null ? ' · ${r['notes']}' : ''}',
+                ),
+            ],
+            const SizedBox(height: 24),
+          ],
+        );
+      },
+    ),
+  );
 }
-
 
 /// Define how raised funds are released. Amounts must add up to the target.
 class MilestoneEditorPage extends StatefulWidget {
@@ -492,83 +568,92 @@ class _MilestoneEditorPageState extends State<MilestoneEditorPage> {
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
     final r = await runBusy(
-        context,
-        () => InvestmentsApi.setMilestones('${widget.project['id']}', [
-              for (final r in _rows) {'title': r.$1.text.trim(), 'amount': double.parse(r.$2.text)},
-            ]),
-        success: 'Milestones saved');
+      context,
+      () => InvestmentsApi.setMilestones('${widget.project['id']}', [
+        for (final r in _rows) {'title': r.$1.text.trim(), 'amount': double.parse(r.$2.text)},
+      ]),
+      success: 'Milestones saved',
+    );
     if (r != null && mounted) Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final target = (widget.project['target_amount'] as num?)?.toDouble() ??
-        double.tryParse('${widget.project['target_amount']}') ?? 0;
+    final target = (widget.project['target_amount'] as num?)?.toDouble() ?? double.tryParse('${widget.project['target_amount']}') ?? 0;
     return BizScaffold(
       title: 'Milestones',
       body: Form(
         key: _form,
-        child: ListView(padding: const EdgeInsets.all(20), children: [
-          Text('Raised funds are released to you in stages. FARM releases each milestone after you request it with evidence.',
-              style: TextStyle(color: mutedColor(context))),
-          const SizedBox(height: 16),
-          for (var i = 0; i < _rows.length; i++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(
-                  flex: 3,
-                  child: TextFormField(
-                    controller: _rows[i].$1,
-                    decoration: bizInput(context, 'Milestone ${i + 1}'),
-                    validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: _rows[i].$2,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (_) => setState(() {}),
-                    decoration: bizInput(context, 'Amount'),
-                    validator: (v) => (double.tryParse(v ?? '') ?? 0) > 0 ? null : '> 0',
-                  ),
-                ),
-                if (_rows.length > 1)
-                  IconButton(
-                    icon: Icon(Icons.close, color: mutedColor(context)),
-                    onPressed: () => setState(() {
-                      final r = _rows.removeAt(i);
-                      r.$1.dispose();
-                      r.$2.dispose();
-                    }),
-                  ),
-              ]),
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(
+              'Raised funds are released to you in stages. FARM releases each milestone after you request it with evidence.',
+              style: TextStyle(color: mutedColor(context)),
             ),
-          if (_rows.length < 12)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _add,
-                icon: Icon(Icons.add, color: fgColor(context)),
-                label: Text('Add milestone', style: TextStyle(color: fgColor(context))),
+            const SizedBox(height: 16),
+            for (var i = 0; i < _rows.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: _rows[i].$1,
+                        decoration: bizInput(context, 'Milestone ${i + 1}'),
+                        validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _rows[i].$2,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        onChanged: (_) => setState(() {}),
+                        decoration: bizInput(context, 'Amount'),
+                        validator: (v) => (double.tryParse(v ?? '') ?? 0) > 0 ? null : '> 0',
+                      ),
+                    ),
+                    if (_rows.length > 1)
+                      IconButton(
+                        icon: Icon(Icons.close, color: mutedColor(context)),
+                        onPressed: () => setState(() {
+                          final r = _rows.removeAt(i);
+                          r.$1.dispose();
+                          r.$2.dispose();
+                        }),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          const SizedBox(height: 8),
-          KeyValue('Total', money(_sum)),
-          KeyValue('Target', money(target)),
-          if ((_sum - target).abs() > 0.005)
-            Text('Milestone amounts must add up to the target before you submit.',
-                style: TextStyle(fontSize: 12, color: mutedColor(context))),
-          const SizedBox(height: 20),
-          ElevatedButton(style: primaryButtonStyle(context), onPressed: _save, child: const Text('Save milestones')),
-        ]),
+            if (_rows.length < 12)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _add,
+                  icon: Icon(Icons.add, color: fgColor(context)),
+                  label: Text('Add milestone', style: TextStyle(color: fgColor(context))),
+                ),
+              ),
+            const SizedBox(height: 8),
+            KeyValue('Total', money(_sum)),
+            KeyValue('Target', money(target)),
+            if ((_sum - target).abs() > 0.005)
+              Text(
+                'Milestone amounts must add up to the target before you submit.',
+                style: TextStyle(fontSize: 12, color: mutedColor(context)),
+              ),
+            const SizedBox(height: 20),
+            ElevatedButton(style: primaryButtonStyle(context), onPressed: _save, child: const Text('Save milestones')),
+          ],
+        ),
       ),
     );
   }
 }
-
 
 /// Request tokenization of a funded project. FARM approves and creates the ASA.
 class TokenizationCard extends StatefulWidget {
@@ -591,33 +676,56 @@ class _TokenizationCardState extends State<TokenizationCard> {
   Future<void> _request({required bool onInvest}) async {
     final n = TextEditingController();
     final u = TextEditingController();
+    var agreed = false;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Tokenize project'),
-        content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            TextField(controller: n, maxLength: 32, decoration: bizInput(ctx, 'Token name (e.g. Solar Farm Shares)')),
-            TextField(
-                controller: u,
-                maxLength: 8,
-                textCapitalization: TextCapitalization.characters,
-                decoration: bizInput(ctx, 'Symbol, 1-8 letters/digits (e.g. SOLAR)')),
-            KeyValue('Price per token', '1 FARM'),
-            KeyValue('Total supply',
-                onInvest ? '${widget.targetAmount ?? 'Funding target'} (= funding target)' : '1 token per FARM invested'),
-            const SizedBox(height: 6),
-            Text(
-                onInvest
-                    ? 'FARM creates the token when it approves and lists the project. Each investor then gets 1 token per FARM as they invest.'
-                    : 'Supply is counted from investments when FARM approves. Nothing is minted until approved.',
-                style: TextStyle(fontSize: 12, color: mutedColor(ctx))),
-          ]),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: const Text('Tokenize project'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(controller: n, maxLength: 32, decoration: bizInput(ctx, 'Token name (e.g. Solar Farm Shares)')),
+                TextField(
+                  controller: u,
+                  maxLength: 8,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: bizInput(ctx, 'Symbol, 1-8 letters/digits (e.g. SOLAR)'),
+                ),
+                KeyValue('Price per token', '1 FARM'),
+                KeyValue(
+                  'Total supply',
+                  onInvest ? '${widget.targetAmount ?? 'Funding target'} (= funding target)' : '1 token per FARM invested',
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  onInvest
+                      ? 'FARM creates the token when it approves and lists the project. Each investor then gets 1 token per FARM as they invest.'
+                      : 'Supply is counted from investments when FARM approves. Nothing is minted until approved.',
+                  style: TextStyle(fontSize: 12, color: mutedColor(ctx)),
+                ),
+                const SizedBox(height: 6),
+                CheckboxListTile(
+                  value: agreed,
+                  onChanged: (v) => setD(() => agreed = v == true),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('I agree to the 15% buyback commitment', style: TextStyle(fontSize: 13)),
+                  subtitle: Text(
+                    'FARM holds back 15% of what this project raises as a buyback fund. Each investor can sell back up to 15% of their own investment at 1 FARM per token. Investors only pay the 3% investment fee.',
+                    style: TextStyle(fontSize: 11, color: mutedColor(ctx)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(onPressed: agreed ? () => Navigator.pop(ctx, true) : null, child: const Text('Request')),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Request')),
-        ],
       ),
     );
     final name = n.text.trim(), unit = u.text.trim();
@@ -625,8 +733,10 @@ class _TokenizationCardState extends State<TokenizationCard> {
     u.dispose();
     if (ok != true || name.isEmpty || unit.isEmpty || !mounted) return;
     final r = await runBusy(
-        context, () => InvestmentsApi.requestToken(widget.projectId, name, unit, mode: onInvest ? 'on_invest' : null),
-        success: 'Requested. FARM will review it.');
+      context,
+      () => InvestmentsApi.requestToken(widget.projectId, name, unit, mode: onInvest ? 'on_invest' : null),
+      success: 'Requested. FARM will review it.',
+    );
     if (r != null) _key.currentState?.reload();
   }
 
@@ -634,81 +744,93 @@ class _TokenizationCardState extends State<TokenizationCard> {
     int n(dynamic v) => int.tryParse('${v ?? 0}') ?? 0;
     final total = n(p['total_units']);
     final alloc = n(p['allocated_units']);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const SizedBox(height: 6),
-      ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: LinearProgressIndicator(
-          value: total > 0 ? (alloc / total).clamp(0, 1).toDouble() : 0,
-          minHeight: 6,
-          color: const Color(0xFFD4AF37),
-          backgroundColor: mutedColor(c).withValues(alpha: 0.2),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: total > 0 ? (alloc / total).clamp(0, 1).toDouble() : 0,
+            minHeight: 6,
+            color: const Color(0xFFD4AF37),
+            backgroundColor: mutedColor(c).withValues(alpha: 0.2),
+          ),
         ),
-      ),
-      const SizedBox(height: 6),
-      KeyValue('Sold', '$alloc of $total ${t['unit_name']}'),
-      KeyValue('Delivered · Owed', '${p['delivered_units']} · ${p['owed_units']}'),
-      if (t['unsold_units'] != null) KeyValue('Unsold (kept by issuer)', '${t['unsold_units']}'),
-    ]);
+        const SizedBox(height: 6),
+        KeyValue('Sold', '$alloc of $total ${t['unit_name']}'),
+        KeyValue('Delivered · Owed', '${p['delivered_units']} · ${p['owed_units']}'),
+        if (t['unsold_units'] != null) KeyValue('Unsold (kept by issuer)', '${t['unsold_units']}'),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: BizCard(
-          child: SizedBox(
-            height: preListing ? 170 : 270,
-            child: BizAsync<Map<String, dynamic>>(
-              key: _key,
-              load: () => InvestmentsApi.projectToken(widget.projectId),
-              builder: (c, r, _) {
-                final t = r['data'] is Map ? Map<String, dynamic>.from(r['data'] as Map) : null;
-                final onInvestOn = r['on_invest_enabled'] == true;
-                final canOnInvest = preListing && onInvestOn;
-                final canPost = funded && r['enabled'] == true;
-                final none = t == null || t['status'] == 'rejected';
-                final p = r['progress'] is Map ? r['progress'] as Map : null;
-                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Tokenization (Algorand TestNet)', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
-                  const SizedBox(height: 6),
-                  if (none) ...[
-                    Text(
-                        t?['notes'] != null && (canOnInvest || canPost)
-                            ? 'Previous request rejected: ${t!['notes']}'
-                            : canOnInvest
-                                ? 'Tokenize now: investors get 1 token per FARM as they invest.'
-                                : canPost
-                                    ? 'Turn investor holdings into an Algorand token.'
-                                    : preListing || funded
-                                        ? 'Tokenization is not switched on yet.'
-                                        : 'Tokenization must be requested before listing (or after funding).',
-                        style: TextStyle(color: mutedColor(c))),
-                    const Spacer(),
-                    OutlinedButton.icon(
-                        style: secondaryButtonStyle(c),
-                        onPressed: canOnInvest
-                            ? () => _request(onInvest: true)
-                            : canPost
-                                ? () => _request(onInvest: false)
-                                : null,
-                        icon: const Icon(Icons.token_rounded, size: 18),
-                        label: const Text('Tokenize project')),
-                  ] else ...[
-                    KeyValue('Status', tokenStatusLabels['${t['status']}'] ?? '${t['status']}'),
-                    KeyValue('Token', '${t['asset_name']} (${t['unit_name']})'),
-                    if (t['mode'] == 'on_invest' && t['status'] != 'created')
-                      Text('Created when FARM lists the project.', style: TextStyle(fontSize: 12, color: mutedColor(c))),
-                    if (t['asset_id'] != null) KeyValue('Asset ID', '${t['asset_id']}'),
-                    if (t['mode'] == 'on_invest' && t['status'] == 'created' && p != null) _progress(c, t, p),
-                    if (t['explorer_url'] != null)
-                      TextButton(
-                          onPressed: () => openDoc(c, '${t['explorer_url']}'),
-                          child: Text('View on explorer', style: TextStyle(color: fgColor(c)))),
-                  ],
-                ]);
-              },
-            ),
-          ),
+    padding: const EdgeInsets.only(bottom: 12),
+    child: BizCard(
+      child: SizedBox(
+        height: preListing ? 170 : 270,
+        child: BizAsync<Map<String, dynamic>>(
+          key: _key,
+          load: () => InvestmentsApi.projectToken(widget.projectId),
+          builder: (c, r, _) {
+            final t = r['data'] is Map ? Map<String, dynamic>.from(r['data'] as Map) : null;
+            final onInvestOn = r['on_invest_enabled'] == true;
+            final canOnInvest = preListing && onInvestOn;
+            final canPost = funded && r['enabled'] == true;
+            final none = t == null || t['status'] == 'rejected';
+            final p = r['progress'] is Map ? r['progress'] as Map : null;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tokenization (Algorand TestNet)',
+                  style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)),
+                ),
+                const SizedBox(height: 6),
+                if (none) ...[
+                  Text(
+                    t?['notes'] != null && (canOnInvest || canPost)
+                        ? 'Previous request rejected: ${t!['notes']}'
+                        : canOnInvest
+                        ? 'Tokenize now: investors get 1 token per FARM as they invest.'
+                        : canPost
+                        ? 'Turn investor holdings into an Algorand token.'
+                        : preListing || funded
+                        ? 'Tokenization is not switched on yet.'
+                        : 'Tokenization must be requested before listing (or after funding).',
+                    style: TextStyle(color: mutedColor(c)),
+                  ),
+                  const Spacer(),
+                  OutlinedButton.icon(
+                    style: secondaryButtonStyle(c),
+                    onPressed: canOnInvest
+                        ? () => _request(onInvest: true)
+                        : canPost
+                        ? () => _request(onInvest: false)
+                        : null,
+                    icon: const Icon(Icons.token_rounded, size: 18),
+                    label: const Text('Tokenize project'),
+                  ),
+                ] else ...[
+                  KeyValue('Status', tokenStatusLabels['${t['status']}'] ?? '${t['status']}'),
+                  KeyValue('Token', '${t['asset_name']} (${t['unit_name']})'),
+                  if (t['mode'] == 'on_invest' && t['status'] != 'created')
+                    Text('Created when FARM lists the project.', style: TextStyle(fontSize: 12, color: mutedColor(c))),
+                  if (t['asset_id'] != null) KeyValue('Asset ID', '${t['asset_id']}'),
+                  if (t['mode'] == 'on_invest' && t['status'] == 'created' && p != null) _progress(c, t, p),
+                  if (t['explorer_url'] != null)
+                    TextButton(
+                      onPressed: () => openDoc(c, '${t['explorer_url']}'),
+                      child: Text('View on explorer', style: TextStyle(color: fgColor(c))),
+                    ),
+                ],
+              ],
+            );
+          },
         ),
-      );
+      ),
+    ),
+  );
 }
