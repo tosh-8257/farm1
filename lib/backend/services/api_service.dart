@@ -410,6 +410,15 @@ class ApiService {
             : 'Server error (${response.statusCode})',
       );
     }
+    if (response.statusCode == 402) {
+      // e.g. Mkulima when the FARM balance can't cover a use.
+      throw ApiServiceException(
+        statusCode: 402,
+        message: message.isNotEmpty
+            ? message
+            : 'Your FARM balance is too low. Top up your wallet to continue.',
+      );
+    }
     throw Exception(message.isNotEmpty
         ? message
         : 'Request failed (${response.statusCode})');
