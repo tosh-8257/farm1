@@ -91,6 +91,9 @@ class _BusinessWalletPageState extends State<BusinessWalletPage> {
               if (!separate) ...[
                 const _AlgorandAddressCard(),
                 const SizedBox(height: 12),
+              ] else ...[
+                _BusinessChainCard(account: w['chain_account'] is Map ? Map<String, dynamic>.from(w['chain_account'] as Map) : null),
+                const SizedBox(height: 12),
               ],
               Text(
                 separate
@@ -105,6 +108,59 @@ class _BusinessWalletPageState extends State<BusinessWalletPage> {
           },
         ),
       );
+}
+
+/// The business wallet's own custodial Algorand account (not the owner's personal one).
+class _BusinessChainCard extends StatelessWidget {
+  const _BusinessChainCard({required this.account});
+  final Map<String, dynamic>? account;
+  @override
+  Widget build(BuildContext c) {
+    final a = account;
+    if (a == null) {
+      return BizCard(
+        child: Text('Business Algorand account not available yet. It appears here once on-chain is switched on.',
+            style: TextStyle(color: mutedColor(c))),
+      );
+    }
+    final ready = a['ready'] == true;
+    final addr = '${a['address']}';
+    return BizCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Business account on Algorand', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+        const SizedBox(height: 4),
+        Text('Your business FARM is held on-chain in this account, separate from your personal one.',
+            style: TextStyle(fontSize: 12, color: mutedColor(c))),
+        const SizedBox(height: 8),
+        if (ready)
+          Center(
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(6),
+              child: QrImageView(data: addr, size: 120, backgroundColor: Colors.white),
+            ),
+          ),
+        const SizedBox(height: 6),
+        SelectableText(addr, style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: fgColor(c))),
+        Text(
+          ready
+              ? 'FARM on Algorand (${a['network'] ?? ''}). Customers pay you through QR, invoices and payment links.'
+              : 'Setting up this account. Do not send funds yet.',
+          style: TextStyle(fontSize: 11, color: mutedColor(c)),
+        ),
+        TextButton.icon(
+          onPressed: ready
+              ? () async {
+                  await Clipboard.setData(ClipboardData(text: addr));
+                  if (c.mounted) bizSnack(c, 'Address copied');
+                }
+              : null,
+          icon: Icon(Icons.copy, size: 16, color: fgColor(c)),
+          label: Text('Copy', style: TextStyle(color: fgColor(c))),
+        ),
+      ]),
+    );
+  }
 }
 
 /// The owner's on-chain receiving address (ALGO, USDC, FARM on Algorand).
