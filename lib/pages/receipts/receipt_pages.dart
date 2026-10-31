@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/backend/services/api_service.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 
 class ReceiptHistoryPage extends StatefulWidget {
   const ReceiptHistoryPage({super.key});
@@ -45,7 +46,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString();
+        _error = userErrorMessage(error);
         _loading = false;
       });
     }
@@ -154,7 +155,7 @@ class _ReceiptDetailsPageState extends State<ReceiptDetailsPage> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString();
+        _error = userErrorMessage(error);
         _loading = false;
       });
     }
@@ -174,7 +175,7 @@ class _ReceiptDetailsPageState extends State<ReceiptDetailsPage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not download receipt: $error')),
+          SnackBar(content: Text('Could not download receipt: ${userErrorMessage(error)}')),
         );
       }
     } finally {

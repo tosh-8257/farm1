@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
+import '/utils/user_error_message.dart';
 
 enum _SupportMediaSource {
   galleryPhoto,
@@ -88,7 +89,7 @@ class _LiveChatPageWidgetState extends State<LiveChatPageWidget> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _ticketsError = error.toString();
+        _ticketsError = userErrorMessage(error);
         _loadingTickets = false;
       });
     }
@@ -133,7 +134,7 @@ class _LiveChatPageWidgetState extends State<LiveChatPageWidget> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not send enquiry: $error')),
+          SnackBar(content: Text('Could not send enquiry: ${userErrorMessage(error)}')),
         );
       }
     } finally {
@@ -286,7 +287,7 @@ class _LiveChatPageWidgetState extends State<LiveChatPageWidget> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not attach media: $error')),
+          SnackBar(content: Text('Could not attach media: ${userErrorMessage(error)}')),
         );
       }
     }
@@ -353,7 +354,7 @@ class _LiveChatPageWidgetState extends State<LiveChatPageWidget> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open this video: $error')),
+          SnackBar(content: Text('Could not open this video: ${userErrorMessage(error)}')),
         );
       }
     }
@@ -392,7 +393,7 @@ class _LiveChatPageWidgetState extends State<LiveChatPageWidget> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not send reply: $error')),
+          SnackBar(content: Text('Could not send reply: ${userErrorMessage(error)}')),
         );
       }
       return false;
@@ -479,7 +480,7 @@ class _LiveChatPageWidgetState extends State<LiveChatPageWidget> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content:
-                                        Text('Could not attach media: $error'),
+                                        Text('Could not attach media: ${userErrorMessage(error)}'),
                                   ),
                                 );
                               }

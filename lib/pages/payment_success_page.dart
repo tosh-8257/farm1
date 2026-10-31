@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '/services/qr_public_payment_api.dart';
+import '/utils/user_error_message.dart';
 
 class PaymentSuccessPage extends StatefulWidget {
   const PaymentSuccessPage({super.key, this.reference});
@@ -78,7 +79,7 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
       if (!mounted) return;
       setState(() {
         _checking = true;
-        _error = 'We are still checking your payment. $error';
+        _error = 'We are still checking your payment. ${userErrorMessage(error)}';
       });
     } finally {
       _pollInProgress = false;
@@ -112,7 +113,7 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not download receipt: $error')),
+          SnackBar(content: Text('Could not download receipt: ${userErrorMessage(error)}')),
         );
       }
     } finally {

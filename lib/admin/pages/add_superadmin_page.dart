@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '../core/admin_config.dart';
 import '../services/admin_api_service.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 
 class AddSuperadminPage extends StatefulWidget {
   const AddSuperadminPage({super.key});
@@ -87,7 +88,7 @@ class _AddSuperadminPageState extends State<AddSuperadminPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(userErrorMessage(error)),
           backgroundColor: Colors.red,
         ),
       );

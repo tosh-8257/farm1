@@ -7,6 +7,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 // Removed unused imports
 import '/services/app_session_manager.dart';
 import '/services/transaction_authorization_service.dart';
+import '/utils/user_error_message.dart';
 
 class MoneyRequestApprovalPage extends StatefulWidget {
   const MoneyRequestApprovalPage(
@@ -244,7 +245,7 @@ class _MoneyRequestApprovalPageState extends State<MoneyRequestApprovalPage> {
             SnackBar(content: Text(_statusMessage ?? 'Approved')));
       }
     } catch (e) {
-      final message = e.toString().replaceFirst('Exception: ', '');
+      final message = userErrorMessage(e);
       setState(() {
         _error = message;
         _statusMessage = null;
@@ -269,7 +270,7 @@ class _MoneyRequestApprovalPageState extends State<MoneyRequestApprovalPage> {
             SnackBar(content: Text(_statusMessage ?? 'Declined')));
       }
     } catch (e) {
-      final message = e.toString().replaceFirst('Exception: ', '');
+      final message = userErrorMessage(e);
       setState(() {
         _error = message;
         _statusMessage = null;

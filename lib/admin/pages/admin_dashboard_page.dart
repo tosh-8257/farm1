@@ -16,6 +16,7 @@ import 'withdrawals_management_page.dart';
 import 'kyc_management_page.dart';
 import 'payouts_page.dart';
 import '/services/transaction_receipt_service.dart';
+import '/utils/user_error_message.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   final VoidCallback? onGoBack;
@@ -75,7 +76,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     } catch (e) {
       debugPrint('Dashboard statistics load failed: $e');
       if (mounted) {
-        setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+        setState(() => _error = userErrorMessage(e));
       }
     } finally {
       if (mounted) {

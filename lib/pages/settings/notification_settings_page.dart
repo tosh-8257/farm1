@@ -7,6 +7,7 @@ import '/core/app_config.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/core/theme_extensions.dart';
+import '/utils/user_error_message.dart';
 
 class NotificationSettingsPageWidget extends StatefulWidget {
   const NotificationSettingsPageWidget({super.key});
@@ -131,7 +132,7 @@ class _NotificationSettingsPageWidgetState
       if (!mounted) return;
       setState(() {
         notificationsLoading = false;
-        notificationsError = e.toString();
+        notificationsError = userErrorMessage(e);
       });
     }
   }

@@ -34,6 +34,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/utils/activity_label.dart';
 import 'dashboard_model.dart';
+import '/utils/user_error_message.dart';
 export 'dashboard_model.dart';
 
 class DashboardWidget extends StatefulWidget {
@@ -300,7 +301,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        notificationsError = e.toString();
+        notificationsError = userErrorMessage(e);
       });
     }
   }
@@ -352,7 +353,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  '${'common.transaction_failed'.tr()}: ${e.toString().replaceFirst('Exception: ', '')}',
+                  '${'common.transaction_failed'.tr()}: ${userErrorMessage(e)}',
                 ),
               ),
             );
@@ -399,7 +400,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '${'common.failed'.tr()}: ${e.toString().replaceFirst('Exception: ', '')}',
+                '${'common.failed'.tr()}: ${userErrorMessage(e)}',
               ),
             ),
           );

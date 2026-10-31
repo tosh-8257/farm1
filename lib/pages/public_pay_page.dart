@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/services/qr_public_payment_api.dart';
 import '/widgets/searchable_crypto_picker.dart';
+import '/utils/user_error_message.dart';
 
 class PublicPayPage extends StatefulWidget {
   const PublicPayPage({super.key, required this.merchantId});
@@ -72,7 +73,7 @@ class _PublicPayPageState extends State<PublicPayPage> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString();
+        _error = userErrorMessage(error);
         _loadingMerchant = false;
       });
     }
@@ -111,7 +112,7 @@ class _PublicPayPageState extends State<PublicPayPage> {
         throw StateError('Could not open the payment provider checkout.');
       }
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = userErrorMessage(error));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -153,7 +154,7 @@ class _PublicPayPageState extends State<PublicPayPage> {
         _selectedCryptoToken = tokens.first;
       });
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = userErrorMessage(error));
     } finally {
       if (mounted) setState(() => _loadingCryptoTokens = false);
     }
@@ -196,7 +197,7 @@ class _PublicPayPageState extends State<PublicPayPage> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          _error = 'Could not open FARM: $error';
+          _error = 'Could not open FARM: ${userErrorMessage(error)}';
         });
       }
     } finally {
@@ -468,7 +469,7 @@ class _LegacyMerchantQrRedirectPageState
       }
       if (mounted) context.go('/pay/${Uri.encodeComponent(merchantId)}');
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = userErrorMessage(error));
     }
   }
 

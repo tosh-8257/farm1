@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 import '../services/admin_page_refresh_coordinator.dart';
+import '/utils/user_error_message.dart';
 
 class KycManagementPage extends StatefulWidget {
   final VoidCallback? onGoBack;
@@ -48,7 +49,7 @@ class _KycManagementPageState extends State<KycManagementPage>
       setState(() => _queue = res['data'] ?? []);
     } catch (e) {
       if (mounted && _queue.isEmpty) {
-        setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+        setState(() => _error = userErrorMessage(e));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -312,7 +313,7 @@ class _KycManagementPageState extends State<KycManagementPage>
           if (snap.hasError)
             return AlertDialog(
                 title: const Text('Error'),
-                content: Text(snap.error.toString()),
+                content: Text(userErrorMessage(snap.error)),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(context),

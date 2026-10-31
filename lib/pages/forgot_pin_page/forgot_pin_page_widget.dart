@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 
 class ForgotPinPageWidget extends StatefulWidget {
   const ForgotPinPageWidget({super.key});
@@ -91,7 +92,7 @@ class _ForgotPinPageWidgetState extends State<ForgotPinPageWidget> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update PIN right now: $e')),
+        SnackBar(content: Text('Unable to update PIN right now: ${userErrorMessage(e)}')),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

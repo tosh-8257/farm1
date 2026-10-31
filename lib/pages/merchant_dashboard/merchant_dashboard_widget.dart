@@ -17,6 +17,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import 'merchant_dashboard_model.dart';
+import '/utils/user_error_message.dart';
 
 class MerchantDashboardWidget extends StatefulWidget {
   const MerchantDashboardWidget({super.key});
@@ -207,7 +208,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
         await _fetchMerchantQr();
       }
     } catch (e) {
-      final message = e.toString().replaceFirst('Exception: ', '').trim();
+      final message = userErrorMessage(e);
       if (message.toLowerCase().contains('merchant account not found')) {
         setState(() {
           merchantStatus = 'not_submitted';
@@ -479,7 +480,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
       setState(() {
         applyingMerchant = false;
       });
-      showError(e.toString());
+      showError(userErrorMessage(e));
     }
   }
 
@@ -504,7 +505,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
       setState(() {
         regeneratingQr = false;
       });
-      showError(e.toString());
+      showError(userErrorMessage(e));
     }
   }
 
@@ -562,7 +563,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
       setState(() {
         payoutLoading = false;
       });
-      showError(e.toString());
+      showError(userErrorMessage(e));
     }
   }
 
@@ -634,7 +635,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
       }
     } catch (e) {
       if (mounted) {
-        showError('Failed to save QR code: ${e.toString()}');
+        showError('Failed to save QR code: ${userErrorMessage(e)}');
       }
     }
   }
@@ -650,7 +651,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
       final bytes = await _getLabeledQrBytes(qrSource);
       await QrDownloadService.instance.shareQr(bytes);
     } catch (e) {
-      showError('Failed to share QR code: ${e.toString()}');
+      showError('Failed to share QR code: ${userErrorMessage(e)}');
     }
   }
 

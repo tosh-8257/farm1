@@ -11,6 +11,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/widgets/common/back_chevron.dart';
 
 import 'kycpage_model.dart';
+import '/utils/user_error_message.dart';
 export 'kycpage_model.dart';
 
 /// Verify Your Identity.
@@ -113,7 +114,7 @@ class _KycpageWidgetState extends State<KycpageWidget> {
   }
 
   String _friendlyError(Object error) {
-    final raw = error.toString().replaceFirst('Exception: ', '').trim();
+    final raw = userErrorMessage(error);
     final lower = raw.toLowerCase();
     if (lower.contains('already verified')) {
       return 'Your identity is already verified.';

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../pages/superadmin/add_admin_page.dart';
 import '../services/admin_api_service.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 
 class AdminManagementPage extends StatefulWidget {
   const AdminManagementPage({super.key});
@@ -36,7 +37,7 @@ class _AdminManagementPageState extends State<AdminManagementPage> {
           ? data.whereType<Map>().map(Map<String, dynamic>.from).toList()
           : <Map<String, dynamic>>[];
     } catch (error) {
-      _error = error.toString();
+      _error = userErrorMessage(error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -68,7 +69,7 @@ class _AdminManagementPageState extends State<AdminManagementPage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
+          SnackBar(content: Text(userErrorMessage(error))),
         );
       }
     } finally {
@@ -117,7 +118,7 @@ class _AdminManagementPageState extends State<AdminManagementPage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
+          SnackBar(content: Text(userErrorMessage(error))),
         );
       }
     } finally {

@@ -10,6 +10,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/utils/refresh_loading_state.dart';
 import '/widgets/common/back_chevron.dart';
 import 'growth_tracking_page_model.dart';
+import '/utils/user_error_message.dart';
 
 export 'growth_tracking_page_model.dart';
 
@@ -166,7 +167,7 @@ class _GrowthTrackingPageWidgetState extends State<GrowthTrackingPageWidget> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userErrorMessage(e);
         _loading = false;
         _hasCompletedFirstLoad = true;
       });

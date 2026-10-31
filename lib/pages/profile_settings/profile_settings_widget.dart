@@ -26,6 +26,7 @@ import 'profile_settings_model.dart';
 import '/pages/chain_wallet/wallet_address_page.dart';
 import '/pages/travel/travel_pages.dart';
 import '/pages/agent_payments/agent_payments_pages.dart';
+import '/utils/user_error_message.dart';
 export 'profile_settings_model.dart';
 
 class ProfileSettingsWidget extends StatefulWidget {
@@ -831,7 +832,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                       debugPrint(stack.toString());
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
-                                        SnackBar(content: Text(e.toString())),
+                                        SnackBar(content: Text(userErrorMessage(e))),
                                       );
                                     }
                                   }

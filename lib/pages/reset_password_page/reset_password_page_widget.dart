@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/loginpage/loginpage_widget.dart';
 import '/services/auth/auth_service.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 
 class ResetPasswordPageWidget extends StatefulWidget {
   const ResetPasswordPageWidget({
@@ -75,7 +76,7 @@ class _ResetPasswordPageWidgetState extends State<ResetPasswordPageWidget> {
         return;
       }
 
-      final message = e.toString().replaceFirst('Exception: ', '');
+      final message = userErrorMessage(e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),

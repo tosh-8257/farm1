@@ -5,6 +5,7 @@ import '../../pages/loginpage/loginpage_widget.dart';
 import '../core/admin_navigation.dart';
 import '../services/admin_api_service.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 
 String _firebaseErrorMessage(FirebaseAuthException error) {
   switch (error.code) {
@@ -199,7 +200,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       if (mounted)
         setState(() => _verificationError = _firebaseErrorMessage(error));
     } catch (error) {
-      if (mounted) setState(() => _verificationError = error.toString());
+      if (mounted) setState(() => _verificationError = userErrorMessage(error));
     } finally {
       if (mounted) setState(() => _isVerifying = false);
     }

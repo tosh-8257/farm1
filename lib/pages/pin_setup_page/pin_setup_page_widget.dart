@@ -16,6 +16,7 @@ import '/flutter_flow/flutter_flow_widgets.dart';
 
 
 import 'pin_setup_page_model.dart';
+import '/utils/user_error_message.dart';
 export 'pin_setup_page_model.dart';
 
 class PinSetupPageWidget extends StatefulWidget {
@@ -177,7 +178,7 @@ class _PinSetupPageWidgetState
           .showSnackBar(
         SnackBar(
           content: Text(
-            'Error: $e',
+            'Error: ${userErrorMessage(e)}',
           ),
         ),
       );

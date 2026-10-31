@@ -3,6 +3,7 @@ import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
+import '/utils/user_error_message.dart';
 
 class MerchantKybManagementPage extends StatefulWidget {
   final VoidCallback? onGoBack;
@@ -43,7 +44,7 @@ class _MerchantKybManagementPageState extends State<MerchantKybManagementPage> {
       );
       setState(() => _merchants = res['data'] as List? ?? []);
     } catch (e) {
-      setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+      setState(() => _error = userErrorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '/utils/user_error_message.dart';
 
 import 'qr_web_stub.dart'
     if (dart.library.html) 'qr_web_impl.dart' as qr_web;
@@ -202,7 +203,7 @@ class QrDownloadService {
     } catch (error) {
       return QrDownloadResult(
         success: false,
-        message: 'Failed to save QR code: $error',
+        message: 'Failed to save QR code: ${userErrorMessage(error)}',
         destination: QrDownloadDestination.unknown,
       );
     }

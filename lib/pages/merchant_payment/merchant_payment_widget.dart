@@ -9,6 +9,7 @@ import '/services/app_session_manager.dart';
 import '/widgets/common/back_chevron.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/widgets/searchable_crypto_picker.dart';
+import '/utils/user_error_message.dart';
 
 class MerchantPaymentWidget extends StatefulWidget {
   const MerchantPaymentWidget({
@@ -74,7 +75,7 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        error = 'Could not load merchant QR details: $e';
+        error = 'Could not load merchant QR details: ${userErrorMessage(e)}';
         _loadingQrPayload = false;
       });
     }
@@ -108,7 +109,7 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
           );
         }
       } catch (error) {
-        _showSnack('Could not load NOWPayments currencies: $error');
+        _showSnack('Could not load NOWPayments currencies: ${userErrorMessage(error)}');
         return;
       }
     }
@@ -217,7 +218,7 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
         throw StateError('Could not open the payment provider checkout');
       }
     } catch (e) {
-      if (mounted) _showSnack('Could not start payment: $e');
+      if (mounted) _showSnack('Could not start payment: ${userErrorMessage(e)}');
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -353,7 +354,7 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        error = e.toString();
+        error = userErrorMessage(e);
       });
       _showSnack('common.transaction_failed'.tr());
     } finally {

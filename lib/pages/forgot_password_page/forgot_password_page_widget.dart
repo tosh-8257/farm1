@@ -7,6 +7,7 @@ import 'package:lottie/lottie.dart';
 import '/admin/services/admin_api_service.dart';
 import '/pages/loginpage/loginpage_widget.dart';
 import 'forgot_password_page_model.dart';
+import '/utils/user_error_message.dart';
 export 'forgot_password_page_model.dart';
 
 /// Create a premium black and white fintech forgot password page for FARM
@@ -82,7 +83,7 @@ class _ForgotPasswordPageWidgetState extends State<ForgotPasswordPageWidget> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          content: Text(userErrorMessage(e)),
           backgroundColor: Colors.redAccent,
         ),
       );

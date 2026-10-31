@@ -20,6 +20,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 
 import 'q_r_scanner_model.dart';
+import '/utils/user_error_message.dart';
 export 'q_r_scanner_model.dart';
 
 class QRScannerWidget extends StatefulWidget {
@@ -289,7 +290,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        '${'common.transaction_failed'.tr()}: ${e.toString().replaceFirst('Exception: ', '')}',
+                                        '${'common.transaction_failed'.tr()}: ${userErrorMessage(e)}',
                                       ),
                                     ),
                                   );
@@ -433,7 +434,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          'Transfer failed: ${e.toString().replaceFirst('Exception: ', '')}',
+                                          'Transfer failed: ${userErrorMessage(e)}',
                                         ),
                                       ),
                                     );
@@ -554,7 +555,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'QR Validation Error: $e',
+            'QR Validation Error: ${userErrorMessage(e)}',
           ),
         ),
       );
@@ -840,7 +841,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not create your QR code: $error')),
+        SnackBar(content: Text('Could not create your QR code: ${userErrorMessage(error)}')),
       );
     }
   }
@@ -868,7 +869,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not share your QR code: $error')),
+        SnackBar(content: Text('Could not share your QR code: ${userErrorMessage(error)}')),
       );
     }
   }

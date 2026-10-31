@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/admin_api_service.dart';
+import '/utils/user_error_message.dart';
 
 class SuperadminsManagementPage extends StatefulWidget {
   const SuperadminsManagementPage({super.key, required this.onGoBack});
@@ -39,7 +40,7 @@ class _SuperadminsManagementPageState extends State<SuperadminsManagementPage> {
             data['items'] is List ? data['items'] as List : <dynamic>[];
       }
     } catch (e) {
-      _error = e.toString();
+      _error = userErrorMessage(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

@@ -22,6 +22,7 @@ import '../../core/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '/utils/user_error_message.dart';
 
 enum TransferRequestCardState {
   pending,
@@ -365,7 +366,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$e'),
+          content: Text(userErrorMessage(e)),
         ),
       );
     }
@@ -641,7 +642,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            e.toString().replaceAll('Exception: ', ''),
+            userErrorMessage(e),
           ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
@@ -734,7 +735,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
+          content: Text(userErrorMessage(e)),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -759,7 +760,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userErrorMessage(e))));
     }
   }
 
@@ -777,7 +778,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+            .showSnackBar(SnackBar(content: Text(userErrorMessage(e))));
       }
     }
   }
@@ -853,7 +854,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(userErrorMessage(e)),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -929,7 +930,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     } catch (e) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$e'), backgroundColor: Colors.red));
+            SnackBar(content: Text(userErrorMessage(e)), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => isSending = false);
     }
@@ -950,7 +951,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('$e'),
+              content: Text(userErrorMessage(e)),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating),
         );
@@ -974,7 +975,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
+          SnackBar(content: Text(userErrorMessage(e))),
         );
       }
     }

@@ -25,6 +25,7 @@ import 'package:flutter/services.dart';
 import '/services/auth/auth_service.dart';
 import '/core/localization/app_locale_service.dart';
 import '/services/transaction_receipt_service.dart';
+import '/utils/user_error_message.dart';
 
 class SuperadminDashboardPage extends StatefulWidget {
   const SuperadminDashboardPage({super.key});
@@ -206,7 +207,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
     } catch (e, st) {
       debugPrint('[SuperadminDashboardPage] _loadDashboardData failed: $e');
       debugPrint(st.toString());
-      setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+      setState(() => _error = userErrorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
       // Refresh superadmin wallet info when dashboard refresh completes
@@ -302,7 +303,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(
-                  'Failed to load exchange rates: ${e.toString().replaceAll('Exception: ', '')}')),
+                  'Failed to load exchange rates: ${userErrorMessage(e)}')),
         );
       }
     } finally {
@@ -371,7 +372,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(
-                  'Error saving exchange rates: ${e.toString().replaceAll('Exception: ', '')}'),
+                  'Error saving exchange rates: ${userErrorMessage(e)}'),
               backgroundColor: Colors.red),
         );
       }
@@ -1577,7 +1578,7 @@ class _SuperadminDashboardPageState extends State<SuperadminDashboardPage>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(
-                  'Error saving conversion rate: ${e.toString().replaceAll('Exception: ', '')}'),
+                  'Error saving conversion rate: ${userErrorMessage(e)}'),
               backgroundColor: Colors.red),
         );
       }

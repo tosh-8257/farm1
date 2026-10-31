@@ -3,6 +3,7 @@ import '../../core/app_theme.dart';
 import '/backend/services/api_service.dart';
 import '/core/theme_extensions.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 
 // Removed unused imports flagged by analyzer
 
@@ -143,7 +144,7 @@ class _ChangePinPageWidgetState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            e.toString(),
+            userErrorMessage(e),
           ),
         ),
       );

@@ -3,6 +3,7 @@ import '../../core/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/backend/api_requests/business_ops_api.dart';
 import '/pages/business/business_kyb_logic.dart';
+import '/utils/user_error_message.dart';
 
 /// Admin KYB review for Business accounts. Black/white/grey only.
 class BusinessReviewPage extends StatefulWidget {
@@ -42,7 +43,7 @@ class _BusinessReviewPageState extends State<BusinessReviewPage> {
       final r = await BusinessOpsApi.adminBusinesses(status: _filter == 'all' ? null : _filter);
       if (mounted) setState(() => _items = BusinessOpsApi.list(r));
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+      if (mounted) setState(() => _error = userErrorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -177,7 +178,7 @@ class _DetailState extends State<_BusinessReviewDetail> {
       final b = await BusinessOpsApi.adminBusiness(widget.id);
       if (mounted) setState(() => _b = b);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+      if (mounted) setState(() => _error = userErrorMessage(e));
     }
   }
 
@@ -219,7 +220,7 @@ class _DetailState extends State<_BusinessReviewDetail> {
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userErrorMessage(e))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);

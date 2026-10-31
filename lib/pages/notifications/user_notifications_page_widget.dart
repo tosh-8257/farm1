@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/services/notification_feedback_service.dart';
 import '/services/notification_service.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 
 class UserNotificationsPageWidget extends StatefulWidget {
   const UserNotificationsPageWidget({super.key});
@@ -419,7 +420,7 @@ class _UserNotificationsPageWidgetState
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to delete notifications: $e')),
+        SnackBar(content: Text('Unable to delete notifications: ${userErrorMessage(e)}')),
       );
     }
   }

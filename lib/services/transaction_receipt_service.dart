@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/utils/transaction_peer_resolver.dart';
+import '/utils/user_error_message.dart';
 
 class TransactionReceiptService {
   static const MethodChannel _channel =
@@ -35,7 +36,7 @@ class TransactionReceiptService {
             ...Map<String, dynamic>.from(data),
           };
         } catch (error) {
-          refreshError = error.toString();
+          refreshError = userErrorMessage(error);
         }
       }
     }
@@ -439,7 +440,7 @@ class _TransactionDetailsSheet extends StatelessWidget {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content:
-                                    Text('Could not save receipt: $error')),
+                                    Text('Could not save receipt: ${userErrorMessage(error)}')),
                           );
                         }
                       }

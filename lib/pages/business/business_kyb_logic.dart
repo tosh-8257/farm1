@@ -1,3 +1,4 @@
+import '/utils/user_error_message.dart';
 import '/backend/services/api_service.dart';
 
 /// UI states for the Didit KYB (business verification) step.
@@ -74,7 +75,8 @@ String kybErrorMessage(Object error) {
     }
     return error.message;
   }
-  return 'Could not start business verification. Please try again.';
+  return userErrorMessage(error,
+      fallback: 'Could not start business verification. Please try again.');
 }
 
 /// Summary rows for the admin review screen from the stored Didit result.

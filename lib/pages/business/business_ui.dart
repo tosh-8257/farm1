@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '/core/app_theme.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/backend/api_requests/business_api_service.dart';
+import '/utils/user_error_message.dart';
 
 /// Shared black/white/grey building blocks for the Business screens.
 
@@ -135,7 +136,4 @@ class BizMessage extends StatelessWidget {
   );
 }
 
-String friendlyError(Object e) {
-  final s = e.toString();
-  return s.startsWith('Exception: ') ? s.substring(11) : s;
-}
+String friendlyError(Object e) => userErrorMessage(e);

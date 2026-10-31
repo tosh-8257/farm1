@@ -10,6 +10,7 @@ import 'package:lottie/lottie.dart';
 import '/services/biometric_lock_service.dart';
 import '../dashboard/dashboard_widget.dart';
 import 'biometric_security_page_model.dart';
+import '/utils/user_error_message.dart';
 
 export 'biometric_security_page_model.dart';
 
@@ -168,7 +169,7 @@ class _BiometricSecurityPageWidgetState
             borderRadius: BorderRadius.circular(16),
           ),
           content: Text(
-            'Biometric Error: $e',
+            'Biometric Error: ${userErrorMessage(e)}',
             style: TextStyle(
               color: context.onSurface,
             ),

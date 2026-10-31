@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '/app_state.dart';
 import '../services/admin_api_service.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 
 class SupportInboxPage extends StatefulWidget {
   const SupportInboxPage({super.key, this.onGoBack});
@@ -77,7 +78,7 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString();
+        _error = userErrorMessage(error);
         _loading = false;
       });
     }
@@ -117,7 +118,7 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
       if (mounted) {
         setState(() => _readTicketIds.removeAll(ticketIds));
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save read status: $error')),
+          SnackBar(content: Text('Could not save read status: ${userErrorMessage(error)}')),
         );
       }
     }
@@ -148,7 +149,7 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not send reply: $error')),
+          SnackBar(content: Text('Could not send reply: ${userErrorMessage(error)}')),
         );
       }
       return false;
@@ -357,7 +358,7 @@ class _SupportInboxPageState extends State<SupportInboxPage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open the attachment: $error')),
+          SnackBar(content: Text('Could not open the attachment: ${userErrorMessage(error)}')),
         );
       }
     }

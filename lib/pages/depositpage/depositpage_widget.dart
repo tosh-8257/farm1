@@ -13,6 +13,7 @@ import '/services/transaction_receipt_service.dart';
 import '/services/paystack_inline_checkout.dart';
 import '/widgets/searchable_crypto_picker.dart';
 import 'crypto_checkout_page.dart';
+import '/utils/user_error_message.dart';
 
 class DepositpageWidget extends StatefulWidget {
   const DepositpageWidget({super.key});
@@ -128,7 +129,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
       if (!mounted) return;
       setState(() {
         _cryptoTokens = [];
-        _cryptoTokensError = error.toString();
+        _cryptoTokensError = userErrorMessage(error);
       });
     } finally {
       if (mounted) setState(() => _loadingCryptoTokens = false);
@@ -173,7 +174,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
       });
     } catch (error) {
       if (!mounted || _selectedCryptoToken != currency) return;
-      setState(() => _cryptoMinimumError = error.toString());
+      setState(() => _cryptoMinimumError = userErrorMessage(error));
     } finally {
       if (mounted && _selectedCryptoToken == currency) {
         setState(() => _loadingCryptoMinimum = false);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/admin_api_service.dart';
 import '../services/admin_page_refresh_coordinator.dart';
+import '/utils/user_error_message.dart';
 
 class PayoutsPage extends StatefulWidget {
   final VoidCallback? onGoBack;
@@ -40,7 +41,7 @@ class _PayoutsPageState extends State<PayoutsPage>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(status == 'completed' ? 'Payout approved' : 'Payout rejected')));
       _load();
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
     }
   }
 

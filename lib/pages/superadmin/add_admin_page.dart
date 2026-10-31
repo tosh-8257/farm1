@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/admin/services/admin_api_service.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 
 class AddAdminPage extends StatefulWidget {
   const AddAdminPage({super.key});
@@ -71,7 +72,7 @@ class _AddAdminPageState extends State<AddAdminPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content:
-                Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
+                Text('Error: ${userErrorMessage(e)}'),
             backgroundColor: Colors.red,
           ),
         );

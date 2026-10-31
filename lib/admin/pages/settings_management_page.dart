@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/admin_api_service.dart';
+import '/utils/user_error_message.dart';
 
 class SettingsManagementPage extends StatefulWidget {
   const SettingsManagementPage({required this.onGoBack, super.key});
@@ -41,7 +42,7 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
             .toList();
       });
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = userErrorMessage(error));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -87,7 +88,7 @@ class _SettingsManagementPageState extends State<SettingsManagementPage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update setting: $error')),
+          SnackBar(content: Text('Could not update setting: ${userErrorMessage(error)}')),
         );
       }
     }

@@ -11,6 +11,7 @@ import '/utils/transaction_peer_resolver.dart';
 import '/utils/transaction_history_utils.dart';
 import '/widgets/common/back_chevron.dart';
 import 'all_transactions_model.dart';
+import '/utils/user_error_message.dart';
 
 export 'all_transactions_model.dart';
 
@@ -90,7 +91,7 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save receipts: $error')),
+        SnackBar(content: Text('Could not save receipts: ${userErrorMessage(error)}')),
       );
     }
   }
@@ -103,7 +104,7 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not share receipts: $error')),
+        SnackBar(content: Text('Could not share receipts: ${userErrorMessage(error)}')),
       );
     }
   }
@@ -145,7 +146,7 @@ class _AllTransactionsWidgetState extends State<AllTransactionsWidget> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userErrorMessage(e);
         _loading = false;
       });
     }

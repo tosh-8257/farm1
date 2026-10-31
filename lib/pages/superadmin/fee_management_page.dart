@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
 import '/admin/services/admin_api_service.dart';
 import '/admin/services/admin_page_refresh_coordinator.dart';
+import '/utils/user_error_message.dart';
 
 class FeeManagementPage extends StatefulWidget {
   final VoidCallback? onGoBack;
@@ -54,7 +55,7 @@ class _FeeManagementPageState extends State<FeeManagementPage>
       });
     } catch (e) {
       if (mounted && _fees.isEmpty) {
-        setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+        setState(() => _error = userErrorMessage(e));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -133,7 +134,7 @@ class _FeeManagementPageState extends State<FeeManagementPage>
       }
       _snack('Fee updated ✓', context.successColor);
     } catch (e) {
-      _snack(e.toString().replaceAll('Exception: ', ''), context.errorColor);
+      _snack(userErrorMessage(e), context.errorColor);
     } finally {
       if (mounted) setState(() => _saving[feeId] = false);
     }

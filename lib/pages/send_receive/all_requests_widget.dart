@@ -3,6 +3,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/backend/services/api_service.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 // Removed unused imports
 
 class AllRequestsWidget extends StatefulWidget {
@@ -40,7 +41,7 @@ class _AllRequestsWidgetState extends State<AllRequestsWidget> {
         pending.removeWhere((r) => r['id'] == id);
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userErrorMessage(e))));
     } finally {
       setState(() => _loading = false);
     }

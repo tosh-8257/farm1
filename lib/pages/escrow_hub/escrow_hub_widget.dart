@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '/utils/user_error_message.dart';
 
 class EscrowHubWidget extends StatefulWidget {
   const EscrowHubWidget({super.key});
@@ -85,7 +86,7 @@ class _EscrowHubWidgetState extends State<EscrowHubWidget> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load escrow details: $error')),
+        SnackBar(content: Text('Could not load escrow details: ${userErrorMessage(error)}')),
       );
     }
   }
@@ -106,7 +107,7 @@ class _EscrowHubWidgetState extends State<EscrowHubWidget> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save receipts: $error')),
+          SnackBar(content: Text('Could not save receipts: ${userErrorMessage(error)}')),
         );
       }
     }
@@ -343,7 +344,7 @@ class _EscrowHubWidgetState extends State<EscrowHubWidget> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Release failed: $e'),
+          content: Text('Release failed: ${userErrorMessage(e)}'),
         ),
       );
     }
@@ -623,7 +624,7 @@ class _EscrowHubWidgetState extends State<EscrowHubWidget> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Dispute failed: $e'),
+          content: Text('Dispute failed: ${userErrorMessage(e)}'),
         ),
       );
     } finally {
@@ -957,7 +958,7 @@ class _EscrowHubWidgetState extends State<EscrowHubWidget> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                         content:
-                                            Text('Escrow creation failed: $e')),
+                                            Text('Escrow creation failed: ${userErrorMessage(e)}')),
                                   );
                                 }
                                 return;
@@ -1071,7 +1072,7 @@ class _EscrowHubWidgetState extends State<EscrowHubWidget> {
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('$e'),
+                          content: Text(userErrorMessage(e)),
                         ),
                       );
                     }

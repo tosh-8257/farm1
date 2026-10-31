@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '/utils/user_error_message.dart';
 
 class IvoryPayInlineCheckout extends StatefulWidget {
   const IvoryPayInlineCheckout({
@@ -107,7 +108,7 @@ class _IvoryPayInlineCheckoutState extends State<IvoryPayInlineCheckout> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Could not open IvoryPay checkout: $error';
+        _error = 'Could not open IvoryPay checkout: ${userErrorMessage(error)}';
       });
     }
   }

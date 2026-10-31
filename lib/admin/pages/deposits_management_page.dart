@@ -6,6 +6,7 @@ import '../services/admin_api_service.dart';
 import '../services/admin_page_refresh_coordinator.dart';
 import '/services/transaction_receipt_service.dart';
 import '/widgets/common/transaction_receipt_selection_bar.dart';
+import '/utils/user_error_message.dart';
 
 class DepositsManagementPage extends StatefulWidget {
   final VoidCallback? onGoBack;
@@ -77,7 +78,7 @@ class _DepositsManagementPageState extends State<DepositsManagementPage>
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not share receipts: $error')),
+        SnackBar(content: Text('Could not share receipts: ${userErrorMessage(error)}')),
       );
     }
   }
@@ -93,7 +94,7 @@ class _DepositsManagementPageState extends State<DepositsManagementPage>
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save receipts: $error')),
+        SnackBar(content: Text('Could not save receipts: ${userErrorMessage(error)}')),
       );
     }
   }

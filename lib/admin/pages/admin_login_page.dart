@@ -5,6 +5,7 @@ import '../services/admin_api_service.dart';
 import 'admin_shell.dart';
 import '../../pages/superadmin/superadmin_dashboard_page.dart';
 import '../../pages/forgot_password_page/forgot_password_page_widget.dart';
+import '/utils/user_error_message.dart';
 
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
@@ -47,7 +48,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
+          SnackBar(content: Text(userErrorMessage(error))),
         );
       }
     } finally {

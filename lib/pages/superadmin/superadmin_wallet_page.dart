@@ -9,6 +9,7 @@ import 'superadmin_change_pin_page.dart';
 import '/services/app_session_manager.dart';
 import '/services/transaction_authentication_service.dart';
 import '/services/transaction_authorization_service.dart';
+import '/utils/user_error_message.dart';
 
 class SuperadminWalletPage extends StatefulWidget {
   const SuperadminWalletPage({super.key});
@@ -140,7 +141,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
           await ApiService.request(method: 'GET', path: '/admin/wallet');
       setState(() => _walletData = resp['data'] ?? resp);
     } catch (e) {
-      setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+      setState(() => _error = userErrorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -231,7 +232,7 @@ class _SuperadminWalletPageState extends State<SuperadminWalletPage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text('Error: ${userErrorMessage(e)}')),
       );
     }
   }

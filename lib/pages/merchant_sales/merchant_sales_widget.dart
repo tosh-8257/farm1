@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/services/transaction_receipt_service.dart';
 import '/widgets/common/back_chevron.dart';
+import '/utils/user_error_message.dart';
 
 class MerchantSalesWidget extends StatefulWidget {
   const MerchantSalesWidget({super.key});
@@ -69,7 +70,7 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save receipts: $error')),
+          SnackBar(content: Text('Could not save receipts: ${userErrorMessage(error)}')),
         );
       }
     }
@@ -113,7 +114,7 @@ class _MerchantSalesWidgetState extends State<MerchantSalesWidget> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        error = e.toString();
+        error = userErrorMessage(e);
         loading = false;
       });
     }

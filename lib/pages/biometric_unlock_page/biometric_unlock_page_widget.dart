@@ -8,6 +8,7 @@ import '/admin/pages/admin_shell.dart';
 import '/admin/core/admin_navigation.dart';
 import '/pages/dashboard/dashboard_widget.dart';
 import '/pages/loginpage/loginpage_widget.dart';
+import '/utils/user_error_message.dart';
 
 class BiometricUnlockPageWidget extends StatefulWidget {
   const BiometricUnlockPageWidget({super.key, this.returnPath});
@@ -68,7 +69,7 @@ class _BiometricUnlockPageWidgetState extends State<BiometricUnlockPageWidget> {
     } catch (e) {
       setState(() {
         isLoading = false;
-        errorMessage = e.toString();
+        errorMessage = userErrorMessage(e);
         statusMessage = 'Unable to unlock with biometrics.';
       });
     }

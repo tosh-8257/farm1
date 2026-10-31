@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/core/theme_extensions.dart';
 import '../services/admin_api_service.dart';
 import '../services/admin_page_refresh_coordinator.dart';
+import '/utils/user_error_message.dart';
 
 class UserManagementPage extends StatefulWidget {
   static const String routeName = 'user_management';
@@ -56,7 +57,7 @@ class _UserManagementPageState extends State<UserManagementPage>
       await _loadSummaryCounts();
     } catch (e) {
       if (mounted && _users.isEmpty) {
-        setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+        setState(() => _error = userErrorMessage(e));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
