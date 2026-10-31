@@ -669,7 +669,7 @@ class _TokenizationCardState extends State<TokenizationCard> {
         padding: const EdgeInsets.only(bottom: 12),
         child: BizCard(
           child: SizedBox(
-            height: preListing ? 170 : 270,
+            height: preListing ? 170 : 300,
             child: BizAsync<Map<String, dynamic>>(
               key: _key,
               load: () => InvestmentsApi.projectToken(widget.projectId),
@@ -712,15 +712,113 @@ class _TokenizationCardState extends State<TokenizationCard> {
                       Text('Created when FARM lists the project.', style: TextStyle(fontSize: 12, color: mutedColor(c))),
                     if (t['asset_id'] != null) KeyValue('Asset ID', '${t['asset_id']}'),
                     if (t['mode'] == 'on_invest' && t['status'] == 'created' && p != null) _progress(c, t, p),
-                    if (t['explorer_url'] != null)
-                      TextButton(
-                          onPressed: () => openDoc(c, '${t['explorer_url']}'),
-                          child: Text('View on explorer', style: TextStyle(color: fgColor(c)))),
+                    Wrap(spacing: 4, children: [
+                      if (t['explorer_url'] != null)
+                        TextButton(
+                            onPressed: () => openDoc(c, '${t['explorer_url']}'),
+                            child: Text('View on explorer', style: TextStyle(color: fgColor(c)))),
+                      if (t['status'] == 'created')
+                        TextButton.icon(
+                            onPressed: () => pushPage(c, HolderIncomePage(projectId: widget.projectId)),
+                            icon: const Icon(Icons.payments_outlined, size: 18),
+                            label: const Text('Pay token holders')),
+                    ]),
                   ],
                 ]);
               },
             ),
           ),
+        ),
+      );
+}
+
+
+/// Business: pay profit / rental income to the project's current token holders.
+class HolderIncomePage extends StatefulWidget {
+  const HolderIncomePage({super.key, required this.projectId});
+  final String projectId;
+  @override
+  State<HolderIncomePage> createState() => _HolderIncomePageState();
+}
+
+class _HolderIncomePageState extends State<HolderIncomePage> {
+  final _key = GlobalKey<BizAsyncState<List<Map<String, dynamic>>>>();
+
+  Future<void> _new() async {
+    final amt = TextEditingController();
+    final desc = TextEditingController();
+    var kind = 'profit';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: const Text('Pay token holders'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'profit', label: Text('Profit')),
+                  ButtonSegment(value: 'rental', label: Text('Rental')),
+                ],
+                selected: {kind},
+                onSelectionChanged: (v) => setD(() => kind = v.first),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                  controller: amt,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: bizInput(ctx, 'Amount in FARM')),
+              TextField(controller: desc, maxLength: 500, decoration: bizInput(ctx, 'Note for holders (optional)')),
+              Text(
+                  'Paid from your FARM wallet after FARM approves. Split by how many tokens each holder has at payout time. No fee.',
+                  style: TextStyle(fontSize: 12, color: mutedColor(ctx))),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Request')),
+          ],
+        ),
+      ),
+    );
+    final amount = num.tryParse(amt.text.trim());
+    final note = desc.text.trim();
+    amt.dispose();
+    desc.dispose();
+    if (ok != true || !mounted) return;
+    if (amount == null || amount < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter at least 1 FARM')));
+      return;
+    }
+    final r = await runBusy(context, () => InvestmentsApi.requestDistribution(widget.projectId, amount, kind, note),
+        success: 'Sent to FARM for approval.');
+    if (r != null) _key.currentState?.reload();
+  }
+
+  @override
+  Widget build(BuildContext context) => BizScaffold(
+        title: 'Token holder income',
+        fab: BizFab(label: 'Pay holders', onPressed: _new),
+        body: BizAsync<List<Map<String, dynamic>>>(
+          key: _key,
+          load: () => InvestmentsApi.projectDistributions(widget.projectId),
+          isEmpty: (l) => l.isEmpty,
+          emptyIcon: Icons.payments_outlined,
+          emptyTitle: 'No payouts yet',
+          emptyMessage: 'Share profit or rental income with everyone who holds this project\'s tokens.',
+          builder: (c, l, _) => ListView(padding: const EdgeInsets.all(16), children: [
+            for (final d in l)
+              BizTile(
+                leading: Icons.payments_outlined,
+                title: '${d['amount']} FARM · ${d['kind'] == 'rental' ? 'Rental' : 'Profit'}',
+                subtitle: [
+                  if (d['holders'] != null) '${d['holders']} holders · paid ${d['paid_amount']} FARM',
+                  if (d['notes'] != null) '${d['notes']}',
+                  if (d['error'] != null && d['status'] == 'failed') '${d['error']}',
+                ].join('\n'),
+                trailing: StatusChip('${d['status']}', filled: d['status'] == 'paid'),
+              ),
+          ]),
         ),
       );
 }
