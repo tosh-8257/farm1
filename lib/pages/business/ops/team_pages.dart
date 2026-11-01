@@ -188,6 +188,7 @@ class _ProfileState extends State<BusinessProfilePage> {
         body: BizAsync<Map<String, dynamic>>(
           key: _key,
           load: BusinessOpsApi.profile,
+          cacheKey: 'profile',
           builder: (c, r, _) {
             final b = BusinessOpsApi.data(r);
             final canEdit = (r['meta'] as Map?)?['can_edit'] == true;

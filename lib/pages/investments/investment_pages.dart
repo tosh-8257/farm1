@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import '/components/fee_line.dart';
 import '/backend/api_requests/fees_api.dart';
 import 'package:flutter/material.dart';
@@ -108,8 +109,8 @@ class ProjectCard extends StatelessWidget {
                     0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, //
                     0.2126, 0.7152, 0.0722, 0, 0, 0, 0, 0, 1, 0,
                   ]),
-                  child: Image.network(img, height: 140, width: double.infinity, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                  child: CachedNetworkImage(imageUrl: img, height: 140, width: double.infinity, fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => const SizedBox.shrink()),
                 ),
               ),
             Padding(

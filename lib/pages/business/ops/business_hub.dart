@@ -51,6 +51,7 @@ class _BusinessHubState extends State<BusinessHub> {
     return BizAsync<Map<String, dynamic>>(
       key: _key,
       load: BusinessOpsApi.dashboard,
+      cacheKey: 'dashboard',
       builder: (ctx, d, reload) {
         final w = d['wallet'] as Map?;
         final m = d['last_30_days'] as Map?;

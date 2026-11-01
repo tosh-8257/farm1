@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '/core/app_config.dart';
 import '/app_state.dart';
+import '/services/offline_cache.dart';
 import '/services/auth/refresh_manager.dart';
 import '/utils/transaction_history_utils.dart';
 
@@ -381,6 +382,9 @@ class ApiService {
       try {
         if (method.toUpperCase() == 'GET') {
           _cache[path] = decoded;
+          if (requiresAuth && _persistable(path)) {
+            OfflineCache.write('api:$path', decoded);
+          }
         } else {
           _cache.clear();
         }
@@ -706,7 +710,17 @@ class ApiService {
       _request(method: 'GET', path: '/wallet', timeoutSeconds: timeoutSeconds);
 
   /// Return last cached response for a given path, if any.
-  static Map<String, dynamic>? getCached(String path) => _cache[path];
+  ///
+  /// Falls back to the persisted offline copy from a previous app session
+  /// (display only; money actions must call the API for a fresh balance).
+  static Map<String, dynamic>? getCached(String path) =>
+      _cache[path] ?? OfflineCache.readMap('api:$path');
+
+  /// Read-only screens worth showing instantly on the next launch.
+  static bool _persistable(String path) =>
+      path == '/wallet' ||
+      path == '/users/me' ||
+      path.startsWith('/analytics/growth-history');
 
   static void invalidateCache([String? path]) {
     if (path == null) {

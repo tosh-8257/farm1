@@ -163,6 +163,7 @@ class _IncomingEscrows extends StatelessWidget {
   @override
   Widget build(BuildContext context) => BizAsync<List<Map<String, dynamic>>>(
         load: BusinessOpsApi.incomingEscrows,
+        cacheKey: 'incomingEscrows',
         isEmpty: (l) => l.isEmpty,
         emptyIcon: Icons.verified_user_outlined,
         emptyTitle: 'No escrow requests',

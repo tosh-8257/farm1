@@ -1,3 +1,4 @@
+import '/services/offline_cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -79,8 +80,14 @@ class BizAsync<T> extends StatefulWidget {
     this.emptyTitle = 'Nothing here yet',
     this.emptyMessage = '',
     this.emptyIcon = Icons.inbox_outlined,
+    this.cacheKey,
   });
   final Future<T> Function() load;
+
+  /// When set, the last result is kept offline and shown instantly next time
+  /// (stale-while-revalidate) while [load] refreshes it in the background.
+  /// Display only: money actions must fetch fresh data themselves.
+  final String? cacheKey;
   final Widget Function(BuildContext, T, Future<void> Function() reload) builder;
   final bool Function(T)? isEmpty;
   final String emptyTitle;
@@ -93,38 +100,80 @@ class BizAsync<T> extends StatefulWidget {
 
 class BizAsyncState<T> extends State<BizAsync<T>> {
   bool _loading = true;
+  bool _refreshing = false;
   String? _error;
   T? _data;
 
   @override
   void initState() {
     super.initState();
+    _data = _fromCache();
+    _loading = _data == null;
     reload();
+  }
+
+  T? _fromCache() {
+    final k = widget.cacheKey;
+    if (k == null) return null;
+    final v = OfflineCache.read('biz:$k');
+    if (v == null) return null;
+    try {
+      if (v is T) return v as T;
+      if (v is Map && <String, dynamic>{} is T) {
+        return Map<String, dynamic>.from(v) as T;
+      }
+      if (v is List && <Map<String, dynamic>>[] is T) {
+        return v
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList() as T;
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<void> reload() async {
     setState(() {
       _loading = _data == null;
+      _refreshing = _data != null;
       _error = null;
     });
     try {
       final d = await widget.load();
       if (!mounted) return;
+      if (widget.cacheKey != null) OfflineCache.write('biz:${widget.cacheKey}', d);
       setState(() {
         _data = d;
         _loading = false;
+        _refreshing = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = friendlyError(e);
         _loading = false;
+        _refreshing = false;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final body = _build(context);
+    if (!_refreshing) return body;
+    // Cached content stays usable; a hairline shows it is being refreshed.
+    return Stack(children: [
+      body,
+      const Positioned(
+        top: 0,
+        left: 0,
+        right: 0,
+        child: LinearProgressIndicator(minHeight: 2),
+      ),
+    ]);
+  }
+
+  Widget _build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null && _data == null) {
       return Center(

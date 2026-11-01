@@ -34,6 +34,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/utils/activity_label.dart';
 import 'dashboard_model.dart';
+import '/services/offline_cache.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 export 'dashboard_model.dart';
 
 class DashboardWidget extends StatefulWidget {
@@ -76,10 +78,48 @@ class _DashboardWidgetState extends State<DashboardWidget>
   int unreadNotificationsCount = 0;
   Timer? _refreshTimer;
 
+  /// True while a background refresh runs over cached data (thin bar only).
+  bool _refreshing = false;
+  static const _growthPath = '/analytics/growth-history?days=7';
+
+  /// Paint the last known values instantly (stale-while-revalidate); the
+  /// post-frame refresh replaces them silently.
+  void _hydrateFromCache() {
+    final app = FFAppState();
+    walletBalance = app.walletBalance;
+    kesEquivalent = app.kesEquivalent;
+    profileImageUrl = app.profileImageUrl;
+    final wallet = ApiService.getCached('/wallet');
+    if (wallet != null) {
+      isBalanceLoading = false;
+      _applyBusinessWallet(wallet);
+    }
+    if (OfflineCache.has('recentTransactions') ||
+        app.recentTransactions.isNotEmpty) {
+      transactions =
+          app.recentTransactions.where(isVisibleTransactionHistoryItem).toList();
+      isTransactionsLoading = false;
+    }
+    final growth = ApiService.getCached(_growthPath);
+    if (growth != null) _applyGrowth(growth);
+  }
+
+  void _applyBusinessWallet(Map<String, dynamic> response) {
+    final data = response['data'] is Map
+        ? Map<String, dynamic>.from(response['data'] as Map)
+        : response;
+    final biz = data['business_wallet'];
+    businessBalance = biz is Map
+        ? double.tryParse('${biz['available_balance'] ?? biz['balance'] ?? 0}')
+        : null;
+    businessName = biz is Map ? '${biz['name'] ?? 'Business'}' : null;
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _hydrateFromCache();
 
     _model = createModel(context, () => DashboardModel());
     FFAppState().addListener(_handleAppStateChanged);
@@ -156,6 +196,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
       return;
     }
 
+    if (mounted && !isBalanceLoading) setState(() => _refreshing = true);
     try {
       await AppSessionManager().syncNow(
         profileTimeoutSeconds: 5,
@@ -175,11 +216,14 @@ class _DashboardWidgetState extends State<DashboardWidget>
       transactions = FFAppState().recentTransactions
           .where(isVisibleTransactionHistoryItem)
           .toList();
+      final wallet = ApiService.getCached('/wallet');
+      if (wallet != null) _applyBusinessWallet(wallet);
       isBalanceLoading = false;
       isTransactionsLoading = false;
     });
 
     await Future.wait([fetchGrowthHistory(), loadNotifications()]);
+    if (mounted) setState(() => _refreshing = false);
   }
 
   Future<void> logoutUser() async {
@@ -432,6 +476,22 @@ class _DashboardWidgetState extends State<DashboardWidget>
 
     try {
       final response = await ApiService.getGrowthHistory(days: 7);
+      if (!mounted) return;
+      setState(() => _applyGrowth(response));
+    } catch (e) {
+      print('GROWTH ERROR: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        isGrowthLoading = false;
+      });
+    }
+  }
+
+  /// Parses a growth-history response into chart state (no setState).
+  void _applyGrowth(Map<String, dynamic> response) {
+    {
       final history = response['data'] is List
           ? response['data'] as List
           : <dynamic>[];
@@ -474,23 +534,11 @@ class _DashboardWidgetState extends State<DashboardWidget>
           ? (maxValue * 1.2 > 72.0 ? maxValue * 1.2 : 72.0)
           : 72.0;
 
-      if (!mounted) return;
-
-      setState(() {
-        growthYValues = parsedValues;
-        growthXLabels = parsedLabels;
-        growthPercentage = computedGrowth;
-        growthChartMaxY = computedMaxY;
-        isGrowthLoading = false;
-      });
-    } catch (e) {
-      print('GROWTH ERROR: $e');
-
-      if (!mounted) return;
-
-      setState(() {
-        isGrowthLoading = false;
-      });
+      growthYValues = parsedValues;
+      growthXLabels = parsedLabels;
+      growthPercentage = computedGrowth;
+      growthChartMaxY = computedMaxY;
+      isGrowthLoading = false;
     }
   }
 
@@ -816,7 +864,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: AccountContext.instance.isBusiness
             ? const BusinessHomeView()
-            : RefreshIndicator(
+            : Stack(children: [
+            RefreshIndicator(
           onRefresh: _refreshDashboard,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -1100,11 +1149,18 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                             ? ClipRRect(
                                                 borderRadius:
                                                     BorderRadius.circular(100),
-                                                child: Image.network(
-                                                  profileImageUrl!,
+                                                child: CachedNetworkImage(
+                                                  imageUrl: profileImageUrl!,
                                                   width: 28,
                                                   height: 28,
+                                                  memCacheWidth: 84,
                                                   fit: BoxFit.cover,
+                                                  errorWidget: (_, __, ___) =>
+                                                      const Icon(
+                                                    Icons
+                                                        .account_circle_outlined,
+                                                    size: 28,
+                                                  ),
                                                 ),
                                               )
                                             : Icon(
@@ -2124,6 +2180,14 @@ class _DashboardWidgetState extends State<DashboardWidget>
             ),
           ),
         ),
+            if (_refreshing)
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+          ]),
       ),
     );
   }

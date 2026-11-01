@@ -6,6 +6,7 @@ import 'flutter_flow/flutter_flow_theme.dart';
 import 'backend/services/api_service.dart';
 import 'services/auth/session_store_service.dart';
 import 'services/secure_storage_service.dart';
+import 'services/offline_cache.dart';
 
 enum AuthStartupState { initializing, authenticated, unauthenticated }
 
@@ -247,6 +248,8 @@ class FFAppState extends ChangeNotifier {
     _userId = value;
     notifyListeners();
     unawaited(SecureStorageService.writeUserId(value));
+    // Offline screen cache is per user.
+    unawaited(OfflineCache.ensureScope(value));
   }
 
   String _firstName = '';
@@ -507,6 +510,7 @@ class FFAppState extends ChangeNotifier {
     if (_recentTransactions == value) return;
     _recentTransactions = value;
     notifyListeners();
+    OfflineCache.write('recentTransactions', value);
   }
 
   ThemeMode _themeMode = ThemeMode.light;
@@ -524,6 +528,18 @@ class FFAppState extends ChangeNotifier {
 
   Future<void> setThemeMode(ThemeMode value) async {
     themeMode = value;
+  }
+
+  /// Fills in-memory screen data from the offline cache (after
+  /// [OfflineCache.load]) so the first frame shows the last known values.
+  void hydrateFromOfflineCache() {
+    final tx = OfflineCache.read('recentTransactions');
+    if (tx is List && _recentTransactions.isEmpty) {
+      _recentTransactions = tx
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
   }
 
   Future<void> clearAuthCredentials([String? reason]) async {
@@ -546,7 +562,14 @@ class FFAppState extends ChangeNotifier {
     biometricsEnabled = false;
     hasPin = false;
     role = '';
+    walletBalance = 0;
+    kesEquivalent = 0;
+    _recentTransactions = [];
     final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('walletBalance');
+    await prefs.remove('kesEquivalent');
+    // Stale-while-revalidate screen cache belongs to this user only.
+    await OfflineCache.clear();
     await prefs.remove('firstName');
     await prefs.remove('userName');
     await prefs.remove('phone');

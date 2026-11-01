@@ -24,6 +24,7 @@ class _EscrowsState extends State<BusinessEscrowsPage> {
         body: BizAsync<List<Map<String, dynamic>>>(
           key: _key,
           load: BusinessOpsApi.escrows,
+          cacheKey: 'escrows',
           isEmpty: (l) => l.isEmpty,
           emptyIcon: Icons.verified_user_outlined,
           emptyTitle: 'No escrows',

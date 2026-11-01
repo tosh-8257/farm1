@@ -57,6 +57,7 @@ class _BusinessWalletPageState extends State<BusinessWalletPage> {
         body: BizAsync<Map<String, dynamic>>(
           key: _key,
           load: BusinessOpsApi.wallet,
+          cacheKey: 'wallet',
           builder: (c, w, _) {
             final separate = w['separate_from_personal'] == true;
             return ListView(padding: const EdgeInsets.all(20), children: [
@@ -263,6 +264,7 @@ class _TxState extends State<BusinessTransactionsPage> {
             child: BizAsync<List<Map<String, dynamic>>>(
               key: ValueKey(_filter),
               load: () => BusinessOpsApi.transactions(status: _filter == 'all' ? null : _filter),
+              cacheKey: 'transactions:$_filter',
               isEmpty: (l) => l.isEmpty,
               emptyTitle: 'No transactions',
               emptyMessage: 'Business payments and transfers will appear here.',
@@ -338,6 +340,7 @@ class _PayoutsState extends State<PayoutsPage> {
         body: BizAsync<List<Map<String, dynamic>>>(
           key: _key,
           load: BusinessOpsApi.payouts,
+          cacheKey: 'payouts',
           isEmpty: (l) => l.isEmpty,
           emptyTitle: 'No payouts yet',
           emptyMessage: 'Withdraw your business balance to a bank or mobile money account.',

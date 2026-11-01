@@ -27,6 +27,7 @@ class _LinksState extends State<PaymentLinksPage> {
         body: BizAsync<List<Map<String, dynamic>>>(
           key: _key,
           load: BusinessOpsApi.links,
+          cacheKey: 'links',
           isEmpty: (l) => l.isEmpty,
           emptyIcon: Icons.link_rounded,
           emptyTitle: 'No payment links',

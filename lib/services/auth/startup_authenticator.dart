@@ -20,7 +20,12 @@ class StartupAuthenticator {
 
   /// Restore persisted session and attempt silent token refresh.
   /// Call this before `runApp()` so routing decisions can rely on restored state.
-  Future<void> restoreSession() async {
+  ///
+  /// With [verifyInBackground] the persisted session is restored from local
+  /// storage only and the app can paint immediately; the token refresh and
+  /// profile check then run in the background ([verifySession]). A session the
+  /// server rejects is still cleared by RefreshManager, exactly as before.
+  Future<void> restoreSession({bool verifyInBackground = false}) async {
     final state = FFAppState();
     state.setAuthStartupState(AuthStartupState.initializing);
     debugPrint('[AUTH STARTUP] Beginning session restoration');
@@ -56,7 +61,36 @@ class StartupAuthenticator {
       state.isLoggedIn =
           state.accessToken.isNotEmpty || state.refreshToken.isNotEmpty;
 
-      // Try a forced refresh to ensure tokens are valid. If refresh succeeds,
+      if (verifyInBackground) {
+        state.setAuthStartupState(AuthStartupState.authenticated);
+        _pendingVerify = true;
+        debugPrint('[AUTH STARTUP] Restored locally; verifying in background');
+        return;
+      }
+      await _verify();
+      debugPrint('[AUTH STARTUP] Authenticated state restored');
+    } catch (e) {
+      _onRestoreError(e);
+    }
+  }
+
+  bool _pendingVerify = false;
+  Future<void>? _verifying;
+
+  /// Background half of [restoreSession]: forced refresh + profile identity
+  /// check. Safe to call more than once; runs at most once at a time.
+  Future<void> verifySession() {
+    if (!_pendingVerify) return _verifying ?? Future.value();
+    _pendingVerify = false;
+    return _verifying ??= _verify()
+        .catchError((Object e) => debugPrint('[AUTH STARTUP] Background verify failed: $e'))
+        .whenComplete(() => _verifying = null);
+  }
+
+  Future<void> _verify() async {
+    final state = FFAppState();
+    {
+      // Forced refresh to ensure tokens are valid. If refresh succeeds,
       // the RefreshManager will update persisted session tokens as needed.
       bool refreshed = false;
       try {
@@ -98,9 +132,15 @@ class StartupAuthenticator {
         debugPrint(
             '[AUTH STARTUP] Preserving persisted session after temporary refresh failure');
       }
-      state.setAuthStartupState(AuthStartupState.authenticated);
-      debugPrint('[AUTH STARTUP] Authenticated state restored');
-    } catch (e) {
+      if (state.isLoggedIn) {
+        state.setAuthStartupState(AuthStartupState.authenticated);
+      }
+    }
+  }
+
+  void _onRestoreError(Object e) {
+    final state = FFAppState();
+    {
       if (state.refreshToken.isNotEmpty || state.accessToken.isNotEmpty) {
         state.isLoggedIn = true;
         state.setAuthStartupState(AuthStartupState.authenticated);

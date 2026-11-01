@@ -16,6 +16,7 @@ import 'core/app_theme.dart';
 import 'core/localization/app_locale_service.dart';
 import 'web_url_strategy.dart';
 import 'services/app_session_manager.dart';
+import 'services/offline_cache.dart';
 import 'services/biometric_lock_service.dart';
 import 'services/notification_service.dart';
 import 'services/socket_service.dart';
@@ -48,18 +49,27 @@ void main() async {
   ErrorWidget.builder =
       (FlutterErrorDetails details) => buildSafeErrorWidget(details);
 
-  await EasyLocalization.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  debugPrint('Restoring the persisted secure login session...');
-  await FFAppState().initializePersistedState();
-  // Attempt to restore persisted session and perform a silent refresh before
-  // the app is started so routing decisions can use restored auth state.
-  await StartupAuthenticator().restoreSession();
-  await FlutterFlowTheme.initialize();
+  // Only local, fast work happens before the first frame. Independent steps
+  // run in parallel; nothing here waits on the network.
+  final prefsFuture = SharedPreferences.getInstance();
+  await Future.wait([
+    EasyLocalization.ensureInitialized(),
+    Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
+    FlutterFlowTheme.initialize(),
+    () async {
+      debugPrint('Restoring the persisted secure login session...');
+      await FFAppState().initializePersistedState();
+      // Restore the session from local storage only; the token refresh and
+      // profile check run after the first frame (see below), so reopening the
+      // app after a long time never waits on the network to paint.
+      await StartupAuthenticator().restoreSession(verifyInBackground: true);
+      // Last known balances / transactions for instant first paint.
+      await OfflineCache.load(FFAppState().userId, prefs: await prefsFuture);
+      FFAppState().hydrateFromOfflineCache();
+    }(),
+  ]);
 
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = await prefsFuture;
   final savedLanguage = prefs.getString('language');
   final languageCode = FFAppState().isLoggedIn &&
           AppLocaleService.supportedLocales
@@ -71,11 +81,19 @@ void main() async {
   if (FFAppState().isLoggedIn &&
       FFAppState().refreshToken.isNotEmpty &&
       FFAppState().isUser) {
-    Future.microtask(() {
-      AppSessionManager().refreshAppData().catchError((e) {
+    // Revalidate in the background once the first frame is on screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      StartupAuthenticator()
+          .verifySession()
+          .then((_) => AppSessionManager().refreshAppData())
+          .catchError((e) {
         debugPrint('[Main] Initial app refresh failed: $e');
       });
     });
+  } else {
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(StartupAuthenticator().verifySession()),
+    );
   }
 
   configureUrlStrategy();
@@ -99,7 +117,9 @@ void main() async {
 
     // These services are optional at launch. They must not prevent the first
     // frame when device permissions or the backend are unavailable.
-    unawaited(_initializeOptionalServices());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(_initializeOptionalServices()),
+    );
   }, (error, stack) {
     // Print uncaught errors to console so they appear in the browser devtools
     // and in the terminal running `flutter run`.
