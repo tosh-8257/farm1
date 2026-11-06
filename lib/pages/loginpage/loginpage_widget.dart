@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '/core/app_config.dart';
+import '/core/african_phone_countries.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
@@ -9,10 +10,13 @@ import '../../core/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'loginpage_model.dart';
 export 'loginpage_model.dart';
+export '/core/african_phone_countries.dart' show kDefaultLoginCountry, kAfricanPhoneCountries;
 import '/admin/pages/admin_shell.dart';
 import '/pages/superadmin/superadmin_dashboard_page.dart';
 import '/services/auth/auth_service.dart';
 import '/services/auth/biometric_login_service.dart';
+import '/services/auth/biometric_reauth.dart';
+import '/services/biometric_lock_service.dart';
 import '/services/auth/session_store_service.dart';
 import '/pages/forgot_password_page/forgot_password_page_widget.dart';
 import '/pages/otppage/otppage_widget.dart';
@@ -29,13 +33,6 @@ import '/services/auth/device_identity.dart';
 /// spacing and typography  Important:  * Design should feel like a secure
 /// banking app * Professional and trustworthy UI * Keep layout simple and
 /// elegant TAKE TIME AND DO IT IN DETAIL
-const Map<String, String> kDefaultLoginCountry = {
-  'name': 'Kenya',
-  'iso': 'KE',
-  'code': '+254',
-  'flag': '🇰🇪',
-};
-
 class LoginpageWidget extends StatefulWidget {
   const LoginpageWidget({super.key});
 
@@ -59,72 +56,9 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
   // Kenya is the primary market; users can still pick any country.
   Map<String, String> _selectedCountry = Map.of(kDefaultLoginCountry);
 
-  final List<Map<String, String>> _africanCountries = [
-    {'name': 'Algeria', 'iso': 'DZ', 'code': '+213', 'flag': '🇩🇿'},
-    {'name': 'Angola', 'iso': 'AO', 'code': '+244', 'flag': '🇦🇴'},
-    {'name': 'Benin', 'iso': 'BJ', 'code': '+229', 'flag': '🇧🇯'},
-    {'name': 'Botswana', 'iso': 'BW', 'code': '+267', 'flag': '🇧🇼'},
-    {'name': 'Burkina Faso', 'iso': 'BF', 'code': '+226', 'flag': '🇧🇫'},
-    {'name': 'Burundi', 'iso': 'BI', 'code': '+257', 'flag': '🇧🇮'},
-    {'name': 'Cabo Verde', 'iso': 'CV', 'code': '+238', 'flag': '🇨🇻'},
-    {'name': 'Cameroon', 'iso': 'CM', 'code': '+237', 'flag': '🇨🇲'},
-    {
-      'name': 'Central African Republic',
-      'iso': 'CF',
-      'code': '+236',
-      'flag': '🇨🇫'
-    },
-    {'name': 'Chad', 'iso': 'TD', 'code': '+235', 'flag': '🇹🇩'},
-    {'name': 'Comoros', 'iso': 'KM', 'code': '+269', 'flag': '🇰🇲'},
-    {'name': 'Congo', 'iso': 'CG', 'code': '+242', 'flag': '🇨🇬'},
-    {'name': 'DR Congo', 'iso': 'CD', 'code': '+243', 'flag': '🇨🇩'},
-    {'name': 'Cote d\'Ivoire', 'iso': 'CI', 'code': '+225', 'flag': '🇨🇮'},
-    {'name': 'Djibouti', 'iso': 'DJ', 'code': '+253', 'flag': '🇩🇯'},
-    {'name': 'Egypt', 'iso': 'EG', 'code': '+20', 'flag': '🇪🇬'},
-    {'name': 'Equatorial Guinea', 'iso': 'GQ', 'code': '+240', 'flag': '🇬🇶'},
-    {'name': 'Eritrea', 'iso': 'ER', 'code': '+291', 'flag': '🇪🇷'},
-    {'name': 'Eswatini', 'iso': 'SZ', 'code': '+268', 'flag': '🇸🇿'},
-    {'name': 'Ethiopia', 'iso': 'ET', 'code': '+251', 'flag': '🇪🇹'},
-    {'name': 'Gabon', 'iso': 'GA', 'code': '+241', 'flag': '🇬🇦'},
-    {'name': 'Gambia', 'iso': 'GM', 'code': '+220', 'flag': '🇬🇲'},
-    {'name': 'Ghana', 'iso': 'GH', 'code': '+233', 'flag': '🇬🇭'},
-    {'name': 'Guinea', 'iso': 'GN', 'code': '+224', 'flag': '🇬🇳'},
-    {'name': 'Guinea-Bissau', 'iso': 'GW', 'code': '+245', 'flag': '🇬🇼'},
-    {'name': 'Kenya', 'iso': 'KE', 'code': '+254', 'flag': '🇰🇪'},
-    {'name': 'Lesotho', 'iso': 'LS', 'code': '+266', 'flag': '🇱🇸'},
-    {'name': 'Liberia', 'iso': 'LR', 'code': '+231', 'flag': '🇱🇷'},
-    {'name': 'Libya', 'iso': 'LY', 'code': '+218', 'flag': '🇱🇾'},
-    {'name': 'Madagascar', 'iso': 'MG', 'code': '+261', 'flag': '🇲🇬'},
-    {'name': 'Malawi', 'iso': 'MW', 'code': '+265', 'flag': '🇲🇼'},
-    {'name': 'Mali', 'iso': 'ML', 'code': '+223', 'flag': '🇲🇱'},
-    {'name': 'Mauritania', 'iso': 'MR', 'code': '+222', 'flag': '🇲🇷'},
-    {'name': 'Mauritius', 'iso': 'MU', 'code': '+230', 'flag': '🇲🇺'},
-    {'name': 'Morocco', 'iso': 'MA', 'code': '+212', 'flag': '🇲🇦'},
-    {'name': 'Mozambique', 'iso': 'MZ', 'code': '+258', 'flag': '🇲🇿'},
-    {'name': 'Namibia', 'iso': 'NA', 'code': '+264', 'flag': '🇳🇦'},
-    {'name': 'Niger', 'iso': 'NE', 'code': '+227', 'flag': '🇳🇪'},
-    {'name': 'Nigeria', 'iso': 'NG', 'code': '+234', 'flag': '🇳🇬'},
-    {'name': 'Rwanda', 'iso': 'RW', 'code': '+250', 'flag': '🇷🇼'},
-    {
-      'name': 'Sao Tome and Principe',
-      'iso': 'ST',
-      'code': '+239',
-      'flag': '🇸🇹'
-    },
-    {'name': 'Senegal', 'iso': 'SN', 'code': '+221', 'flag': '🇸🇳'},
-    {'name': 'Seychelles', 'iso': 'SC', 'code': '+248', 'flag': '🇸🇨'},
-    {'name': 'Sierra Leone', 'iso': 'SL', 'code': '+232', 'flag': '🇸🇱'},
-    {'name': 'Somalia', 'iso': 'SO', 'code': '+252', 'flag': '🇸🇴'},
-    {'name': 'South Africa', 'iso': 'ZA', 'code': '+27', 'flag': '🇿🇦'},
-    {'name': 'South Sudan', 'iso': 'SS', 'code': '+211', 'flag': '🇸🇸'},
-    {'name': 'Sudan', 'iso': 'SD', 'code': '+249', 'flag': '🇸🇩'},
-    {'name': 'Tanzania', 'iso': 'TZ', 'code': '+255', 'flag': '🇹🇿'},
-    {'name': 'Togo', 'iso': 'TG', 'code': '+228', 'flag': '🇹🇬'},
-    {'name': 'Tunisia', 'iso': 'TN', 'code': '+216', 'flag': '🇹🇳'},
-    {'name': 'Uganda', 'iso': 'UG', 'code': '+256', 'flag': '🇺🇬'},
-    {'name': 'Zambia', 'iso': 'ZM', 'code': '+260', 'flag': '🇿🇲'},
-    {'name': 'Zimbabwe', 'iso': 'ZW', 'code': '+263', 'flag': '🇿🇼'},
-  ];
+  final List<Map<String, String>> _africanCountries = kAfricanPhoneCountries;
+
+
 
   final String baseUrl = '${AppConfig.api}/auth';
 
@@ -311,6 +245,23 @@ class _LoginpageWidgetState extends State<LoginpageWidget> {
         if (pendingLoginId.isEmpty) {
           throw Exception(
               'Unable to start phone verification. Please try again.');
+        }
+        if (FFAppState().biometricsEnabled && mounted) {
+          try {
+            final unlocked = await BiometricLockService().authenticate(
+              localizedReason:
+                  'Unlock FARM with biometrics instead of an SMS code.',
+            );
+            if (unlocked) {
+              final renewed = await BiometricReauth.exchange();
+              if (renewed != null && mounted) {
+                await _finalizeSuccessfulLogin(renewed);
+                return;
+              }
+            }
+          } catch (e) {
+            debugPrint('[Login] Biometric re-auth unavailable, using SMS: $e');
+          }
         }
         if (!mounted) return;
         context.go(

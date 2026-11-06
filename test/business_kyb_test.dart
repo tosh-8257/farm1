@@ -23,8 +23,12 @@ void main() {
       expect(kybCanStart(KybUiState.notStarted), isTrue);
     });
 
-    test('verified copy says approval is still manual', () {
-      expect(kybBody(KybUiState.verified), contains('still review'));
+    test('verified copy is Didit-only', () {
+      expect(kybBody(KybUiState.verified), contains('Didit'));
+      expect(kybBody(KybUiState.verified).toLowerCase(), isNot(contains('manual')));
+      expect(kybBody(KybUiState.declined).toLowerCase(), contains('no manual option'));
+      expect(kybAllowsApplicationSubmit(KybUiState.notStarted), isFalse);
+      expect(kybAllowsApplicationSubmit(KybUiState.verified), isTrue);
     });
   });
 
@@ -33,6 +37,7 @@ void main() {
       final m = kybErrorMessage(
           const ApiServiceException(statusCode: 503, message: 'x'));
       expect(m, contains('not available yet'));
+      expect(m.toLowerCase(), contains('manual kyb is not available'));
     });
     test('409 passes server message', () {
       expect(

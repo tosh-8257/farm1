@@ -65,9 +65,14 @@ class _OnboardingWidgetState extends State<OnboardingWidget> {
       _showAuthActions = false;
     });
 
-    // Always show onboarding for a short duration (2-4s) before proceeding.
-    const onboardingDisplay = Duration(milliseconds: 3000);
-    await Future.delayed(onboardingDisplay);
+    // Returning users go straight to biometric unlock or home. First-time
+    // visitors still see the intro, briefly.
+    final returning = FFAppState().isLoggedIn ||
+        FFAppState().refreshToken.isNotEmpty ||
+        FFAppState().accessToken.isNotEmpty;
+    if (!returning) {
+      await Future.delayed(const Duration(milliseconds: 600));
+    }
 
     if (!mounted) return;
 

@@ -140,7 +140,9 @@ void main() {
     await _loadFonts();
   });
   setUp(() async {
+    // ignore: invalid_use_of_visible_for_testing_member
     SharedPreferences.setMockInitialValues({'adminName': 'Super Admin', 'adminRole': 'super_admin'});
+    // ignore: invalid_use_of_visible_for_testing_member
     FlutterSecureStorage.setMockInitialValues({});
     FFAppState.reset();
     await AuthSessionStore.saveRoleSession(role: 'super_admin', accessToken: _jwt(), refreshToken: 'r', userId: 'sa-1');

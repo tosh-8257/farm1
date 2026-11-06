@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '/app_state.dart';
+import '/utils/personal_activity.dart';
 import '/backend/services/api_service.dart';
 import '/services/auth/refresh_manager.dart';
 
@@ -60,8 +61,11 @@ class AppSessionManager {
         limit: 5,
         timeoutSeconds: 4,
       );
-      FFAppState().recentTransactions =
-          List<Map<String, dynamic>>.from(_extractList(response));
+      FFAppState().recentTransactions = _extractList(response)
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .where(isPersonalActivity)
+          .toList();
     } catch (error) {
       debugPrint('[AppSessionManager] Transaction refresh failed: $error');
     }
@@ -227,7 +231,11 @@ class AppSessionManager {
           try {
             if (key == 'transactions') {
               final items = _extractList(res);
-              FFAppState().recentTransactions = List<Map<String, dynamic>>.from(items);
+              FFAppState().recentTransactions = items
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e))
+                  .where(isPersonalActivity)
+                  .toList();
             } else if (key == 'notifications') {
               final items = _extractList(res);
               final unreadCount = items.where((item) {
@@ -453,7 +461,11 @@ class AppSessionManager {
 
       if (txRes != null && txRes.isNotEmpty) {
         final txItems = _extractList(txRes);
-        FFAppState().recentTransactions = List<Map<String, dynamic>>.from(txItems);
+        FFAppState().recentTransactions = txItems
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .where(isPersonalActivity)
+            .toList();
       }
     });
 

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '/components/farm_coin_icon.dart';
 import '../../core/app_theme.dart';
+import '/core/crypto_coin_limit.dart';
 import '/backend/api_requests/fees_api.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -68,7 +69,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   final Set<String> _loadingCryptoNetworks = {};
   final Map<String, String> _cryptoNetworkErrors = {};
   double? _cryptoFarmUsdRate;
-  double? _cryptoMinimumFarm;
+  CoinLimit? _coinLimit;
   bool _loadingCryptoMinimum = false;
   String? _cryptoMinimumError;
 
@@ -92,13 +93,8 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
     'CRYPTO': {'min': 2, 'max': null},
   };
 
-  static const double _cryptoMaxPerWithdrawalUsd = 100000;
-  double get _cryptoMaxUsd {
-    final balanceUsd = (_cryptoFarmUsdRate ?? 0) * walletBalance;
-    return balanceUsd < _cryptoMaxPerWithdrawalUsd
-        ? balanceUsd
-        : _cryptoMaxPerWithdrawalUsd;
-  }
+  double? get _cryptoMinUsd => _coinLimit?.minUsd;
+  double? get _cryptoMaxUsdLimit => _coinLimit?.maxUsd;
 
   double get amount => double.tryParse(_amountCtrl.text.trim()) ?? 0;
   double get feeRate => (_feeRule?.percent ?? 0) / 100;
@@ -114,11 +110,13 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   double? get _activeWithdrawMax => _activeWithdrawLimits['max'];
   bool get _hasValidWithdrawAmount {
     if (selectedMethod == 'CRYPTO') {
-      return _cryptoFarmUsdRate != null &&
-          _cryptoMinimumFarm != null &&
-          amount >= 2 &&
-          amount <= _cryptoMaxPerWithdrawalUsd &&
-          _amountInFarm <= walletBalance;
+      final minUsd = _cryptoMinUsd;
+      final maxUsd = _cryptoMaxUsdLimit;
+      return _coinLimit != null &&
+          amount > 0 &&
+          (minUsd == null || amount >= minUsd) &&
+          (maxUsd == null || amount <= maxUsd) &&
+          (_cryptoFarmUsdRate == null || _amountInFarm <= walletBalance);
     }
     return amount > 0 &&
         amount >= _activeWithdrawMin &&
@@ -134,19 +132,21 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
 
   String get _withdrawValidationMessage {
     if (selectedMethod == 'CRYPTO') {
-      if (_loadingCryptoMinimum) return 'Loading crypto withdrawal minimum...';
+      if (_loadingCryptoMinimum) return 'Loading ${selectedCryptoAsset.toUpperCase()} limits...';
       if (_cryptoMinimumError != null) {
-        return 'Could not load crypto minimum: $_cryptoMinimumError';
+        return 'Could not load ${selectedCryptoAsset.toUpperCase()} limits: $_cryptoMinimumError';
+      }
+      if (_coinLimit == null) {
+        return 'Limits for ${selectedCryptoAsset.toUpperCase()} were not returned.';
+      }
+      if (amount <= 0) return _coinLimit!.rangeLabel;
+      if (_cryptoMinUsd != null && amount < _cryptoMinUsd!) {
+        return 'Minimum ${selectedCryptoAsset.toUpperCase()} withdrawal is USD ${_cryptoMinUsd!.toStringAsFixed(2)}';
+      }
+      if (_cryptoMaxUsdLimit != null && amount > _cryptoMaxUsdLimit!) {
+        return 'Maximum ${selectedCryptoAsset.toUpperCase()} withdrawal is USD ${_cryptoMaxUsdLimit!.toStringAsFixed(2)}';
       }
       final maxUsd = (_cryptoFarmUsdRate ?? 0) * walletBalance;
-      // Min/Max are already shown above the message; only surface errors here.
-      if (amount <= 0) return '';
-      if (amount < 2) {
-        return 'Minimum crypto withdrawal is USD 2.00';
-      }
-      if (amount > _cryptoMaxPerWithdrawalUsd) {
-        return 'Maximum crypto withdrawal is USD 100,000 per withdrawal';
-      }
       if (_cryptoFarmUsdRate != null && _amountInFarm > walletBalance) {
         return 'Amount exceeds your available balance (USD ${maxUsd.toStringAsFixed(2)} max)';
       }
@@ -361,43 +361,38 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   }
 
   Future<void> _fetchCryptoWithdrawalMinimum() async {
+    final asset = selectedCryptoAsset;
     setState(() {
       _loadingCryptoMinimum = true;
       _cryptoMinimumError = null;
     });
     try {
-      final response = await ApiService.request(
-        method: 'GET',
-        path: '/withdraw/crypto/minimum',
-        requiresAuth: true,
-      );
-      final data = response['data'];
-      final farmUsdRate = data is Map
-          ? double.tryParse(data['farmUsdRate']?.toString() ?? '')
-          : null;
-      final minimumFarm = data is Map
-          ? double.tryParse(data['minimumFarm']?.toString() ?? '')
-          : null;
-      if (farmUsdRate == null ||
-          !farmUsdRate.isFinite ||
-          farmUsdRate <= 0 ||
-          minimumFarm == null ||
-          !minimumFarm.isFinite ||
-          minimumFarm <= 0) {
-        throw const FormatException(
-          'NOWPayments minimum conversion data is invalid.',
+      final limit = await fetchWithdrawCoinLimit(asset);
+      if (!mounted || selectedCryptoAsset != asset) return;
+      double? farmUsdRate = _cryptoFarmUsdRate;
+      try {
+        final response = await ApiService.request(
+          method: 'GET',
+          path: '/withdraw/crypto/minimum',
+          requiresAuth: true,
         );
-      }
-      if (!mounted) return;
+        final data = response['data'];
+        if (data is Map) {
+          farmUsdRate = double.tryParse('${data['farmUsdRate'] ?? ''}') ?? farmUsdRate;
+        }
+      } catch (_) {}
+      if (!mounted || selectedCryptoAsset != asset) return;
       setState(() {
+        _coinLimit = limit;
         _cryptoFarmUsdRate = farmUsdRate;
-        _cryptoMinimumFarm = minimumFarm;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || selectedCryptoAsset != asset) return;
       setState(() => _cryptoMinimumError = userErrorMessage(error));
     } finally {
-      if (mounted) setState(() => _loadingCryptoMinimum = false);
+      if (mounted && selectedCryptoAsset == asset) {
+        setState(() => _loadingCryptoMinimum = false);
+      }
     }
   }
 
@@ -1021,7 +1016,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                 setState(() {
                   selectedCryptoAsset = value;
                   selectedCryptoNetwork = null;
+                  _coinLimit = null;
                 });
+                unawaited(_fetchCryptoWithdrawalMinimum());
               },
             ),
             const SizedBox(height: 8),
@@ -1186,7 +1183,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Row(mainAxisSize: MainAxisSize.min, children: [const FarmCoinIcon(size: 28), const SizedBox(width: 10), Flexible(child: Text(
+                              Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [const FarmCoinIcon(size: 28, color: AppTheme.accent), const SizedBox(width: 8), Flexible(child: Text(
                                 '${walletBalance.toStringAsFixed(4)} FARM',
                                 style: GoogleFonts.plusJakartaSans(
                                   color: AppTheme.accent,
@@ -1246,7 +1243,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                           children: [
                             Text(
                               selectedMethod == 'CRYPTO'
-                                  ? 'Min: USD 2.00'
+                                  ? (_coinLimit?.minAmount != null
+                                      ? 'Min: ${_coinLimit!.minAmount} ${selectedCryptoAsset.toUpperCase()}'
+                                      : 'Min: USD ${(_cryptoMinUsd ?? 0).toStringAsFixed(2)}')
                                   : 'Min: FARM ${_formatAmount(_activeWithdrawMin)}',
                               style: GoogleFonts.plusJakartaSans(
                                 color: theme.secondaryText,
@@ -1254,11 +1253,15 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                               ),
                             ),
                             Text(
-                              _activeWithdrawMax == null
-                                  ? selectedMethod == 'CRYPTO'
-                                        ? 'Max: USD ${_cryptoMaxUsd.toStringAsFixed(2)}'
-                                        : 'Max: FARM no limit'
-                                  : 'Max: FARM ${_formatAmount(_activeWithdrawMax!)}',
+                              selectedMethod == 'CRYPTO'
+                                  ? (_coinLimit?.maxAmount != null
+                                      ? 'Max: ${_coinLimit!.maxAmount} ${selectedCryptoAsset.toUpperCase()}'
+                                      : _cryptoMaxUsdLimit == null
+                                          ? 'Max: not set for this coin'
+                                          : 'Max: USD ${_cryptoMaxUsdLimit!.toStringAsFixed(2)}')
+                                  : _activeWithdrawMax == null
+                                      ? 'Max: FARM no limit'
+                                      : 'Max: FARM ${_formatAmount(_activeWithdrawMax!)}',
                               style: GoogleFonts.plusJakartaSans(
                                 color: theme.secondaryText,
                                 fontSize: 12,

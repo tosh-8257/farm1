@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '/backend/api_requests/business_ops_api.dart';
 import 'ops_ui.dart';
+import 'team_logic.dart';
 
 class TeamPage extends StatefulWidget {
   const TeamPage({super.key});
@@ -9,7 +10,7 @@ class TeamPage extends StatefulWidget {
 }
 
 class _TeamState extends State<TeamPage> {
-  final _key = GlobalKey<BizAsyncState<Map<String, dynamic>>>();
+  final _key = GlobalKey<BizAsyncState<TeamSnapshot>>();
   List<String> _assignable = const [];
 
   String _name(Map? u) {
@@ -36,7 +37,7 @@ class _TeamState extends State<TeamPage> {
     final ident = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add team member'),
+        title: const Text('Invite team member'),
         content: TextField(controller: ctrl, autofocus: true, decoration: bizInput(ctx, 'Username, phone or email')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -51,10 +52,15 @@ class _TeamState extends State<TeamPage> {
     final pin = await confirmWithPin(context,
         title: 'Confirm', message: 'Give $ident the ${businessRoleLabels[role]} role on your business?');
     if (pin == null || !mounted) return;
+    final phoneInvite = teamIdentifierIsPhone(ident);
     final ok = await runBusy(context, () async {
-      await BusinessOpsApi.addMember(ident, role, pin);
+      if (phoneInvite) {
+        await BusinessOpsApi.invite(normalizeTeamPhone(ident), role, pin);
+      } else {
+        await BusinessOpsApi.addMember(ident, role, pin);
+      }
       return true;
-    }, success: 'Team member added');
+    }, success: phoneInvite ? 'Invitation sent' : 'Team member added');
     if (ok == true) _key.currentState?.reload();
   }
 
@@ -95,35 +101,97 @@ class _TeamState extends State<TeamPage> {
   @override
   Widget build(BuildContext context) => BizScaffold(
         title: 'Team',
-        fab: _assignable.isEmpty ? null : BizFab(label: 'Add member', onPressed: _add),
-        body: BizAsync<Map<String, dynamic>>(
+        fab: _assignable.isEmpty ? null : BizFab(label: 'Invite', onPressed: _add),
+        body: BizAsync<TeamSnapshot>(
           key: _key,
           load: () async {
-            final r = await BusinessOpsApi.team();
-            final meta = (r['meta'] as Map?) ?? {};
-            final a = ((meta['assignable_roles'] as List?) ?? const []).map((e) => '$e').toList();
-            if (mounted && a.join() != _assignable.join()) {
+            final response = await BusinessOpsApi.team();
+            List<Map<String, dynamic>> incoming = const [];
+            try {
+              incoming = BusinessOpsApi.list(await BusinessOpsApi.myInvites());
+            } catch (_) {}
+            response['incoming'] = incoming;
+            final snap = parseTeamResponse(response);
+            if (mounted && snap.assignableRoles.join() != _assignable.join()) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) setState(() => _assignable = a);
+                if (mounted) setState(() => _assignable = snap.assignableRoles);
               });
             }
-            return r;
+            return snap;
           },
-          builder: (c, r, _) {
-            final members = BusinessOpsApi.list(r);
+          cacheKey: 'team',
+          builder: (c, snap, _) {
+            final members = snap.members;
             return ListView(padding: const EdgeInsets.all(16), children: [
+              Text('People on this business, the role each one has, and pending invites.',
+                  style: TextStyle(color: mutedColor(c))),
+              const SizedBox(height: 12),
+              if (snap.incoming.isNotEmpty) ...[
+                Text('Invitations for you', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+                for (final inv in snap.incoming)
+                  BizTile(
+                    leading: Icons.mark_email_unread_outlined,
+                    title: '${(inv['business'] as Map?)?['name'] ?? inv['phone'] ?? 'Invitation'}',
+                    subtitle: businessRoleLabels['${inv['role']}'] ?? '${inv['role']}',
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      TextButton(
+                        onPressed: () async {
+                          final ok = await runBusy(c, () async {
+                            await BusinessOpsApi.declineInvite('${inv['id']}');
+                            return true;
+                          }, success: 'Invitation declined');
+                          if (ok == true) _key.currentState?.reload();
+                        },
+                        child: const Text('Decline'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          final ok = await runBusy(c, () async {
+                            await BusinessOpsApi.acceptInvite('${inv['id']}');
+                            return true;
+                          }, success: 'You joined the team');
+                          if (ok == true) _key.currentState?.reload();
+                        },
+                        child: const Text('Accept'),
+                      ),
+                    ]),
+                  ),
+                const SizedBox(height: 12),
+              ],
               for (final m in members)
                 BizTile(
                   leading: Icons.person_outline,
                   title: _name(m['user'] as Map?),
-                  subtitle: '${(m['permissions'] as List?)?.length ?? 0} permissions',
+                  subtitle: businessRoleLabels['${m['role']}'] ?? '${m['role']}',
                   trailing: StatusChip(businessRoleLabels['${m['role']}'] ?? '${m['role']}', filled: m['role'] == 'owner'),
                   onTap: m['id'] != null && _assignable.contains('${m['role']}') ? () => _manage(m) : null,
                 ),
-              if (members.length == 1)
+              if (snap.invites.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text('Pending invites', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+                for (final inv in snap.invites)
+                  BizTile(
+                    leading: Icons.mail_outline,
+                    title: '${inv['phone'] ?? inv['identifier'] ?? 'Invite'}',
+                    subtitle: businessRoleLabels['${inv['role']}'] ?? '${inv['role'] ?? 'Pending'}',
+                    trailing: _assignable.isEmpty
+                        ? const StatusChip('Pending')
+                        : TextButton(
+                            onPressed: () async {
+                              final ok = await runBusy(c, () async {
+                                await BusinessOpsApi.revokeInvite('${inv['id']}');
+                                return true;
+                              }, success: 'Invitation revoked');
+                              if (ok == true) _key.currentState?.reload();
+                            },
+                            child: const Text('Revoke'),
+                          ),
+                  ),
+              ],
+              if (members.length <= 1 && snap.invites.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Text('Only you so far. Add teammates and give each the role they need.',
+                  child: Text('Only you so far. Invite teammates and give each the role they need.',
                       style: TextStyle(color: mutedColor(c))),
                 ),
             ]);

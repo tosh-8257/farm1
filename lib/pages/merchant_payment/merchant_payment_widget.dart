@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '/components/farm_coin_icon.dart';
 import '/backend/services/api_service.dart';
 import '/services/transaction_authentication_service.dart';
 import '/services/transaction_authorization_service.dart';
@@ -405,9 +406,15 @@ class _MerchantPaymentWidgetState extends State<MerchantPaymentWidget> {
             const SizedBox(height: 4),
             Text('Merchant ID: ${widget.merchantId}', style: theme.bodyMedium),
             const SizedBox(height: 24),
-            Text(
-              'Pay with FARM wallet',
-              style: theme.titleMedium.copyWith(fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                FarmCoinIcon(size: 20, color: theme.titleMedium.color),
+                const SizedBox(width: 8),
+                Text(
+                  'Pay with FARM wallet',
+                  style: theme.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text('Amount',

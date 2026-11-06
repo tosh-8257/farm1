@@ -1,3 +1,4 @@
+import '/components/farm_coin_icon.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'package:flutter/material.dart';
@@ -149,7 +150,15 @@ class _MerchantTransactionItemWidgetState
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FarmCoinIcon(
+                            size: 16,
+                            color: FlutterFlowTheme.of(context).primaryText,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
                         '${widget.amount} FARM',
                         style: FlutterFlowTheme.of(context).bodyLarge.override(
                               font: GoogleFonts.inter(
@@ -166,6 +175,8 @@ class _MerchantTransactionItemWidgetState
                                   .fontStyle,
                               lineHeight: 1.5,
                             ),
+                      ),
+                        ],
                       ),
                       Text(
                         valueOrDefault<String>(

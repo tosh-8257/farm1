@@ -1,6 +1,7 @@
 import UIKit
 import Flutter
 import Photos
+import MediaPlayer
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -15,6 +16,15 @@ import Photos
     if let controller = window?.rootViewController as? FlutterViewController {
       methodChannel = FlutterMethodChannel(name: channelName, binaryMessenger: controller.binaryMessenger)
       methodChannel?.setMethodCallHandler(handle)
+      let voice = FlutterMethodChannel(name: "farm.mkulima_voice", binaryMessenger: controller.binaryMessenger)
+      let command = MPRemoteCommandCenter.shared()
+      let fire: (MPRemoteCommandEvent) -> MPRemoteCommandHandlerStatus = { _ in
+        voice.invokeMethod("headset", arguments: nil)
+        return .success
+      }
+      command.togglePlayPauseCommand.addTarget(handler: fire)
+      command.playCommand.addTarget(handler: fire)
+      UIApplication.shared.beginReceivingRemoteControlEvents()
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }

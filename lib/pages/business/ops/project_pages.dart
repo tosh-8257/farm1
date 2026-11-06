@@ -1,7 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '/backend/api_requests/investments_api.dart';
 import '/backend/services/api_service.dart';
+import 'project_logic.dart';
 import '/pages/investments/investment_pages.dart' show openDoc, MilestoneList;
 import 'ops_ui.dart';
 import '/pages/investments/project_funds_page.dart';
@@ -108,6 +112,23 @@ class _ProjectEditorPageState extends State<ProjectEditorPage> {
     };
   }
 
+  Future<void> _uploadCover() async {
+    final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
+    final urls = await runBusy(
+      context,
+      () => ApiService.uploadImages(
+        files: [bytes],
+        filenames: [file.name],
+        mimeTypes: [file.mimeType ?? 'image/jpeg'],
+      ),
+    );
+    if (urls != null && urls.isNotEmpty && mounted) {
+      setState(() => _t['banner_image']!.text = '${urls.first}');
+    }
+  }
+
   Future<void> _save() async {
     final b = _body();
     if (b['project_name'] == null || (b['project_name'] as String).length < 3) {
@@ -166,6 +187,14 @@ class _ProjectEditorPageState extends State<ProjectEditorPage> {
           _tf('location', 'Location', hint: 'Town, county'),
           _tf('country', 'Country code', hint: 'KE'),
           _tf('banner_image', 'Cover image link (https)'),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _uploadCover,
+              icon: Icon(Icons.add_a_photo_outlined, color: fgColor(context)),
+              label: Text('Upload cover photo', style: TextStyle(color: fgColor(context))),
+            ),
+          ),
         ]),
       ),
       Step(
@@ -237,6 +266,28 @@ class BusinessProjectDetailPage extends StatefulWidget {
 class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
   final _key = GlobalKey<BizAsyncState<Map<String, dynamic>>>();
   Future<void> _reload() async => _key.currentState?.reload();
+
+  Future<void> _addPhotos() async {
+    final picked = await ImagePicker().pickMultiImage(imageQuality: 85);
+    if (picked.isEmpty || !mounted) return;
+    final files = picked.take(5).toList();
+    final r = await runBusy(context, () async {
+      final bytes = <Uint8List>[];
+      final names = <String>[];
+      final types = <String>[];
+      for (final f in files) {
+        bytes.add(await f.readAsBytes());
+        names.add(f.name);
+        types.add(f.mimeType ?? 'image/jpeg');
+      }
+      final urls = await ApiService.uploadImages(files: bytes, filenames: names, mimeTypes: types);
+      for (var i = 0; i < urls.length; i++) {
+        await InvestmentsApi.addDocument(widget.id, kind: 'other', title: names[i], url: urls[i], visibility: 'investors');
+      }
+      return true;
+    }, success: 'Photos added');
+    if (r != null) _reload();
+  }
 
   Future<void> _addDoc(Map<String, dynamic> p) async {
     final kind = await showDialog<String>(
@@ -362,12 +413,18 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
               const SizedBox(height: 16),
               Row(children: [
                 Expanded(child: Text('Documents', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c)))),
-                if (!['rejected', 'closed', 'cancelled'].contains(status))
+                if (!['rejected', 'closed', 'cancelled'].contains(status)) ...[
+                  TextButton.icon(
+                    onPressed: _addPhotos,
+                    icon: Icon(Icons.add_a_photo_outlined, color: fgColor(c)),
+                    label: Text('Photos', style: TextStyle(color: fgColor(c))),
+                  ),
                   TextButton.icon(
                     onPressed: () => _addDoc(p),
                     icon: Icon(Icons.upload_file, color: fgColor(c)),
                     label: Text('Add', style: TextStyle(color: fgColor(c))),
                   ),
+                ],
               ]),
               for (final k in required.where((k) => !have.contains(k)))
                 Text('Required: ${_lbl(documentKindLabels, k)}', style: TextStyle(color: mutedColor(c))),
@@ -434,7 +491,13 @@ class _BusinessProjectDetailPageState extends State<BusinessProjectDetailPage> {
                   child: const Text('Submit for review'),
                 ),
               ],
-              if (!['rejected', 'cancelled'].contains(status)) TokenizationCard(projectId: widget.id, projectStatus: status, targetAmount: p['target_amount']),
+              if (!['rejected', 'cancelled'].contains(status))
+                TokenizationCard(
+                  projectId: widget.id,
+                  projectStatus: status,
+                  targetAmount: p['target_amount'],
+                  filled: projectIsFilled(p),
+                ),
               if (canUpdate)
                 ElevatedButton(style: primaryButtonStyle(c), onPressed: _postUpdate, child: const Text('Post update to investors')),
               if (reviews.isNotEmpty) ...[
@@ -573,10 +636,11 @@ class _MilestoneEditorPageState extends State<MilestoneEditorPage> {
 
 /// Request tokenization of a funded project. FARM approves and creates the ASA.
 class TokenizationCard extends StatefulWidget {
-  const TokenizationCard({super.key, required this.projectId, this.projectStatus = 'funded', this.targetAmount});
+  const TokenizationCard({super.key, required this.projectId, this.projectStatus = 'funded', this.targetAmount, this.filled = false});
   final String projectId;
   final String projectStatus;
   final dynamic targetAmount;
+  final bool filled;
   @override
   State<TokenizationCard> createState() => _TokenizationCardState();
 }
@@ -677,8 +741,8 @@ class _TokenizationCardState extends State<TokenizationCard> {
               builder: (c, r, _) {
                 final t = r['data'] is Map ? Map<String, dynamic>.from(r['data'] as Map) : null;
                 final onInvestOn = r['on_invest_enabled'] == true;
-                final canOnInvest = preListing && onInvestOn;
-                final canPost = funded && r['enabled'] == true;
+                final canOnInvest = preListing && (onInvestOn || widget.filled);
+                final canPost = funded && (r['enabled'] == true || widget.filled);
                 final none = t == null || t['status'] == 'rejected';
                 final p = r['progress'] is Map ? r['progress'] as Map : null;
                 return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -689,12 +753,10 @@ class _TokenizationCardState extends State<TokenizationCard> {
                         t?['notes'] != null && (canOnInvest || canPost)
                             ? 'Previous request rejected: ${t!['notes']}'
                             : canOnInvest
-                                ? 'Tokenize now: investors get 1 token per FARM as they invest.'
+                                ? 'Submit this project for tokenization. Investors get 1 token per FARM as they invest, once FARM approves.'
                                 : canPost
-                                    ? 'Turn investor holdings into an Algorand token.'
-                                    : preListing || funded
-                                        ? 'Tokenization is not switched on yet.'
-                                        : 'Tokenization must be requested before listing (or after funding).',
+                                    ? 'Submit this funded project for tokenization.'
+                                    : 'Fill in the project name, summary and funding target, then submit for tokenization.',
                         style: TextStyle(color: mutedColor(c))),
                     const Spacer(),
                     OutlinedButton.icon(
@@ -705,7 +767,7 @@ class _TokenizationCardState extends State<TokenizationCard> {
                                 ? () => _request(onInvest: false)
                                 : null,
                         icon: const Icon(Icons.token_rounded, size: 18),
-                        label: const Text('Tokenize project')),
+                        label: const Text(submitForTokenizationLabel)),
                   ] else ...[
                     KeyValue('Status', tokenStatusLabels['${t['status']}'] ?? '${t['status']}'),
                     KeyValue('Token', '${t['asset_name']} (${t['unit_name']})'),

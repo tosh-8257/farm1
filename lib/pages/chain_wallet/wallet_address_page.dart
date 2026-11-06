@@ -158,7 +158,7 @@ class _ReceivedListState extends State<_ReceivedList> {
           return Column(children: [
             for (final d in l)
               BizTile(
-                leadingWidget: d['asset'] == 'FARM' ? const FarmCoinIcon(size: 28) : null,
+                leadingWidget: d['asset'] == 'FARM' ? FarmCoinIcon(size: 22, color: fgColor(c)) : null,
                 leading: d['asset'] == 'FARM' ? null : Icons.attach_money_rounded,
                 title: '${d['amount']} ${d['asset']}',
                 subtitle: [

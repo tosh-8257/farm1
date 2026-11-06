@@ -1,11 +1,10 @@
-import '/utils/user_error_message.dart';
 import '/backend/services/api_service.dart';
 
 /// UI states for the Didit KYB (business verification) step.
 enum KybUiState { notStarted, pending, inReview, verified, declined, actionNeeded }
 
 /// Maps the backend's normalised Didit KYB status to a UI state.
-/// The Didit result is advisory: FARM compliance still approves manually.
+/// Business KYB is Didit only. There is no manual verification option.
 KybUiState kybStateFor(String? status) {
   switch (status) {
     case 'approved':
@@ -41,11 +40,11 @@ String kybBody(KybUiState s) => const {
       KybUiState.pending:
           'Finish the Didit steps in your browser. When you are done, come back and tap Refresh.',
       KybUiState.inReview:
-          'Didit is reviewing your business. This can take a while; you can continue and submit your application.',
+          'Didit is reviewing your business. This can take a while. Refresh when you come back.',
       KybUiState.verified:
-          'Didit has verified your business. FARM compliance will still review your application before it is approved.',
+          'Didit has verified your business. You can submit the application.',
       KybUiState.declined:
-          'Didit could not verify your business. Check your registry details and try again, or submit and our team will review it.',
+          'Didit could not verify your business. Open verification again and correct the registry details. There is no manual option.',
       KybUiState.actionNeeded:
           'Didit needs more information. Open verification again to resubmit.',
     }[s]!;
@@ -58,13 +57,23 @@ bool kybCanStart(KybUiState s) =>
     s == KybUiState.actionNeeded;
 
 String kybStartLabel(KybUiState s) =>
-    s == KybUiState.notStarted ? 'Verify business' : 'Open verification again';
+    s == KybUiState.notStarted ? 'Verify with Didit' : 'Open Didit again';
+
+/// Submit is allowed only after Didit has been started or completed.
+bool kybAllowsApplicationSubmit(KybUiState s) =>
+    s == KybUiState.pending ||
+    s == KybUiState.inReview ||
+    s == KybUiState.verified ||
+    s == KybUiState.actionNeeded;
+
+const kybDiditRequiredMessage =
+    'Verify the business with Didit before submitting. Manual KYB is not available.';
 
 /// Friendly message for errors when starting KYB.
 String kybErrorMessage(Object error) {
   if (error is ApiServiceException) {
     if (error.statusCode == 503) {
-      return 'Business verification is not available yet. You can still submit your application for manual review.';
+      return 'Business verification with Didit is not available yet. Try again later. Manual KYB is not available.';
     }
     if (error.statusCode == 409) return error.message;
     if (error.statusCode == 429) {
@@ -75,8 +84,7 @@ String kybErrorMessage(Object error) {
     }
     return error.message;
   }
-  return userErrorMessage(error,
-      fallback: 'Could not start business verification. Please try again.');
+  return 'Could not start business verification. Please try again.';
 }
 
 /// Summary rows for the admin review screen from the stored Didit result.

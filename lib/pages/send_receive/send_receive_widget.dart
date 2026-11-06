@@ -1865,7 +1865,7 @@ class _SendReceiveWidgetState extends State<SendReceiveWidget>
                                       const SizedBox(
                                         height: 12,
                                       ),
-                                      Row(mainAxisSize: MainAxisSize.min, children: [const FarmCoinIcon(size: 30), const SizedBox(width: 10), Flexible(child: Text(
+                                      Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [FarmCoinIcon(size: 32, color: FlutterFlowTheme.of(context).brandAccentText), const SizedBox(width: 8), Flexible(child: Text(
                                         '${balance.toStringAsFixed(2)} FARM',
                                         style: FlutterFlowTheme.of(context)
                                             .headlineLarge

@@ -1,3 +1,4 @@
+import '/components/farm_coin_icon.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'package:flutter/material.dart';
@@ -155,7 +156,17 @@ class _TransactionItemWidgetState extends State<TransactionItemWidget> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FarmCoinIcon(
+                            size: 16,
+                            color: widget.is_negative
+                                ? FlutterFlowTheme.of(context).error
+                                : FlutterFlowTheme.of(context).success,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
                         valueOrDefault<String>(
                           widget.amount,
                           '-450 FARM',
@@ -177,6 +188,8 @@ class _TransactionItemWidgetState extends State<TransactionItemWidget> {
                                   .fontStyle,
                               lineHeight: 1.5,
                             ),
+                      ),
+                        ],
                       ),
                       Text(
                         valueOrDefault<String>(

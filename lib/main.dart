@@ -25,6 +25,7 @@ import 'pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 import 'pages/all_transactions/all_transactions_widget.dart';
 import 'pages/dashboard/dashboard_widget.dart';
 import 'admin/pages/admin_password_reset_page.dart';
+import 'utils/farmpay_checkout.dart';
 import 'utils/merchant_qr_parser.dart';
 
 Widget buildSafeErrorWidget(FlutterErrorDetails details) {
@@ -265,6 +266,33 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   void _handleIncomingAppLink(Uri uri) {
+    final documentCheckout = classifyFarmpayPath(uri.path);
+    final documentLocation = documentCheckout == null
+        ? null
+        : farmpayAppLocation(documentCheckout);
+    final isBusinessPayLink = uri.scheme == 'farm' &&
+        uri.host == 'farm.com' &&
+        uri.path == '/pay-business';
+    if (documentLocation != null || isBusinessPayLink) {
+      final code = isBusinessPayLink
+          ? uri.queryParameters['code']?.trim()
+          : documentCheckout?.kind == FarmpayCheckoutKind.paymentLink
+              ? documentCheckout!.ref
+              : null;
+      final invoice = isBusinessPayLink
+          ? uri.queryParameters['invoice']?.trim()
+          : documentCheckout?.kind == FarmpayCheckoutKind.invoice
+              ? documentCheckout!.ref
+              : null;
+      _router.go(Uri(
+        path: '/pay-business',
+        queryParameters: {
+          if (code != null && code.isNotEmpty) 'code': code,
+          if (invoice != null && invoice.isNotEmpty) 'invoice': invoice,
+        },
+      ).toString());
+      return;
+    }
     if (uri.scheme == 'farm' && uri.host == 'farm.com' && uri.path == '/pay') {
       final encodedPayload = uri.queryParameters['qr'];
       try {

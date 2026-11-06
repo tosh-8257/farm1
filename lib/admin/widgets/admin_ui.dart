@@ -59,7 +59,7 @@ class FarmAmount extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
-        FarmCoinIcon(size: size + 4),
+        FarmCoinIcon(size: size, color: color),
         const SizedBox(width: 6),
         Flexible(
           child: Text('${formatFarmAmount(value, sign: sign)} FARM',

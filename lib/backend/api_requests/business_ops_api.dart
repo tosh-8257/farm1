@@ -53,8 +53,18 @@ class BusinessOpsApi {
   static Future<Map<String, dynamic>> requestPayout(Map<String, dynamic> body) async =>
       data(await _call('POST', '/business/payouts', body));
 
-  // Team
+  // Team. Phone invites stay pending until accepted. Username or email adds now.
   static Future<Map<String, dynamic>> team() => _call('GET', '/business/team');
+  static Future<Map<String, dynamic>> myInvites() =>
+      _call('GET', '/business/team/invites');
+  static Future<Map<String, dynamic>> invite(String phone, String role, String pin) =>
+      _call('POST', '/business/team/invites', {'phone': phone, 'role': role, 'pin': pin});
+  static Future<void> acceptInvite(String id) =>
+      _call('POST', '/business/team/invites/$id/accept');
+  static Future<void> declineInvite(String id) =>
+      _call('POST', '/business/team/invites/$id/decline');
+  static Future<void> revokeInvite(String id) =>
+      _call('POST', '/business/team/invites/$id/revoke');
   static Future<void> addMember(String identifier, String role, String pin) =>
       _call('POST', '/business/team', {'identifier': identifier, 'role': role, 'pin': pin});
   static Future<void> updateMember(String id, String role, String pin) =>

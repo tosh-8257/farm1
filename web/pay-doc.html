@@ -127,13 +127,22 @@
       <p id="message" role="status" aria-live="polite"></p>
       <p class="fine-print">The business is credited after the payment provider confirms payment.</p>
     </main>
+    <script src="/checkout-route.js"></script>
     <script>
       (() => {
         const api = "https://farm-backend-r64g.onrender.com/api/pay/data";
-        const path = location.pathname.split("/").filter(Boolean);
-        // /pay/l/<code> or /pay/i/<invoice>
-        const kind = path[1];
-        const ref = path.slice(2).join("/");
+        const query = new URLSearchParams(location.search);
+        const fromPath = window.FarmpayCheckout
+          ? window.FarmpayCheckout.classifyFarmpayPath(location.pathname)
+          : null;
+        const kind =
+          query.get("kind") ||
+          (fromPath && fromPath.kind === "link"
+            ? "l"
+            : fromPath && fromPath.kind === "invoice"
+              ? "i"
+              : "");
+        const ref = query.get("ref") || (fromPath ? fromPath.ref : "");
         const $ = (id) => document.getElementById(id);
         const msg = $("message");
         const request = async (url, options) => {

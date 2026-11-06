@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '/backend/api_requests/ai_api.dart';
 import '/backend/services/api_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'hands_free.dart';
 import 'voice_input.dart';
 import '/pages/business/ops/ops_ui.dart';
 import '/pages/travel/travel_pages.dart';
@@ -221,20 +225,53 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
   String? _lastLanguage; // language of the last confirmed voice message
   final _tts = FlutterTts();
   int? _speaking;
+  bool _handsFree = false;
+  static const _handsFreeKey = 'mkulima_hands_free';
+  static const _headset = MethodChannel('farm.mkulima_voice');
 
   @override
   void initState() {
     super.initState();
     _conversationId = widget.conversationId;
     _init();
+    SharedPreferences.getInstance().then((p) {
+      if (!mounted) return;
+      setState(() => _handsFree = p.getBool(_handsFreeKey) ?? false);
+    });
+    _headset.setMethodCallHandler((call) async {
+      if (call.method == 'headset' && _handsFree && mounted) {
+        await _voice(autoSend: true);
+      }
+    });
+    HardwareKeyboard.instance.addHandler(_onHardwareKey);
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onHardwareKey);
+    _headset.setMethodCallHandler(null);
     _input.dispose();
     _scroll.dispose();
     _tts.stop();
     super.dispose();
+  }
+
+  bool _onHardwareKey(KeyEvent event) {
+    if (!_handsFree || event is! KeyDownEvent) return false;
+    final media = {
+      LogicalKeyboardKey.mediaPlayPause,
+      LogicalKeyboardKey.mediaPlay,
+      LogicalKeyboardKey.mediaTrackNext,
+    };
+    if (!media.contains(event.logicalKey)) return false;
+    unawaited(_voice(autoSend: true));
+    return true;
+  }
+
+  Future<void> _setHandsFree(bool value) async {
+    setState(() => _handsFree = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_handsFreeKey, value);
   }
 
   Future<void> _init() async {
@@ -264,9 +301,13 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
         if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
       });
 
-  Future<void> _voice() async {
-    final v = await showVoiceInputSheet(context);
+  Future<void> _voice({bool autoSend = false, bool requireWake = false}) async {
+    final v = await showVoiceInputSheet(context, autoSend: autoSend || _handsFree, requireWake: requireWake);
     if (v == null || !mounted) return; // cancelled: nothing is sent
+    if (voiceTextLooksLikeSecret(v.text)) {
+      bizSnack(context, 'Say the command without your PIN. Money still needs your PIN or biometrics.');
+      return;
+    }
     _lastLanguage = v.language;
     await _sendText(v.text, language: v.language, fromVoice: true);
   }
@@ -312,12 +353,17 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
           conversationId: _conversationId, language: language ?? _lastLanguage);
       _conversationId = '${r['conversation_id']}';
       final msg = r['message'] is Map ? r['message'] as Map : const {};
+      final spoken = '${msg['content'] ?? ''}';
       setState(() {
-        _items.add({'role': 'assistant', 'content': '${msg['content'] ?? ''}'});
+        _items.add({'role': 'assistant', 'content': spoken});
         for (final a in ((r['pending_actions'] as List?) ?? const []).whereType<Map>()) {
           _items.add({'role': 'action', 'action': Map<String, dynamic>.from(a)});
         }
       });
+      if (_handsFree && spoken.trim().isNotEmpty) {
+        final index = _items.length - 1 - ((r['pending_actions'] as List?) ?? const []).length;
+        unawaited(_readAloud(index < 0 ? 0 : index, spoken));
+      }
     } catch (e) {
       final lowBalance = e is ApiServiceException && e.statusCode == 402;
       setState(() {
@@ -481,6 +527,27 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
                       )
                     : _bubble(c, _items[i]),
               ),
+      ),
+      Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Hands-free Hey Mkulima', style: TextStyle(color: fgColor(c), fontSize: 14)),
+            subtitle: Text(handsFreeLimits, style: TextStyle(color: mutedColor(c), fontSize: 11, height: 1.35)),
+            value: _handsFree,
+            onChanged: _setHandsFree,
+          ),
+          if (_handsFree)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _sending ? null : () => _voice(autoSend: true, requireWake: true),
+                icon: const Icon(Icons.hearing),
+                label: const Text('Listen for Hey Mkulima'),
+              ),
+            ),
+        ]),
       ),
       Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),

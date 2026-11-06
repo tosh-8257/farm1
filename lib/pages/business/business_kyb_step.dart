@@ -5,7 +5,7 @@ import 'business_kyb_logic.dart';
 import 'business_ui.dart';
 
 /// "Verify business" step: opens Didit's hosted KYB link, like personal KYC.
-/// The Didit result is advisory; FARM compliance approves manually.
+/// Didit is the only KYB path.
 class BusinessKybStep extends StatefulWidget {
   const BusinessKybStep({super.key, this.initialStatus});
 
@@ -151,7 +151,7 @@ class _BusinessKybStepState extends State<BusinessKybStep> {
         ],
         const SizedBox(height: 12),
         Text(
-          'This step is recommended. You can continue without it; FARM compliance reviews every application manually.',
+          'This step is required. FARM verifies the business only through Didit.',
           style: TextStyle(color: mutedColor(context), fontSize: 12, height: 1.5),
         ),
       ],

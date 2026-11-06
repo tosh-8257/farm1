@@ -4,6 +4,7 @@ import 'package:local_auth/local_auth.dart';
 import '/app_state.dart';
 import '/services/secure_storage_service.dart';
 import '/services/auth/auth_service.dart';
+import '/services/auth/biometric_reauth.dart';
 
 /// Service for biometric-based login (fingerprint/face ID).
 ///
@@ -104,10 +105,28 @@ class BiometricLoginService {
       }
 
       debugPrint('[Biometric] Refreshing backend session with stored refresh token...');
-      final refreshedToken = await AuthService().refreshSession(force: true);
-      if (refreshedToken == null || refreshedToken.isEmpty) {
-        throw Exception('Failed to refresh backend session. Please log in again.');
+      String? refreshedToken;
+      try {
+        refreshedToken = await AuthService().refreshSession(force: true);
+      } catch (e) {
+        debugPrint('[Biometric] Refresh threw, trying biometric re-auth: $e');
       }
+      if (refreshedToken == null || refreshedToken.isEmpty) {
+        final reauth = await BiometricReauth.exchange();
+        if (reauth != null) {
+          refreshedToken = FFAppState().accessToken;
+        }
+      }
+      // A failed refresh must not sign the user out. The local unlock stands.
+      if ((refreshedToken == null || refreshedToken.isEmpty) &&
+          FFAppState().accessToken.isEmpty &&
+          FFAppState().refreshToken.isEmpty) {
+        throw Exception(
+          'No stored session found. Please log in with your password.',
+        );
+      }
+      FFAppState().isLoggedIn = true;
+      FFAppState().needsBiometricReauth = false;
 
       final farmJwt = FFAppState().accessToken;
       final refreshToken = FFAppState().refreshToken;
@@ -120,14 +139,18 @@ class BiometricLoginService {
         'role': FFAppState().role,
       };
 
-      if (farmJwt.isEmpty) {
+      if (farmJwt.isEmpty && FFAppState().refreshToken.isEmpty) {
         throw Exception('Failed to restore backend access token.');
       }
 
       debugPrint('[Biometric] Backend token refresh succeeded');
 
-      await SecureStorageService.writeAccessToken(farmJwt);
-      await SecureStorageService.writeRefreshToken(refreshToken);
+      if (farmJwt.isNotEmpty) {
+        await SecureStorageService.writeAccessToken(farmJwt);
+      }
+      if (refreshToken.isNotEmpty) {
+        await SecureStorageService.writeRefreshToken(refreshToken);
+      }
       await BiometricLockService().markVerified();
 
       debugPrint('[Biometric] Biometric unlock succeeded');

@@ -210,7 +210,7 @@ class _BiometricPromptScreenState extends State<_BiometricPromptScreen> {
               const SizedBox(height: 12),
               Text(
                 widget.canEnroll || widget.isAlreadyEnabled
-                    ? 'Use your fingerprint or face to sign in securely. You can change this anytime in Profile settings.'
+                    ? 'Next time, unlock with your fingerprint or face instead of an SMS code. You can change this in Profile settings.'
                     : 'Biometric authentication is not available on this device. You can enable it later in Profile settings when available.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge,

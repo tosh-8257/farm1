@@ -8,6 +8,7 @@ import 'package:record/record.dart';
 
 import '/backend/services/api_service.dart';
 import '/pages/business/ops/ops_ui.dart';
+import 'hands_free.dart';
 
 /// Result of a confirmed voice message: the text the user approved and the
 /// language detected by the server. Never contains a PIN (PINs are only typed
@@ -22,24 +23,30 @@ const voiceMaxSeconds = 60;
 
 /// Opens the voice sheet: record (max 60 s) -> upload -> editable transcript.
 /// Returns null unless the user explicitly taps "Send".
-Future<VoiceMessage?> showVoiceInputSheet(BuildContext context) =>
+Future<VoiceMessage?> showVoiceInputSheet(
+  BuildContext context, {
+  bool autoSend = false,
+  bool requireWake = false,
+}) =>
     showModalBottomSheet<VoiceMessage>(
       context: context,
       isScrollControlled: true,
-      isDismissible: false,
+      isDismissible: !autoSend,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => const VoiceInputSheet(),
+      builder: (_) => VoiceInputSheet(autoSend: autoSend, requireWake: requireWake),
     );
 
 enum VoiceStage { idle, recording, uploading, review, error }
 
 class VoiceInputSheet extends StatefulWidget {
-  const VoiceInputSheet({super.key, this.initialStage, this.initialText});
+  const VoiceInputSheet({super.key, this.initialStage, this.initialText, this.autoSend = false, this.requireWake = false});
   final VoiceStage? initialStage; // for widget tests / screenshots only
   final String? initialText;
+  final bool autoSend;
+  final bool requireWake;
   @override
   State<VoiceInputSheet> createState() => _VoiceInputSheetState();
 }
@@ -58,6 +65,11 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
     super.initState();
     _stage = widget.initialStage ?? VoiceStage.idle;
     _text.text = widget.initialText ?? '';
+    if (widget.autoSend && widget.initialStage == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _start();
+      });
+    }
   }
 
   @override
@@ -126,6 +138,22 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
         return _fail(
           'We could not hear any words. Try again closer to the mic.',
         );
+      if (widget.autoSend) {
+        final parsed = parseHandsFree(t);
+        final String? command = widget.requireWake
+            ? (parsed.hasCommand ? parsed.command : null)
+            : (parsed.hasCommand ? parsed.command! : t);
+        if (command == null) {
+          if (mounted) Navigator.pop(context);
+          return;
+        }
+        if (voiceTextLooksLikeSecret(command)) {
+          return _fail('Say the command without your PIN. Money still needs your PIN or biometrics.');
+        }
+        if (!mounted) return;
+        Navigator.pop(context, VoiceMessage(command, r['language'] as String?));
+        return;
+      }
       setState(() {
         _text.text = t;
         _language = r['language'] as String?;

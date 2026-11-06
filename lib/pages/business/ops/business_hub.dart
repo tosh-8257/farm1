@@ -75,7 +75,7 @@ class _BusinessHubState extends State<BusinessHub> {
                   Text(w['kind'] == 'business' ? 'Business balance' : 'Available balance', style: TextStyle(color: mutedColor(ctx))),
                   const SizedBox(height: 4),
                   Row(children: [
-                    if ('${w['currency'] ?? 'FARM'}' == 'FARM') ...[const FarmCoinIcon(size: 28), const SizedBox(width: 10)],
+                    if ('${w['currency'] ?? 'FARM'}' == 'FARM') ...[FarmCoinIcon(size: 28, color: fgColor(ctx)), const SizedBox(width: 8)],
                     Flexible(child: Text(money(w['available_balance'], '${w['currency'] ?? 'FARM'}'),
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: fgColor(ctx)))),
                   ]),

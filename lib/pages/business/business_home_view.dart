@@ -3,11 +3,13 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/backend/api_requests/business_api_service.dart';
 import '/components/account_switcher/account_switcher_widget.dart';
 import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
-import 'business_ui.dart';
 import 'business_onboarding_page.dart';
 import 'business_status_page.dart';
 import '/backend/api_requests/business_ops_api.dart';
+import '/services/offline_cache.dart';
 import 'ops/business_hub.dart';
+import 'ops/ops_ui.dart';
+import 'ops/team_pages.dart';
 
 /// What the dashboard shows while the Business account is selected.
 /// Phase 1 only shows the KYB state; balances and business tools arrive in
@@ -30,20 +32,30 @@ class _BusinessHomeViewState extends State<BusinessHomeView> {
   @override
   void initState() {
     super.initState();
-    _load();
+    final cached = OfflineCache.read('biz:context');
+    if (cached is Map && cached['business_id'] != null) {
+      _opsContext = Map<String, dynamic>.from(cached);
+      _loading = false;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (mounted && _opsContext == null) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       // Approved owners and team members get the operations hub.
       try {
         final ctx = await BusinessOpsApi.context();
         if (!mounted) return;
         if (ctx['business_id'] != null) {
+          OfflineCache.write('biz:context', ctx);
           setState(() {
             _opsContext = ctx;
             _loading = false;
@@ -51,7 +63,7 @@ class _BusinessHomeViewState extends State<BusinessHomeView> {
           return;
         }
       } catch (_) {
-        _opsContext = null;
+        if (_opsContext == null) _opsContext = null;
       }
       final data = await BusinessApiService.getMine();
       if (!mounted) return;
@@ -192,14 +204,22 @@ class _BusinessHomeViewState extends State<BusinessHomeView> {
           ),
         ),
         const SizedBox(height: 16),
-        if (status == BusinessStatus.approved)
+        if (status == BusinessStatus.approved) ...[
           BizCard(
-            child: Text(
-              'Your business account is active. Business payments, invoices, '
-              'payouts, team and analytics will appear here as they are enabled.',
-              style: TextStyle(color: mutedColor(context), height: 1.5),
-            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text(
+                'Your business is approved. Open the team to invite people, set roles, and remove access.',
+                style: TextStyle(color: mutedColor(context), height: 1.5),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                style: primaryButtonStyle(context),
+                onPressed: () => pushPage(context, const TeamPage()),
+                child: const Text('Team'),
+              ),
+            ]),
           ),
+        ],
       ],
     );
   }
@@ -228,7 +248,7 @@ class _BusinessHomeViewState extends State<BusinessHomeView> {
         icon: Icons.business_center_outlined,
         title: 'Upgrade to a Business account',
         message:
-            'Use FARM for your business with the same login. Submit your business details for verification (KYB). Approval is done by our team and is not automatic.',
+            'Use FARM for your business with the same login. Business verification (KYB) is done only with Didit.',
         action: _starting ? null : _startUpgrade,
         actionLabel: _starting ? 'Starting…' : 'Upgrade to Business',
       );

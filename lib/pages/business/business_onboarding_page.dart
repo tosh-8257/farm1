@@ -7,6 +7,7 @@ import '/backend/api_requests/business_api_service.dart';
 import '/components/step_indicator/step_indicator_widget.dart';
 import 'business_ui.dart';
 import 'business_status_page.dart';
+import 'business_kyb_logic.dart';
 import 'business_kyb_step.dart';
 
 const _sectors = <String, String>{
@@ -220,6 +221,11 @@ class _BusinessOnboardingPageState extends State<BusinessOnboardingPage> {
       ),
     );
     if (ok != true) return;
+    if (!kybAllowsApplicationSubmit(kybStateFor(_kybStatus))) {
+      _snack(kybDiditRequiredMessage);
+      setState(() => _step = 5);
+      return;
+    }
     if (!await _save(quiet: true)) return;
     setState(() => _saving = true);
     try {
@@ -364,6 +370,11 @@ class _BusinessOnboardingPageState extends State<BusinessOnboardingPage> {
                   onPressed: _saving
                       ? null
                       : () async {
+                          if (_step == 5 &&
+                              !kybAllowsApplicationSubmit(kybStateFor(_kybStatus))) {
+                            _snack(kybDiditRequiredMessage);
+                            return;
+                          }
                           if (_step == _titles.length - 1) {
                             await _submit();
                           } else if (await _save(quiet: true)) {
@@ -868,7 +879,7 @@ class _BusinessOnboardingPageState extends State<BusinessOnboardingPage> {
           )
         else
           Text(
-            'By submitting you confirm the information is accurate. Verification is carried out by FARM\'s compliance team and is not automatic.',
+            'By submitting you confirm the information is accurate. Business KYB is completed only with Didit.',
             style: TextStyle(color: mutedColor(context), height: 1.5),
           ),
       ],

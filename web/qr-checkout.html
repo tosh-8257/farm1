@@ -174,11 +174,26 @@
       </p>
     </main>
 
+    <script src="/checkout-route.js"></script>
     <script>
       (() => {
         const api = "https://farm-backend-r64g.onrender.com/api/v1";
         const params = new URLSearchParams(location.search);
         const path = location.pathname.split("/").filter(Boolean);
+        const documentCheckout = window.FarmpayCheckout
+          ? window.FarmpayCheckout.classifyFarmpayPath(location.pathname)
+          : null;
+        if (
+          documentCheckout &&
+          (documentCheckout.kind === "link" || documentCheckout.kind === "invoice")
+        ) {
+          const query = new URLSearchParams({
+            kind: documentCheckout.kind === "link" ? "l" : "i",
+            ref: documentCheckout.ref,
+          });
+          location.replace(`/pay-doc.html?${query.toString()}`);
+          return;
+        }
         const isLegacyCheckout = path[0] === "merchant-payment";
         const legacyReference = [
           "farm_reference",
@@ -335,6 +350,11 @@
             merchantId = result.data?.merchant_id ?? "";
             businessName = result.data?.business_name ?? "merchant";
           } else {
+            if (merchantId === "l" || merchantId === "i") {
+              throw new Error(
+                "This is a payment link or invoice, not a merchant QR code.",
+              );
+            }
             if (
               !merchantId ||
               merchantId === "ANYID" ||

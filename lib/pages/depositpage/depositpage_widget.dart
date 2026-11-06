@@ -11,6 +11,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/components/kyc_required_widget.dart';
 import '/services/transaction_receipt_service.dart';
 import '/services/paystack_inline_checkout.dart';
+import '/core/crypto_coin_limit.dart';
 import '/widgets/searchable_crypto_picker.dart';
 import 'crypto_checkout_page.dart';
 import '/utils/user_error_message.dart';
@@ -39,6 +40,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   String? _cryptoTokensError;
   double? _cryptoMinimumAmount;
   double? _cryptoMinimumUsd;
+  double? _cryptoMaximumUsd;
   bool _loadingCryptoMinimum = false;
   String? _cryptoMinimumError;
 
@@ -76,7 +78,9 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
             ? 0
             : (_cryptoMinimumUsd! * 100).ceilToDouble() / 100)
       : (_activeDepositLimits['min'] ?? 10);
-  double? get _activeDepositMax => _activeDepositLimits['max'];
+  double? get _activeDepositMax => selectedMethod == 'CRYPTO'
+      ? _cryptoMaximumUsd
+      : _activeDepositLimits['max'];
   String get _amountCurrency =>
       selectedMethod == 'CRYPTO' ? 'USD' : selectedCurrency;
   bool get _hasValidDepositAmount =>
@@ -141,36 +145,21 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
       _loadingCryptoMinimum = true;
       _cryptoMinimumAmount = null;
       _cryptoMinimumUsd = null;
+      _cryptoMaximumUsd = null;
       _cryptoMinimumError = null;
     });
     try {
-      final response = await ApiService.request(
-        method: 'GET',
-        path:
-            '/wallet/deposit/crypto/minimum/${Uri.encodeComponent(currency.toLowerCase())}',
-        requiresAuth: true,
-      );
-      final data = response['data'];
-      final minimumAmount = data is Map
-          ? double.tryParse(data['minimumAmount']?.toString() ?? '')
-          : null;
-      final minimumUsd = data is Map
-          ? double.tryParse(data['minimumUsd']?.toString() ?? '')
-          : null;
-      if (minimumAmount == null ||
-          !minimumAmount.isFinite ||
-          minimumAmount <= 0 ||
-          minimumUsd == null ||
-          !minimumUsd.isFinite ||
-          minimumUsd <= 0) {
+      final limit = await fetchDepositCoinLimit(currency);
+      if (limit.minUsd == null || limit.minUsd! <= 0) {
         throw const FormatException(
-          'NOWPayments returned an invalid minimum for this currency.',
+          'The server did not return a USD minimum for this coin.',
         );
       }
       if (!mounted || _selectedCryptoToken != currency) return;
       setState(() {
-        _cryptoMinimumAmount = minimumAmount;
-        _cryptoMinimumUsd = minimumUsd;
+        _cryptoMinimumAmount = limit.minAmount;
+        _cryptoMinimumUsd = limit.minUsd;
+        _cryptoMaximumUsd = limit.maxUsd;
       });
     } catch (error) {
       if (!mounted || _selectedCryptoToken != currency) return;
@@ -924,7 +913,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Row(mainAxisSize: MainAxisSize.min, children: [const FarmCoinIcon(size: 28), const SizedBox(width: 10), Flexible(child: Text(
+                          Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [const FarmCoinIcon(size: 26, color: AppTheme.accent), const SizedBox(width: 8), Flexible(child: Text(
                             '${walletBalance.toStringAsFixed(4)} FARM',
                             style: GoogleFonts.plusJakartaSans(
                               color: AppTheme.accent,
@@ -1060,6 +1049,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                         _selectedCryptoToken = token;
                         _cryptoMinimumAmount = null;
                         _cryptoMinimumUsd = null;
+                        _cryptoMaximumUsd = null;
                         _cryptoMinimumError = null;
                       });
                       _fetchCryptoMinimum(token);
@@ -1087,16 +1077,16 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                       ),
                     ),
                   )
-                else if (_cryptoMinimumAmount != null &&
-                    _cryptoMinimumUsd != null &&
-                    _selectedCryptoToken != null)
+                else if (_cryptoMinimumUsd != null && _selectedCryptoToken != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'NOWPayments minimum: ${_formatMinimumCrypto(_cryptoMinimumAmount!)} ${_selectedCryptoToken!.toUpperCase()}',
+                          _cryptoMinimumAmount == null
+                              ? 'Minimum for ${_selectedCryptoToken!.toUpperCase()} comes from your account limits.'
+                              : 'Minimum: ${_formatMinimumCrypto(_cryptoMinimumAmount!)} ${_selectedCryptoToken!.toUpperCase()}',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             color: theme.secondaryText,
@@ -1104,7 +1094,9 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Enter at least USD ${_cryptoMinimumUsdToEnter.toStringAsFixed(2)} to meet this coin minimum.',
+                          _cryptoMaximumUsd == null
+                              ? 'Enter at least USD ${_cryptoMinimumUsdToEnter.toStringAsFixed(2)}. No maximum was returned for this coin.'
+                              : 'USD ${_cryptoMinimumUsdToEnter.toStringAsFixed(2)} – USD ${_cryptoMaximumUsd!.toStringAsFixed(2)} for ${_selectedCryptoToken!.toUpperCase()}.',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,

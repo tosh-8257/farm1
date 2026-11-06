@@ -26,6 +26,7 @@ import '/index.dart';
 import '/pages/business/business_onboarding_page.dart';
 import '/pages/business/business_status_page.dart';
 import '/pages/business/ops/pay_business_page.dart';
+import '/utils/farmpay_checkout.dart';
 import '/pages/tap_pay/tap_pay_pages.dart';
 
 export 'package:go_router/go_router.dart';
@@ -94,6 +95,10 @@ GoRouter createRouter(
     final authState = FFAppState();
     final path = state.uri.path;
     if (path == '/pay/success') return null;
+    final documentCheckout = classifyFarmpayPath(path);
+    final documentLocation =
+        documentCheckout == null ? null : farmpayAppLocation(documentCheckout);
+    if (documentLocation != null) return documentLocation;
     final appPaymentLocation = _merchantPaymentLocationFromAppLink(state);
     if (appPaymentLocation != null) return appPaymentLocation;
     if (path.startsWith('/pay/')) return null;
@@ -121,16 +126,29 @@ GoRouter createRouter(
     final isLegalDocumentRoute =
         path == LegalDocumentPageWidget.privacyPolicyRoutePath ||
         path == LegalDocumentPageWidget.termsRoutePath;
-    if (authState.isLoggedIn &&
+    final hasStoredSession = authState.isLoggedIn ||
+        authState.refreshToken.isNotEmpty ||
+        authState.accessToken.isNotEmpty;
+    if (hasStoredSession &&
+        authState.needsBiometricReauth &&
+        path != BiometricUnlockPageWidget.routePath &&
+        !publicRoute) {
+      return BiometricUnlockPageWidget.routePath;
+    }
+
+    if (hasStoredSession &&
         ((publicRoute && !isLegalDocumentRoute) ||
             path == OnboardingWidget.routePath)) {
+      if (path == OnboardingWidget.routePath && authState.isBiometricAllowed) {
+        return BiometricUnlockPageWidget.routePath;
+      }
       if (role == 'super_admin') return SuperadminDashboardPage.routePath;
       if (role == 'admin') return '/admin';
       return DashboardWidget.routePath;
     }
 
-    if (!authState.isLoggedIn || authState.accessToken.isEmpty) {
-      if (authState.isLoggedIn && authState.refreshToken.isNotEmpty) {
+    if (!hasStoredSession || authState.accessToken.isEmpty) {
+      if (hasStoredSession && authState.refreshToken.isNotEmpty) {
         return null;
       }
       if (path == '/merchantPayment') {

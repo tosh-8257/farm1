@@ -309,6 +309,16 @@ class FFAppState extends ChangeNotifier {
 
   bool _isLoggedIn = false;
   bool get isLoggedIn => _isLoggedIn;
+
+  /// Set when the server rejects the refresh token. The session stays on the
+  /// device; the user unlocks with biometrics instead of an SMS code.
+  bool _needsBiometricReauth = false;
+  bool get needsBiometricReauth => _needsBiometricReauth;
+  set needsBiometricReauth(bool value) {
+    if (_needsBiometricReauth == value) return;
+    _needsBiometricReauth = value;
+    notifyListeners();
+  }
   set isLoggedIn(bool value) {
     if (_isLoggedIn == value) return;
     _isLoggedIn = value;
