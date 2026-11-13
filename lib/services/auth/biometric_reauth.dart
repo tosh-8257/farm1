@@ -4,6 +4,8 @@ import '/app_state.dart';
 import '/backend/services/api_service.dart';
 import '/services/auth/device_identity.dart';
 import '/services/auth/session_store_service.dart';
+import '/services/auth/refresh_manager.dart';
+import '/services/notification_service.dart';
 import '/services/secure_storage_service.dart';
 
 /// Session renewal from `GET /auth/session/config` and
@@ -101,6 +103,9 @@ class BiometricReauth {
     } catch (e) {
       debugPrint('[BiometricReauth] could not persist session: $e');
     }
+    RefreshManager().reset();
+    NotificationService.resumePushRegistration();
+    await NotificationService.registerForCurrentUser();
     return {
       'success': true,
       'data': {

@@ -8,6 +8,8 @@ import '/app_state.dart';
 import 'session_store_service.dart';
 import '/core/app_config.dart';
 import '/services/secure_storage_service.dart';
+import '/services/auth/session_end.dart';
+import '/services/push_session_policy.dart';
 
 class RefreshManager {
   static final RefreshManager _instance = RefreshManager._internal();
@@ -23,9 +25,13 @@ class RefreshManager {
   int _consecutiveFailures = 0;
   DateTime? _nextAllowedRefreshTime;
   bool _lastFailureWasRevocation = false;
+  bool _lastFailureWasTerminal = false;
   int _raceRetries = 0;
 
   bool get lastFailureWasRevocation => _lastFailureWasRevocation;
+
+  /// True when the server rejected the session as revoked, expired, or stolen.
+  bool get lastFailureWasTerminal => _lastFailureWasTerminal;
 
   static set client(http.Client value) => _instance._client = value;
 
@@ -87,6 +93,7 @@ class RefreshManager {
 
   Future<bool> _doRefresh() async {
     _lastFailureWasRevocation = false;
+    _lastFailureWasTerminal = false;
     final refreshToken = FFAppState().refreshToken.trim();
     if (refreshToken.isEmpty) {
       debugPrint('[RefreshManager] refresh token empty, cannot refresh.');
@@ -180,8 +187,19 @@ class RefreshManager {
           _registerFailure();
           return FFAppState().accessToken.trim().isNotEmpty;
         }
+        if (isTerminalSessionFailure(message)) {
+          _lastFailureWasTerminal = true;
+          _lastFailureWasRevocation = true;
+          debugPrint(
+              '[AUTH REFRESH] Session revoked or expired. Clearing local session.');
+          await SessionEnd.forceLocalSignOut('revoked or expired session');
+          _registerFailure();
+          return false;
+        }
         _lastFailureWasRevocation = true;
-        // Stay signed in. The next unlock is biometric, not a new SMS login.
+        // A generic rejection keeps the local session. Closing the app must
+        // not sign out someone who unlocks with biometrics. Only an explicit
+        // revoked or expired session clears it.
         FFAppState().isLoggedIn = true;
         FFAppState().needsBiometricReauth = true;
         debugPrint(
@@ -208,6 +226,7 @@ class RefreshManager {
     _nextAllowedRefreshTime = null;
     _refreshCompleter = null;
     _lastFailureWasRevocation = false;
+    _lastFailureWasTerminal = false;
   }
 
   void _registerFailure() {

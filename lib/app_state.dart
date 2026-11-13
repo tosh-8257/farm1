@@ -7,6 +7,7 @@ import 'backend/services/api_service.dart';
 import 'services/auth/session_store_service.dart';
 import 'services/secure_storage_service.dart';
 import 'services/offline_cache.dart';
+import 'services/push_session_policy.dart';
 
 enum AuthStartupState { initializing, authenticated, unauthenticated }
 
@@ -568,8 +569,11 @@ class FFAppState extends ChangeNotifier {
     firstName = '';
     userName = '';
     phone = '';
+    email = '';
     kycStatus = '';
+    emailVerified = false;
     isLoggedIn = false;
+    needsBiometricReauth = false;
     loginPreferencesPending = false;
     setAuthStartupState(AuthStartupState.unauthenticated);
     biometricsEnabled = false;
@@ -577,10 +581,19 @@ class FFAppState extends ChangeNotifier {
     role = '';
     walletBalance = 0;
     kesEquivalent = 0;
+    profileImageUrl = '';
+    unreadNotificationCount = 0;
     _recentTransactions = [];
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('walletBalance');
     await prefs.remove('kesEquivalent');
+    await prefs.remove('email');
+    await prefs.remove('emailVerified');
+    await prefs.remove('profileImageUrl');
+    await prefs.remove('unreadNotificationCount');
+    await prefs.remove(pushTokenPrefsKey);
+    await prefs.setBool(pushSessionActiveKey, false);
+    await prefs.remove(pushBoundUserKey);
     // Stale-while-revalidate screen cache belongs to this user only.
     await OfflineCache.clear();
     await prefs.remove('firstName');

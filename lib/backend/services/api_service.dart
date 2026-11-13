@@ -9,6 +9,8 @@ import '/core/app_config.dart';
 import '/app_state.dart';
 import '/services/offline_cache.dart';
 import '/services/auth/refresh_manager.dart';
+import '/services/auth/session_end.dart';
+import '/services/push_session_policy.dart';
 import '/utils/transaction_history_utils.dart';
 
 class ApiServiceException implements Exception {
@@ -426,6 +428,15 @@ class ApiService {
     }
 
     final message = _apiMessage(decoded, responseBody);
+    if (response.statusCode == 401 &&
+        requiresAuth &&
+        (RefreshManager().lastFailureWasTerminal ||
+            isTerminalSessionFailure(
+              message,
+              code: decoded['code'] is String ? decoded['code'] as String : null,
+            ))) {
+      await SessionEnd.forceLocalSignOut('revoked or expired session');
+    }
     if (response.statusCode == 429) {
       final retryAfter = int.tryParse(response.headers['retry-after'] ?? '');
       final waitMessage = retryAfter == null
@@ -675,11 +686,21 @@ class ApiService {
         },
       );
 
-  static Future<void> logout() =>
-      _request(method: 'POST', path: '/auth/logout');
+  static Future<Map<String, dynamic>> logout({String? pushToken}) {
+    final token = pushToken?.trim() ?? '';
+    return _request(
+      method: 'POST',
+      path: '/auth/logout',
+      body: token.isEmpty ? null : {'token': token},
+    );
+  }
 
   static Future<Map<String, dynamic>> getSessions() =>
       _request(method: 'GET', path: '/auth/sessions');
+
+  /// Push registrations for this account. The raw token is never returned.
+  static Future<Map<String, dynamic>> getPushDevices() =>
+      _request(method: 'GET', path: '/auth/devices');
 
   static Future<Map<String, dynamic>> revokeSession({
     required String sessionId,

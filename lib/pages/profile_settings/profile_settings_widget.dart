@@ -988,7 +988,7 @@ class _ProfileSettingsWidgetState extends State<ProfileSettingsWidget>
                                     color: FlutterFlowTheme.of(context)
                                         .primaryText,
                                   ),
-                                  label: 'Devices & login history',
+                                  label: 'Devices & sessions',
                                 ),
                               ),
                               // TRAVEL

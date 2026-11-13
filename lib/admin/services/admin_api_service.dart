@@ -4,7 +4,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '/app_state.dart';
+import '/services/auth/session_end.dart';
 import '/services/auth/session_store_service.dart';
+import '/services/notification_service.dart';
+import '/services/push_session_policy.dart';
 import '../core/admin_config.dart';
 
 class AdminApiService {
@@ -192,7 +195,16 @@ class AdminApiService {
 
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         debugPrint(
-            '[AdminApiService] refresh failed with ${resp.statusCode}: ${resp.body}');
+            '[AdminApiService] refresh failed with ${resp.statusCode}');
+        if (resp.statusCode == 401 || resp.statusCode == 403) {
+          final failure = _errorBody(resp.body);
+          if (isTerminalSessionFailure(
+            failure.message,
+            code: failure.code,
+          )) {
+            await SessionEnd.forceLocalSignOut('revoked or expired session');
+          }
+        }
         return false;
       }
 
@@ -310,10 +322,12 @@ class AdminApiService {
         return _req(method: method, path: path, body: body, isRetry: true);
       }
 
-      final decoded = res.body.isNotEmpty
-          ? jsonDecode(res.body) as Map<String, dynamic>
-          : <String, dynamic>{};
-      throw Exception(decoded['message'] ?? 'Unauthorized');
+      final failure = _errorBody(res.body);
+      if (isTerminalSessionFailure(failure.message, code: failure.code)) {
+        await SessionEnd.forceLocalSignOut('revoked or expired session');
+      }
+      throw Exception(
+          failure.message.isEmpty ? 'Unauthorized' : failure.message);
     }
 
     final decoded = res.body.isNotEmpty
@@ -362,17 +376,40 @@ class AdminApiService {
   }
 
   static Future<void> logout() async {
-    print('LOGOUT CALLED');
-    print(StackTrace.current);
+    NotificationService.suspendPushRegistration();
     try {
-      await _req(method: 'POST', path: '/auth/logout');
+      final pushToken = await NotificationService.currentPushToken();
+      await _req(
+        method: 'POST',
+        path: '/auth/logout',
+        body: (pushToken == null || pushToken.isEmpty)
+            ? null
+            : {'token': pushToken},
+      );
+    } catch (e) {
+      debugPrint('[AdminApiService] Backend logout failed (${e.runtimeType})');
     } finally {
-      debugPrint(
-          '[AdminApiService] explicit logout — clearing persisted admin session keys (reason=explicit logout)');
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('adminName');
-      await FFAppState().clearAuthCredentials('explicit admin logout');
+      await SessionEnd.forceLocalSignOut('explicit admin logout');
     }
+  }
+
+  static ({String message, String? code}) _errorBody(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map) {
+        final message = decoded['message'];
+        final text = message is String
+            ? message
+            : message is List
+                ? message.map((part) => '$part').join(' ')
+                : '';
+        final code = decoded['code'];
+        return (message: text, code: code is String ? code : null);
+      }
+    } catch (_) {}
+    return (message: '', code: null);
   }
 
   static Future<Map<String, dynamic>> _publicReq({

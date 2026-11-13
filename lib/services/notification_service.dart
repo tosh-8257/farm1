@@ -1,4 +1,3 @@
-
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -8,84 +7,222 @@ import '/pages/devices/trusted_devices_page.dart';
 
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/services/auth/session_end.dart';
+import '/services/push_session_policy.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Android and iOS display notification payloads automatically while the app
-  // is backgrounded. Keep this handler registered for data-only messages.
-  debugPrint('[FCM] Background message: ${message.messageId}');
+  // The system may already have displayed a notification payload. If this
+  // install is signed out, or the payload names another account, clear it.
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final drop = shouldClearBackgroundPush(
+      sessionActive: prefs.containsKey(pushSessionActiveKey)
+          ? prefs.getBool(pushSessionActiveKey)
+          : null,
+      boundUserId: prefs.getString(pushBoundUserKey) ?? '',
+      data: Map<String, dynamic>.from(message.data),
+    );
+    if (!drop) return;
+    await FlutterLocalNotificationsPlugin().cancelAll();
+  } catch (_) {}
 }
 
 class NotificationService {
   NotificationService._();
 
-  // Notifier to signal when a new notification arrives or a pending tap is available.
-  // Widgets can add/remove listeners via `NotificationService.notificationReceived.addListener(...)`.
   static final ValueNotifier<int> notificationReceived = ValueNotifier<int>(0);
 
-  static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  static FirebaseMessaging? _messaging;
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+  static bool _registrationSuspended = false;
   static Map<String, dynamic>? _pendingTapPayload;
 
+  /// Test seams. Production leaves these null and uses Firebase.
+  @visibleForTesting
+  static Future<String?> Function()? debugReadToken;
+
+  @visibleForTesting
+  static Future<void> Function()? debugDeleteToken;
+
+  @visibleForTesting
+  static Future<void> Function()? debugCancelNotifications;
+
+  static bool get registrationSuspended => _registrationSuspended;
+
+  static FirebaseMessaging get _firebase {
+    return _messaging ??= FirebaseMessaging.instance;
+  }
+
+  /// Wires local notification cleanup into session revocation.
+  static void bindSessionEnd() {
+    SessionEnd.onBeforeClear = invalidateLocalPush;
+  }
+
+  static void suspendPushRegistration() {
+    _registrationSuspended = true;
+  }
+
+  static void resumePushRegistration() {
+    _registrationSuspended = false;
+  }
+
+  @visibleForTesting
+  static void resetForTest() {
+    debugReadToken = null;
+    debugDeleteToken = null;
+    debugCancelNotifications = null;
+    _registrationSuspended = false;
+    _pendingTapPayload = null;
+    _initialized = false;
+  }
+
   static Future<void> initialize() async {
+    bindSessionEnd();
     if (_initialized) return;
     _initialized = true;
 
     if (!kIsWeb) {
       await _initializeLocalNotifications();
-      await _messaging.setForegroundNotificationPresentationOptions(
+      await _firebase.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
         sound: true,
       );
     }
 
-    await _messaging.requestPermission(
+    await _firebase.requestPermission(
       alert: true,
       badge: true,
       sound: true,
       provisional: false,
     );
 
-    _messaging.onTokenRefresh.listen((token) async {
-      await _storeToken(token);
-      await registerForCurrentUser(token: token);
+    _firebase.onTokenRefresh.listen((token) async {
+      await handleTokenRefresh(token);
     });
 
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageTap);
 
-    final initialMessage = await _messaging.getInitialMessage();
+    final initialMessage = await _firebase.getInitialMessage();
     if (initialMessage != null) {
-      _pendingTapPayload = _payloadFromMessage(initialMessage);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _navigatePendingTap();
-      });
+      final payload = _payloadFromMessage(initialMessage);
+      if (_canPresent(payload)) {
+        _pendingTapPayload = payload;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _navigatePendingTap();
+        });
+      }
     }
 
     await registerForCurrentUser();
   }
 
+  /// FCM rotation. No-op while signed out so a deleted token cannot be
+  /// registered back onto the previous account.
+  static Future<void> handleTokenRefresh(String token) async {
+    if (!_canRegisterPush) return;
+    if (token.isEmpty) return;
+    await _storeToken(token);
+    await registerForCurrentUser(token: token);
+  }
+
+  static bool get _canRegisterPush =>
+      !_registrationSuspended &&
+      FFAppState().isLoggedIn &&
+      FFAppState().accessToken.isNotEmpty;
+
   static Future<void> registerForCurrentUser({String? token}) async {
-    if (kIsWeb || FFAppState().accessToken.isEmpty) return;
+    if (!_canRegisterPush) return;
+    final platform = pushPlatformName(
+      isWeb: kIsWeb,
+      platformName: defaultTargetPlatform.name,
+    );
+    if (platform == null) return;
     try {
-      final resolvedToken = token ?? await _messaging.getToken();
+      final resolvedToken = token ?? await _readRemoteToken();
       if (resolvedToken == null || resolvedToken.isEmpty) return;
       await _storeToken(resolvedToken);
       await ApiService.registerDeviceToken(
         token: resolvedToken,
-        platform: defaultTargetPlatform.name,
+        platform: platform,
       );
+      await _markPushSession(FFAppState().userId);
     } catch (e) {
-      debugPrint('[NotificationService] Token registration failed: $e');
+      debugPrint(
+          '[NotificationService] Token registration failed (${e.runtimeType})');
     }
+  }
+
+  static Future<String?> currentPushToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString(pushTokenPrefsKey);
+      if (stored != null && stored.isNotEmpty) return stored;
+    } catch (_) {}
+    return _readRemoteToken();
+  }
+
+  /// Drops the device token and the tray. Safe to call more than once.
+  static Future<void> invalidateLocalPush() async {
+    suspendPushRegistration();
+    _pendingTapPayload = null;
+    await _deleteRemoteToken();
+    await cancelDisplayedNotifications();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(pushTokenPrefsKey);
+      await prefs.setBool(pushSessionActiveKey, false);
+      await prefs.remove(pushBoundUserKey);
+    } catch (_) {}
+  }
+
+  static Future<void> cancelDisplayedNotifications() async {
+    final override = debugCancelNotifications;
+    if (override != null) {
+      await override();
+      return;
+    }
+    try {
+      await _localNotifications.cancelAll();
+    } catch (_) {}
+  }
+
+  static Future<String?> _readRemoteToken() async {
+    final override = debugReadToken;
+    if (override != null) return override();
+    try {
+      return await _firebase.getToken();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> _deleteRemoteToken() async {
+    final override = debugDeleteToken;
+    if (override != null) {
+      await override();
+      return;
+    }
+    try {
+      await _firebase.deleteToken();
+    } catch (_) {}
   }
 
   static Future<void> _storeToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('fcm_device_token', token);
+    await prefs.setString(pushTokenPrefsKey, token);
+  }
+
+  static Future<void> _markPushSession(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(pushSessionActiveKey, true);
+    if (userId.isNotEmpty) {
+      await prefs.setString(pushBoundUserKey, userId);
+    }
   }
 
   static Future<void> _initializeLocalNotifications() async {
@@ -103,7 +240,12 @@ class NotificationService {
         final payload = response.payload;
         if (payload == null || payload.isEmpty) return;
         try {
-          _handlePayload(jsonDecode(payload) as Map<String, dynamic>);
+          final decoded = jsonDecode(payload);
+          if (decoded is Map<String, dynamic>) {
+            _handlePayload(decoded);
+          } else if (decoded is Map) {
+            _handlePayload(Map<String, dynamic>.from(decoded));
+          }
         } catch (_) {
           _handlePayload({'type': 'general'});
         }
@@ -124,15 +266,23 @@ class NotificationService {
     }
   }
 
+  static bool _canPresent(Map<String, dynamic> payload) {
+    return shouldPresentPush(
+      loggedIn: FFAppState().isLoggedIn && FFAppState().accessToken.isNotEmpty,
+      currentUserId: FFAppState().userId,
+      payload: payload,
+    );
+  }
+
   static Future<void> _handleForegroundMessage(RemoteMessage message) async {
     final payload = _payloadFromMessage(message);
+    if (!_canPresent(payload)) return;
     if (message.data['type'] == 'device_approval') {
       _promptDeviceApproval(message.notification?.body);
     }
     FFAppState().unreadNotificationCount =
         FFAppState().unreadNotificationCount + 1;
 
-    // Notify listeners that a new notification has been received.
     try {
       notificationReceived.value = notificationReceived.value + 1;
     } catch (_) {}
@@ -194,15 +344,14 @@ class NotificationService {
   }
 
   static void _handlePayload(Map<String, dynamic> payload) {
+    if (!_canPresent(payload)) return;
     _pendingTapPayload = payload;
     _navigatePendingTap();
-    // Notify listeners that a pending payload/tap is available.
     try {
       notificationReceived.value = notificationReceived.value + 1;
     } catch (_) {}
   }
 
-  /// "Approve new device" prompt on the trusted phone while FARM is open.
   static void _promptDeviceApproval(String? body) {
     final context = appNavigatorKey.currentContext;
     if (context == null) return;
@@ -237,10 +386,16 @@ class NotificationService {
     final payload = _pendingTapPayload;
     final context = appNavigatorKey.currentContext;
     if (payload == null || context == null) return;
+    if (!_canPresent(payload)) {
+      _pendingTapPayload = null;
+      return;
+    }
 
     final metadata = payload['metadata'];
-    final type = metadata is Map<String, dynamic>
-        ? metadata['event']?.toString().toLowerCase() ?? payload['type']?.toString().toLowerCase() ?? 'general'
+    final type = metadata is Map
+        ? metadata['event']?.toString().toLowerCase() ??
+            payload['type']?.toString().toLowerCase() ??
+            'general'
         : payload['type']?.toString().toLowerCase() ?? 'general';
     if (type == 'device_approval') {
       _pendingTapPayload = null;
@@ -260,6 +415,8 @@ class NotificationService {
       route = '/withdrawpage';
     } else if (type.contains('merchant')) {
       route = '/merchantSales';
+    } else if (type.contains('escrow')) {
+      route = '/user-notifications';
     } else {
       route = '/user-notifications';
     }

@@ -12,6 +12,7 @@ import '/services/auth/refresh_manager.dart';
 import '/services/app_session_manager.dart';
 import '/services/notification_service.dart';
 import '/services/auth/session_store_service.dart';
+import '/services/auth/session_end.dart';
 import '/services/biometric_lock_service.dart';
 
 /// Centralized authentication service for the FARM app.
@@ -37,7 +38,9 @@ class AuthService {
     return _instance;
   }
 
-  AuthService._internal();
+  AuthService._internal() {
+    NotificationService.bindSessionEnd();
+  }
 
   static Map<String, dynamic> normalizeLoginResponse(
       Map<String, dynamic> response) {
@@ -145,6 +148,7 @@ class AuthService {
         );
         final role = backendUser?['role']?.toString().toLowerCase() ?? '';
         if (role == 'user') {
+          NotificationService.resumePushRegistration();
           await NotificationService.registerForCurrentUser();
         }
       }
@@ -194,6 +198,7 @@ class AuthService {
           refreshToken: refreshToken,
           backendUser: backendUser,
         );
+        NotificationService.resumePushRegistration();
         await NotificationService.registerForCurrentUser();
       }
 
@@ -235,6 +240,7 @@ class AuthService {
           refreshToken: refreshToken,
           backendUser: backendUser,
         );
+        NotificationService.resumePushRegistration();
         await NotificationService.registerForCurrentUser();
       }
 
@@ -253,11 +259,32 @@ class AuthService {
     await NotificationService.registerForCurrentUser();
   }
 
+  Future<void> _releasePreviousAccount(String nextUserId) async {
+    final previousUserId = FFAppState().userId;
+    if (previousUserId.isEmpty ||
+        nextUserId.isEmpty ||
+        previousUserId == nextUserId) {
+      return;
+    }
+    NotificationService.suspendPushRegistration();
+    try {
+      final pushToken = await NotificationService.currentPushToken();
+      await ApiService.logout(pushToken: pushToken);
+    } catch (e) {
+      debugPrint(
+          '[AuthService] Previous account logout failed (${e.runtimeType})');
+    }
+    await SessionEnd.forceLocalSignOut('account switch');
+    NotificationService.resumePushRegistration();
+  }
+
   Future<void> _persistSessionTokens({
     required String farmJwt,
     required String refreshToken,
     required Map<String, dynamic>? backendUser,
   }) async {
+    await _releasePreviousAccount(backendUser?['id']?.toString() ?? '');
+    RefreshManager().reset();
     final role = backendUser is Map<String, dynamic>
         ? backendUser['role']?.toString().toLowerCase() ?? ''
         : '';
@@ -379,50 +406,40 @@ class AuthService {
     }
   }
 
-  /// Log out the user from Supabase and FARM backend, and clear all local auth data.
+  /// Log out this device only. Other phones stay signed in.
+  ///
+  /// The push token is sent while the bearer token is still present. Local
+  /// credentials are cleared even when the network call fails.
   Future<void> logout() async {
-    print('LOGOUT CALLED');
-    print(StackTrace.current);
-    Exception? logoutError;
+    NotificationService.suspendPushRegistration();
+    try {
+      final pushToken = await NotificationService.currentPushToken();
+      await ApiService.logout(pushToken: pushToken);
+    } catch (e) {
+      debugPrint('[AuthService] Backend logout failed (${e.runtimeType})');
+    }
 
     if (FFAppState().isUser && FFAppState().biometricsEnabled) {
       try {
         await BiometricLockService().disableBiometrics();
       } catch (e) {
-        debugPrint('Could not unregister biometrics during logout: $e');
-      }
-    }
-
-    try {
-      await ApiService.revokeAllSessions();
-    } catch (e) {
-      debugPrint('Backend revoke-all error: $e');
-      try {
-        await ApiService.logout();
-      } catch (e2) {
-        debugPrint('Backend logout fallback error: $e2');
-        logoutError = Exception('Backend logout failed: $e2');
+        debugPrint(
+            '[AuthService] Could not unregister biometrics during logout (${e.runtimeType})');
       }
     }
 
     try {
       await _supabase.auth.signOut();
     } catch (e) {
-      debugPrint('Supabase signOut error: $e');
-      logoutError = Exception('Supabase logout failed: $e');
+      debugPrint('[AuthService] Supabase signOut error (${e.runtimeType})');
     }
 
     try {
-      await FFAppState().clearAuthCredentials();
+      await SessionEnd.forceLocalSignOut('explicit logout');
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('language', 'en');
     } catch (e) {
-      debugPrint('Local clear auth data error: $e');
-      logoutError = Exception('Local logout cleanup failed: $e');
-    }
-
-    if (logoutError != null) {
-      debugPrint('Logout completed with errors: ${logoutError.toString()}');
+      debugPrint('[AuthService] Local logout cleanup failed (${e.runtimeType})');
     }
   }
 
@@ -431,8 +448,6 @@ class AuthService {
     required bool acknowledged,
     required bool confirmDelete,
   }) async {
-    print('LOGOUT CALLED');
-    print(StackTrace.current);
     try {
       await ApiService.deleteAccount(
         body: {
@@ -448,13 +463,15 @@ class AuthService {
     try {
       await _supabase.auth.signOut();
     } catch (e) {
-      debugPrint('Supabase signOut error during account deletion: $e');
+      debugPrint(
+          '[AuthService] Supabase signOut error during account deletion (${e.runtimeType})');
     }
 
     try {
-      await FFAppState().clearAuthCredentials();
+      await SessionEnd.forceLocalSignOut('account deleted');
     } catch (e) {
-      debugPrint('Local cleanup error during account deletion: $e');
+      debugPrint(
+          '[AuthService] Local cleanup error during account deletion (${e.runtimeType})');
     }
   }
 

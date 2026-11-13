@@ -107,14 +107,19 @@ class RouteGuardService {
       }
     }
 
-    // Authentication state is local and persists until an explicit logout.
-    // An expired/rejected token can make API requests fail, but must not send
-    // the user back through login or erase their stored session.
+    // A revoked or expired session has already cleared local credentials.
+    // A generic refresh rejection keeps them so biometric unlock still works
+    // after the app is closed. A stale terminal flag must not discard a
+    // session that now has tokens again.
+    final signedOut = state.accessToken.isEmpty && state.refreshToken.isEmpty;
+    if (signedOut &&
+        (!state.isLoggedIn || RefreshManager().lastFailureWasTerminal)) {
+      return false;
+    }
+
     final hasLocalSession = state.isLoggedIn ||
         state.accessToken.isNotEmpty ||
-        state.refreshToken.isNotEmpty ||
-        accessToken.isNotEmpty ||
-        refreshToken.isNotEmpty;
+        state.refreshToken.isNotEmpty;
     if (hasLocalSession) state.isLoggedIn = true;
     return hasLocalSession;
   }

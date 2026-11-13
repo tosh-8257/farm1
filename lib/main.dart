@@ -36,6 +36,7 @@ Widget buildSafeErrorWidget(FlutterErrorDetails details) {
 void main() async {
   print('APP START');
   WidgetsFlutterBinding.ensureInitialized();
+  NotificationService.bindSessionEnd();
 
   // Configuration comes from --dart-define / --dart-define-from-file=.env
   // (see .env.example). Initialise dotenv empty so any lookup is safe; no
