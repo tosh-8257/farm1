@@ -97,7 +97,9 @@ bool shouldClearBackgroundPush({
 /// the locally stored session until the server says it was revoked or expired.
 bool isTerminalSessionFailure(String message, {String? code}) {
   final normalizedCode = (code ?? '').toLowerCase().replaceAll('-', '_');
-  if (normalizedCode == 'device_id_required') return false;
+  if (normalizedCode == 'device_id_required' || normalizedCode == 'access_expired') {
+    return false;
+  }
   const terminalCodes = {
     'session_revoked',
     'token_revoked',
@@ -119,4 +121,68 @@ bool isTerminalSessionFailure(String message, {String? code}) {
       lower.contains('expired session') ||
       lower.contains('not valid on this device') ||
       lower.contains('session not valid');
+}
+
+/// Local sign-out is only for a real auth failure.
+///
+/// A failed upload, a 403, and a transient error (network, timeout, 5xx)
+/// keep the session. When biometrics are on, the app does not sign out at
+/// all: the install keeps the session until the user logs out or the app
+/// is uninstalled.
+bool shouldForceLocalSignOut({
+  required int? statusCode,
+  required String message,
+  String? code,
+  bool? sessionInvalid,
+  bool upload = false,
+  bool biometricsOn = false,
+  bool transientFailure = false,
+}) {
+  if (biometricsOn || upload || transientFailure) return false;
+  if (statusCode == null || statusCode == 403) return false;
+  if (statusCode == 408 || statusCode == 429 || statusCode >= 500) {
+    return false;
+  }
+  if (statusCode != 401) return false;
+  final normalizedCode = (code ?? '').toLowerCase().replaceAll('-', '_');
+  if (normalizedCode == 'access_expired') return false;
+  if (sessionInvalid == false) return false;
+  if (sessionInvalid == true) return true;
+  return isTerminalSessionFailure(message, code: code);
+}
+
+/// `session_invalid` from the current error JSON. Null when an older server
+/// did not send the field.
+bool? sessionInvalidFlag(Map<dynamic, dynamic>? body) {
+  if (body == null || !body.containsKey('session_invalid')) return null;
+  return body['session_invalid'] == true;
+}
+
+class SessionErrorBody {
+  const SessionErrorBody({required this.message, this.code, this.sessionInvalid});
+  final String message;
+  final String? code;
+  final bool? sessionInvalid;
+}
+
+SessionErrorBody readSessionError(String body) {
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is Map) {
+      final map = Map<String, dynamic>.from(decoded);
+      final message = map['message'];
+      final text = message is String
+          ? message
+          : message is List
+              ? message.map((part) => '$part').join(' ')
+              : '';
+      final code = map['code'];
+      return SessionErrorBody(
+        message: text,
+        code: code is String ? code : null,
+        sessionInvalid: sessionInvalidFlag(map),
+      );
+    }
+  } catch (_) {}
+  return SessionErrorBody(message: body);
 }

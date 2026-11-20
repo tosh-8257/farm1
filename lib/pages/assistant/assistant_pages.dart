@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'mkulima_limits.dart';
+import 'wake_listener.dart';
 import '/backend/api_requests/ai_api.dart';
 import '/backend/services/api_service.dart';
 import 'package:go_router/go_router.dart';
@@ -212,7 +214,7 @@ class AssistantChatPage extends StatefulWidget {
   State<AssistantChatPage> createState() => _AssistantChatPageState();
 }
 
-class _AssistantChatPageState extends State<AssistantChatPage> {
+class _AssistantChatPageState extends State<AssistantChatPage> with WidgetsBindingObserver {
   final _input = TextEditingController();
   final _scroll = ScrollController();
   final List<Map<String, dynamic>> _items = []; // {role, content} or {role:'action', action}
@@ -226,6 +228,13 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
   final _tts = FlutterTts();
   int? _speaking;
   bool _handsFree = false;
+  bool _listening = false;
+  bool _foreground = true;
+  bool _wakePaused = false;
+  bool _wakeClosed = false;
+  Timer? _wakeTick;
+  Completer<void>? _wakeWait;
+  ForegroundWake? _wake;
   static const _handsFreeKey = 'mkulima_hands_free';
   static const _headset = MethodChannel('farm.mkulima_voice');
 
@@ -233,11 +242,13 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
   void initState() {
     super.initState();
     _conversationId = widget.conversationId;
+    WidgetsBinding.instance.addObserver(this);
     _init();
     SharedPreferences.getInstance().then((p) {
       if (!mounted) return;
       setState(() => _handsFree = p.getBool(_handsFreeKey) ?? false);
     });
+    unawaited(_wakeLoop());
     _headset.setMethodCallHandler((call) async {
       if (call.method == 'headset' && _handsFree && mounted) {
         await _voice(autoSend: true);
@@ -247,13 +258,66 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (!_foreground) _wake?.stop();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(_onHardwareKey);
     _headset.setMethodCallHandler(null);
+    _wakeClosed = true;
+    _handsFree = false;
+    _wakeTick?.cancel();
+    final waiting = _wakeWait;
+    if (waiting != null && !waiting.isCompleted) waiting.complete();
+    _wake?.stop();
+    unawaited(_wake?.dispose());
     _input.dispose();
     _scroll.dispose();
     _tts.stop();
     super.dispose();
+  }
+
+  Future<void> _waitWake(Duration duration) {
+    final done = Completer<void>();
+    _wakeWait = done;
+    _wakeTick = Timer(duration, () {
+      if (!done.isCompleted) done.complete();
+    });
+    return done.future;
+  }
+
+  Future<void> _wakeLoop() async {
+    _wake ??= ForegroundWake();
+    while (mounted && !_wakeClosed) {
+      if (!_handsFree || !_foreground || _wakePaused) {
+        if (_listening && mounted) setState(() => _listening = false);
+        await _waitWake(const Duration(milliseconds: 400));
+        continue;
+      }
+      if (mounted) setState(() => _listening = true);
+      try {
+        final message = await _wake!.once();
+        if (!mounted || !_handsFree || _wakePaused) continue;
+        if (message != null) {
+          await _sendText(message.text, language: message.language, fromVoice: true);
+        }
+      } on StateError catch (e) {
+        if (!mounted) return;
+        bizSnack(context, e.message);
+        if (e.message.toLowerCase().contains('permission')) {
+          await _setHandsFree(false);
+        } else {
+          await Future.delayed(const Duration(seconds: 1));
+        }
+      } catch (e) {
+        if (!mounted) return;
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    }
   }
 
   bool _onHardwareKey(KeyEvent event) {
@@ -270,6 +334,7 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
 
   Future<void> _setHandsFree(bool value) async {
     setState(() => _handsFree = value);
+    if (!value) _wake?.stop();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_handsFreeKey, value);
   }
@@ -533,19 +598,46 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
+            dense: true,
             title: Text('Hands-free Hey Mkulima', style: TextStyle(color: fgColor(c), fontSize: 14)),
-            subtitle: Text(handsFreeLimits, style: TextStyle(color: mutedColor(c), fontSize: 11, height: 1.35)),
+            subtitle: Text(
+              _listening ? 'Listening in the foreground' : 'Starts listening as soon as this is on',
+              style: TextStyle(color: mutedColor(c), fontSize: 12),
+            ),
             value: _handsFree,
-            onChanged: _setHandsFree,
+            onChanged: _sending ? null : (v) => _setHandsFree(v),
+            secondary: IconButton(
+              tooltip: 'How hands-free works',
+              icon: Icon(Icons.info_outline, size: 18, color: mutedColor(c)),
+              onPressed: () => showDialog<void>(
+                context: c,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Hey Mkulima'),
+                  content: Text(handsFreeLimits),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+                  ],
+                ),
+              ),
+            ),
           ),
           if (_handsFree)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _sending ? null : () => _voice(autoSend: true, requireWake: true),
-                icon: const Icon(Icons.hearing),
-                label: const Text('Listen for Hey Mkulima'),
-              ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(children: [
+                Icon(Icons.hearing, size: 16, color: _listening ? fgColor(c) : mutedColor(c)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _listening ? 'Listening for Hey Mkulima' : 'Hands-free is on',
+                    style: TextStyle(fontSize: 12, color: mutedColor(c)),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _setHandsFree(false),
+                  child: const Text('Stop'),
+                ),
+              ]),
             ),
         ]),
       ),
@@ -568,7 +660,14 @@ class _AssistantChatPageState extends State<AssistantChatPage> {
           IconButton(
             key: const ValueKey('mkulima-mic'),
             tooltip: 'Voice message',
-            onPressed: _sending ? null : _voice,
+            onPressed: _sending
+                ? null
+                : () async {
+                    _wakePaused = true;
+                    _wake?.stop();
+                    await _voice();
+                    if (mounted) setState(() => _wakePaused = false);
+                  },
             icon: Icon(Icons.mic_none_rounded, color: fgColor(c)),
           ),
           IconButton(
@@ -634,6 +733,16 @@ class AssistantConversationsPage extends StatelessWidget {
       );
 }
 
+String? _ceilingCopy(Map<dynamic, dynamic> permissions) {
+  final label = mkulimaCeilingLabel(permissions);
+  if (label == null) return null;
+  final caps = mkulimaCeilings(permissions);
+  final parts = <String>[];
+  if (caps.perTx != null) parts.add('per payment ${money(caps.perTx)}');
+  if (caps.daily != null) parts.add('per day ${money(caps.daily)}');
+  return 'Platform ceiling: ${parts.join(', ')}.';
+}
+
 /// Spending permissions: caps, enable, revoke, plus pending requests and audit.
 class AssistantSettingsPage extends StatefulWidget {
   const AssistantSettingsPage({super.key});
@@ -653,11 +762,15 @@ class _AssistantSettingsPageState extends State<AssistantSettingsPage> {
       builder: (ctx) => AlertDialog(
         title: const Text('Allow Mkulima payments'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Mkulima can only propose payments within these limits. Every payment still needs your PIN.'),
+          const Text('Set any positive limits. Nothing is sent until you confirm with your PIN or biometrics.'),
           const SizedBox(height: 12),
           TextField(controller: perTx, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: bizInput(ctx, 'Max per payment (FARM)')),
           const SizedBox(height: 10),
           TextField(controller: daily, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: bizInput(ctx, 'Max per day (FARM)')),
+          if (_ceilingCopy(p) != null) ...[
+            const SizedBox(height: 8),
+            Text(_ceilingCopy(p)!, style: TextStyle(fontSize: 12, color: mutedColor(ctx))),
+          ],
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel', style: TextStyle(color: mutedColor(ctx)))),
@@ -669,11 +782,11 @@ class _AssistantSettingsPageState extends State<AssistantSettingsPage> {
     perTx.dispose();
     daily.dispose();
     if (ok != true || !c.mounted) return;
-    if (a == null || d == null || a <= 0 || d < a) {
+    if (!mkulimaAcceptsLimits(perTx: a, daily: d, permissions: p)) {
       bizSnack(c, 'Enter amounts above zero; the daily limit must be at least the per-payment limit.');
       return;
     }
-    await runBusy(c, () => AiApi.savePermissions(enabled: true, perTxCap: a, dailyCap: d), success: 'Saved');
+    await runBusy(c, () => AiApi.savePermissions(enabled: true, perTxCap: a!, dailyCap: d!), success: 'Saved');
     _key.currentState?.reload();
   }
 
@@ -700,13 +813,17 @@ class _AssistantSettingsPageState extends State<AssistantSettingsPage> {
                   const SizedBox(height: 8),
                   Text(
                       on
-                          ? 'Mkulima may prepare FARM payments within your limits. Nothing is sent until you confirm with your PIN.'
+                          ? 'Mkulima may prepare FARM payments within your limits. Nothing is sent until you confirm with your PIN or biometrics.'
                           : 'Mkulima cannot prepare payments. It can still answer questions about your account.',
                       style: TextStyle(color: mutedColor(c))),
                   if (on) ...[
                     const SizedBox(height: 10),
                     KeyValue('Max per payment', money(p['per_tx_cap'])),
                     KeyValue('Max per day', money(p['daily_cap'])),
+                    if (mkulimaCeilings(p).perTx != null)
+                      KeyValue('Platform per payment', money(mkulimaCeilings(p).perTx)),
+                    if (mkulimaCeilings(p).daily != null)
+                      KeyValue('Platform per day', money(mkulimaCeilings(p).daily)),
                     KeyValue('Used today', money(p['spent_today'])),
                     KeyValue('Above your limits', 'Refused. Every payment needs your PIN.'),
                   ],

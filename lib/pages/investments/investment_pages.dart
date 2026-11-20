@@ -503,7 +503,7 @@ class MilestoneList extends StatelessWidget {
 }
 
 
-/// Project tokens held for the investor in FARM custody (Algorand TestNet).
+/// Project tokens held for the investor in FARM custody (Algorand Mainnet).
 class TokensTab extends StatefulWidget {
   const TokensTab({super.key});
   @override

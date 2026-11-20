@@ -27,6 +27,27 @@ void main() {
     expect(isPersonalActivity(qr), isTrue);
     expect(merchantQrTitle(qr), 'Merchant QR');
     expect(
+      merchantQrTitle({
+        'transaction_type': 'merchant_payment',
+        'channel': 'payment_link',
+      }),
+      'Payment link',
+    );
+    expect(
+      merchantQrTitle({
+        'transaction_type': 'merchant_payment',
+        'metadata': {'business_document': 'invoice', 'invoice_number': 'INV-9'},
+      }),
+      'Invoice INV-9',
+    );
+    expect(
+      merchantQrTitle({'transaction_type': 'merchant_payment'}),
+      isNull,
+    );
+    expect(merchantQrTitle({'transaction_type': 'merchant_payment', 'channel': 'nfc'}), 'Tap to pay');
+    expect(merchantQrTitle({'transaction_type': 'transfer', 'channel': 'p2p'}), 'Transfer');
+    expect(paymentChannel({'transaction_type': 'transfer'}), isNull);
+    expect(
       isPersonalActivity({
         'status': 'completed',
         'transaction_type': 'merchant_payment',

@@ -45,7 +45,7 @@ class RefreshManager {
     return nextAllowed != null && DateTime.now().isBefore(nextAllowed);
   }
 
-  Future<bool> refreshIfNeeded({bool force = false}) async {
+  Future<bool> refreshIfNeeded({bool force = false, bool endSession = true}) async {
     if (!_hasRefreshToken) {
       debugPrint(
           '[RefreshManager] No refresh token available. Skipping refresh.');
@@ -70,13 +70,13 @@ class RefreshManager {
       return false;
     }
 
-    return _performRefresh();
+    return _performRefresh(endSession: endSession);
   }
 
-  Future<bool> _performRefresh() async {
+  Future<bool> _performRefresh({required bool endSession}) async {
     _refreshCompleter = Completer<bool>();
     try {
-      final result = await _doRefresh();
+      final result = await _doRefresh(endSession: endSession);
       if (!_refreshCompleter!.isCompleted) {
         _refreshCompleter!.complete(result);
       }
@@ -91,7 +91,7 @@ class RefreshManager {
     }
   }
 
-  Future<bool> _doRefresh() async {
+  Future<bool> _doRefresh({required bool endSession}) async {
     _lastFailureWasRevocation = false;
     _lastFailureWasTerminal = false;
     final refreshToken = FFAppState().refreshToken.trim();
@@ -175,24 +175,56 @@ class RefreshManager {
         return true;
       }
 
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        final message = _errorMessage(response.body);
+      if (response.statusCode == 403) {
+        debugPrint(
+            '[AUTH REFRESH] 403 is a permission error. Keeping the local session.');
+        _registerFailure();
+        return false;
+      }
+
+      if (response.statusCode == 401) {
+        final failure = readSessionError(response.body);
+        final message = failure.message;
         if (_isRefreshRace(message)) {
           debugPrint('[RefreshManager] Concurrent refresh rejected. Keeping the latest token.');
           final latest = FFAppState().refreshToken.trim();
           if (latest.isNotEmpty && latest != refreshToken && _raceRetries < 1) {
             _raceRetries++;
-            return await _doRefresh();
+            return await _doRefresh(endSession: endSession);
           }
           _registerFailure();
           return FFAppState().accessToken.trim().isNotEmpty;
         }
-        if (isTerminalSessionFailure(message)) {
+        final endSessionNow = shouldForceLocalSignOut(
+          statusCode: 401,
+          message: message,
+          code: failure.code,
+          sessionInvalid: failure.sessionInvalid,
+          biometricsOn: FFAppState().biometricsEnabled,
+        );
+        if (endSessionNow) {
           _lastFailureWasTerminal = true;
           _lastFailureWasRevocation = true;
-          debugPrint(
-              '[AUTH REFRESH] Session revoked or expired. Clearing local session.');
-          await SessionEnd.forceLocalSignOut('revoked or expired session');
+          final end = endSession &&
+              shouldForceLocalSignOut(
+                statusCode: 401,
+                message: message,
+                code: failure.code,
+                sessionInvalid: failure.sessionInvalid,
+                biometricsOn: FFAppState().biometricsEnabled,
+              );
+          if (end) {
+            debugPrint(
+                '[AUTH REFRESH] Session revoked or expired. Clearing local session.');
+            await SessionEnd.forceLocalSignOut('revoked or expired session');
+          } else {
+            FFAppState().isLoggedIn = true;
+            if (FFAppState().biometricsEnabled) {
+              FFAppState().needsBiometricReauth = true;
+            }
+            debugPrint(
+                '[AUTH REFRESH] Terminal refresh kept locally (biometrics or caller asked to keep the session).');
+          }
           _registerFailure();
           return false;
         }

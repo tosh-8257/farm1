@@ -196,11 +196,14 @@ class AdminApiService {
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         debugPrint(
             '[AdminApiService] refresh failed with ${resp.statusCode}');
-        if (resp.statusCode == 401 || resp.statusCode == 403) {
+        if (resp.statusCode == 401) {
           final failure = _errorBody(resp.body);
-          if (isTerminalSessionFailure(
-            failure.message,
+          if (shouldForceLocalSignOut(
+            statusCode: 401,
+            message: failure.message,
             code: failure.code,
+            sessionInvalid: failure.sessionInvalid,
+            biometricsOn: FFAppState().biometricsEnabled,
           )) {
             await SessionEnd.forceLocalSignOut('revoked or expired session');
           }
@@ -323,7 +326,13 @@ class AdminApiService {
       }
 
       final failure = _errorBody(res.body);
-      if (isTerminalSessionFailure(failure.message, code: failure.code)) {
+      if (shouldForceLocalSignOut(
+        statusCode: 401,
+        message: failure.message,
+        code: failure.code,
+        sessionInvalid: failure.sessionInvalid,
+        biometricsOn: FFAppState().biometricsEnabled,
+      )) {
         await SessionEnd.forceLocalSignOut('revoked or expired session');
       }
       throw Exception(
@@ -395,21 +404,9 @@ class AdminApiService {
     }
   }
 
-  static ({String message, String? code}) _errorBody(String body) {
-    try {
-      final decoded = jsonDecode(body);
-      if (decoded is Map) {
-        final message = decoded['message'];
-        final text = message is String
-            ? message
-            : message is List
-                ? message.map((part) => '$part').join(' ')
-                : '';
-        final code = decoded['code'];
-        return (message: text, code: code is String ? code : null);
-      }
-    } catch (_) {}
-    return (message: '', code: null);
+  static ({String message, String? code, bool? sessionInvalid}) _errorBody(String body) {
+    final parsed = readSessionError(body);
+    return (message: parsed.message, code: parsed.code, sessionInvalid: parsed.sessionInvalid);
   }
 
   static Future<Map<String, dynamic>> _publicReq({

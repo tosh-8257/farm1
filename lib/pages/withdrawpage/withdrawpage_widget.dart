@@ -69,9 +69,22 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
   final Set<String> _loadingCryptoNetworks = {};
   final Map<String, String> _cryptoNetworkErrors = {};
   double? _cryptoFarmUsdRate;
-  CoinLimit? _coinLimit;
+  List<CoinLimit> _coinLimits = [];
   bool _loadingCryptoMinimum = false;
   String? _cryptoMinimumError;
+
+  CoinLimit? get _coinLimit =>
+      limitFor(_coinLimits, selectedCryptoAsset, network: selectedCryptoNetwork);
+
+  List<String> get _limitNetworks {
+    final nets = _coinLimits
+        .map((limit) => limit.network?.trim() ?? '')
+        .where((network) => network.isNotEmpty)
+        .toSet()
+        .toList();
+    nets.sort();
+    return nets;
+  }
 
   // Live withdrawal fee from the backend fee schedule (same rate for every method).
   FeeRule? _feeRule;
@@ -135,6 +148,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       if (_loadingCryptoMinimum) return 'Loading ${selectedCryptoAsset.toUpperCase()} limits...';
       if (_cryptoMinimumError != null) {
         return 'Could not load ${selectedCryptoAsset.toUpperCase()} limits: $_cryptoMinimumError';
+      }
+      if (_limitNetworks.length > 1 && (_coinLimit == null || selectedCryptoNetwork == null)) {
+        return 'Choose the ${selectedCryptoAsset.toUpperCase()} network to see its limits.';
       }
       if (_coinLimit == null) {
         return 'Limits for ${selectedCryptoAsset.toUpperCase()} were not returned.';
@@ -367,7 +383,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
       _cryptoMinimumError = null;
     });
     try {
-      final limit = await fetchWithdrawCoinLimit(asset);
+      final limits = await fetchWithdrawCoinLimits(asset);
       if (!mounted || selectedCryptoAsset != asset) return;
       double? farmUsdRate = _cryptoFarmUsdRate;
       try {
@@ -382,8 +398,19 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
         }
       } catch (_) {}
       if (!mounted || selectedCryptoAsset != asset) return;
+      final networks = limits
+          .map((limit) => limit.network?.trim() ?? '')
+          .where((network) => network.isNotEmpty)
+          .toSet()
+          .toList();
       setState(() {
-        _coinLimit = limit;
+        _coinLimits = limits;
+        if (networks.length == 1) {
+          selectedCryptoNetwork = networks.first;
+        } else if (networks.isNotEmpty &&
+            (selectedCryptoNetwork == null || !networks.contains(selectedCryptoNetwork))) {
+          selectedCryptoNetwork = null;
+        }
         _cryptoFarmUsdRate = farmUsdRate;
       });
     } catch (error) {
@@ -1016,16 +1043,32 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                 setState(() {
                   selectedCryptoAsset = value;
                   selectedCryptoNetwork = null;
-                  _coinLimit = null;
+                  _coinLimits = [];
                 });
                 unawaited(_fetchCryptoWithdrawalMinimum());
               },
             ),
             const SizedBox(height: 8),
-            Text(
-              'The network is included in the selected currency ticker.',
-              style: TextStyle(color: theme.secondaryText, fontSize: 12),
-            ),
+            if (_limitNetworks.length > 1) ...[
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _limitNetworks.contains(selectedCryptoNetwork)
+                    ? selectedCryptoNetwork
+                    : null,
+                decoration: const InputDecoration(labelText: 'Network'),
+                items: [
+                  for (final network in _limitNetworks)
+                    DropdownMenuItem(value: network, child: Text(network)),
+                ],
+                onChanged: (value) => setState(() => selectedCryptoNetwork = value),
+              ),
+            ] else
+              Text(
+                _coinLimit?.network == null
+                    ? 'Limits apply to the selected coin.'
+                    : 'Network: ${_coinLimit!.network}',
+                style: TextStyle(color: theme.secondaryText, fontSize: 12),
+              ),
             if (_loadingCryptoNetworks.contains('all'))
               const Padding(
                 padding: EdgeInsets.only(top: 8),
@@ -1243,9 +1286,9 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                           children: [
                             Text(
                               selectedMethod == 'CRYPTO'
-                                  ? (_coinLimit?.minAmount != null
-                                      ? 'Min: ${_coinLimit!.minAmount} ${selectedCryptoAsset.toUpperCase()}'
-                                      : 'Min: USD ${(_cryptoMinUsd ?? 0).toStringAsFixed(2)}')
+                                  ? (_coinLimit == null
+                                      ? 'Min: —'
+                                      : _coinLimit!.rangeLabel)
                                   : 'Min: FARM ${_formatAmount(_activeWithdrawMin)}',
                               style: GoogleFonts.plusJakartaSans(
                                 color: theme.secondaryText,
@@ -1257,7 +1300,7 @@ class _WithdrawpageWidgetState extends State<WithdrawpageWidget> {
                                   ? (_coinLimit?.maxAmount != null
                                       ? 'Max: ${_coinLimit!.maxAmount} ${selectedCryptoAsset.toUpperCase()}'
                                       : _cryptoMaxUsdLimit == null
-                                          ? 'Max: not set for this coin'
+                                          ? 'Max: none published'
                                           : 'Max: USD ${_cryptoMaxUsdLimit!.toStringAsFixed(2)}')
                                   : _activeWithdrawMax == null
                                       ? 'Max: FARM no limit'

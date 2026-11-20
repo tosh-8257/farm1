@@ -38,11 +38,26 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   bool _loadingCryptoTokens = false;
   bool _cryptoTokensLoaded = false;
   String? _cryptoTokensError;
-  double? _cryptoMinimumAmount;
-  double? _cryptoMinimumUsd;
-  double? _cryptoMaximumUsd;
+  List<CoinLimit> _cryptoLimits = [];
+  String? _cryptoNetwork;
   bool _loadingCryptoMinimum = false;
   String? _cryptoMinimumError;
+
+  CoinLimit? get _activeCryptoLimit {
+    final token = _selectedCryptoToken;
+    if (token == null) return null;
+    return limitFor(_cryptoLimits, token, network: _cryptoNetwork);
+  }
+
+  List<String> get _cryptoNetworks {
+    final nets = _cryptoLimits
+        .map((limit) => limit.network?.trim() ?? '')
+        .where((network) => network.isNotEmpty)
+        .toSet()
+        .toList();
+    nets.sort();
+    return nets;
+  }
 
   bool isLoading = false;
   bool loadingWallet = true;
@@ -74,18 +89,18 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   Map<String, double?> get _activeDepositLimits =>
       _depositLimits[selectedMethod] ?? _depositLimits['MOBILE_MONEY']!;
   double get _activeDepositMin => selectedMethod == 'CRYPTO'
-      ? (_cryptoMinimumUsd == null
+      ? (_activeCryptoLimit?.minUsd == null
             ? 0
-            : (_cryptoMinimumUsd! * 100).ceilToDouble() / 100)
+            : (_activeCryptoLimit!.minUsd! * 100).ceilToDouble() / 100)
       : (_activeDepositLimits['min'] ?? 10);
   double? get _activeDepositMax => selectedMethod == 'CRYPTO'
-      ? _cryptoMaximumUsd
+      ? _activeCryptoLimit?.maxUsd
       : _activeDepositLimits['max'];
   String get _amountCurrency =>
       selectedMethod == 'CRYPTO' ? 'USD' : selectedCurrency;
   bool get _hasValidDepositAmount =>
       amount > 0 &&
-      (selectedMethod != 'CRYPTO' || _cryptoMinimumUsd != null) &&
+      (selectedMethod != 'CRYPTO' || _activeCryptoLimit != null) &&
       amount >= _activeDepositMin &&
       (_activeDepositMax == null || amount <= _activeDepositMax!);
 
@@ -143,23 +158,21 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
   Future<void> _fetchCryptoMinimum(String currency) async {
     setState(() {
       _loadingCryptoMinimum = true;
-      _cryptoMinimumAmount = null;
-      _cryptoMinimumUsd = null;
-      _cryptoMaximumUsd = null;
+      _cryptoLimits = [];
+      _cryptoNetwork = null;
       _cryptoMinimumError = null;
     });
     try {
-      final limit = await fetchDepositCoinLimit(currency);
-      if (limit.minUsd == null || limit.minUsd! <= 0) {
-        throw const FormatException(
-          'The server did not return a USD minimum for this coin.',
-        );
-      }
+      final limits = await fetchDepositCoinLimits(currency);
       if (!mounted || _selectedCryptoToken != currency) return;
+      final networks = limits
+          .map((limit) => limit.network?.trim() ?? '')
+          .where((network) => network.isNotEmpty)
+          .toSet()
+          .toList();
       setState(() {
-        _cryptoMinimumAmount = limit.minAmount;
-        _cryptoMinimumUsd = limit.minUsd;
-        _cryptoMaximumUsd = limit.maxUsd;
+        _cryptoLimits = limits;
+        _cryptoNetwork = networks.length == 1 ? networks.first : null;
       });
     } catch (error) {
       if (!mounted || _selectedCryptoToken != currency) return;
@@ -182,13 +195,9 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     return formatter.format(value);
   }
 
-  String _formatMinimumCrypto(double value) {
-    return NumberFormat('#,##0.##################', 'en_US').format(value);
-  }
-
-  double get _cryptoMinimumUsdToEnter => _cryptoMinimumUsd == null
+  double get _cryptoMinimumUsdToEnter => _activeCryptoLimit?.minUsd == null
       ? 0
-      : (_cryptoMinimumUsd! * 100).ceilToDouble() / 100;
+      : (_activeCryptoLimit!.minUsd! * 100).ceilToDouble() / 100;
 
   String get _depositValidationMessage {
     final currency = _amountCurrency;
@@ -201,11 +210,17 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
     if (selectedMethod == 'CRYPTO' && _cryptoMinimumError != null) {
       return 'Could not load the minimum for ${_selectedCryptoToken!.toUpperCase()}';
     }
-    if (selectedMethod == 'CRYPTO' && _cryptoMinimumUsd == null) {
+    if (selectedMethod == 'CRYPTO' && _cryptoNetworks.length > 1 && _cryptoNetwork == null) {
+      return 'Choose the network for ${_selectedCryptoToken!.toUpperCase()}';
+    }
+    if (selectedMethod == 'CRYPTO' && _activeCryptoLimit == null) {
       if (_selectedCryptoToken != null && !_loadingCryptoMinimum) {
         return 'Limits for ${_selectedCryptoToken!.toUpperCase()} were not returned. Deposit stays blocked until they load.';
       }
       return 'Select a cryptocurrency to see its minimum deposit amount';
+    }
+    if (selectedMethod == 'CRYPTO' && _activeCryptoLimit!.minUsd == null) {
+      return _activeCryptoLimit!.rangeLabel;
     }
     if (amount <= 0) {
       final minimum = selectedMethod == 'CRYPTO'
@@ -388,7 +403,7 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
       return;
     }
     if (selectedMethod == 'CRYPTO' &&
-        (_loadingCryptoMinimum || _cryptoMinimumUsd == null)) {
+        (_loadingCryptoMinimum || _activeCryptoLimit == null)) {
       _snack(
         _cryptoMinimumError ??
             'Wait for the selected cryptocurrency minimum to load',
@@ -1060,9 +1075,8 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                     onSelected: (token) {
                       setState(() {
                         _selectedCryptoToken = token;
-                        _cryptoMinimumAmount = null;
-                        _cryptoMinimumUsd = null;
-                        _cryptoMaximumUsd = null;
+                        _cryptoLimits = [];
+                        _cryptoNetwork = null;
                         _cryptoMinimumError = null;
                       });
                       _fetchCryptoMinimum(token);
@@ -1091,44 +1105,44 @@ class _DepositpageWidgetState extends State<DepositpageWidget> {
                       ),
                     ),
                   )
-                else if (_cryptoMinimumUsd != null && _selectedCryptoToken != null)
+                else if (_activeCryptoLimit != null && _selectedCryptoToken != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (_cryptoNetworks.length > 1)
+                          DropdownButtonFormField<String>(
+                            initialValue: _cryptoNetwork,
+                            decoration: const InputDecoration(labelText: 'Network'),
+                            items: [
+                              for (final network in _cryptoNetworks)
+                                DropdownMenuItem(value: network, child: Text(network)),
+                            ],
+                            onChanged: (value) => setState(() => _cryptoNetwork = value),
+                          ),
                         Text(
-                          _cryptoMinimumAmount == null
-                              ? 'Minimum for ${_selectedCryptoToken!.toUpperCase()} comes from your account limits.'
-                              : 'Minimum: ${_formatMinimumCrypto(_cryptoMinimumAmount!)} ${_selectedCryptoToken!.toUpperCase()}',
+                          _activeCryptoLimit!.rangeLabel,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: theme.primaryText,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _cryptoMaximumUsd == null
-                              ? 'Enter at least USD ${_cryptoMinimumUsdToEnter.toStringAsFixed(2)}. No maximum was returned for this coin.'
-                              : 'USD ${_cryptoMinimumUsdToEnter.toStringAsFixed(2)} – USD ${_cryptoMaximumUsd!.toStringAsFixed(2)} for ${_selectedCryptoToken!.toUpperCase()}.',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: theme.primaryText,
+                        if (_activeCryptoLimit!.minUsd != null) ...[
+                          const SizedBox(height: 4),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                amountController.text = _cryptoMinimumUsdToEnter
+                                    .toStringAsFixed(2);
+                                setState(() {});
+                              },
+                              child: const Text('Use minimum amount'),
+                            ),
                           ),
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              amountController.text = _cryptoMinimumUsdToEnter
-                                  .toStringAsFixed(2);
-                              setState(() {});
-                            },
-                            child: const Text('Use minimum amount'),
-                          ),
-                        ),
+                        ],
                       ],
                     ),
                   ),

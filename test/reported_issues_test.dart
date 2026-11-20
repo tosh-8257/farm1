@@ -7,12 +7,42 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
 void main() {
-  test('tokenization submit stays visible for drafts and shows each status', () {
-    expect(projectCanSubmitForTokenization('draft'), isTrue);
-    expect(projectCanSubmitForTokenization(''), isTrue);
-    expect(projectCanSubmitForTokenization('more_info_required'), isTrue);
-    expect(projectCanSubmitForTokenization('submitted'), isFalse);
-    expect(projectCanSubmitForTokenization('listed'), isFalse);
+  test('tokenization submit is only at the end of a complete application', () {
+    expect(
+      showTokenizationSubmit(
+        projectStatus: 'draft',
+        applicationComplete: false,
+        tokenization: const {},
+      ),
+      isFalse,
+    );
+    expect(
+      showTokenizationSubmit(
+        projectStatus: 'draft',
+        applicationComplete: true,
+        tokenization: const {'enabled': false},
+      ),
+      isFalse,
+    );
+    expect(
+      showTokenizationSubmit(
+        projectStatus: 'draft',
+        applicationComplete: true,
+        tokenization: const {'on_invest_enabled': true, 'network': 'mainnet'},
+      ),
+      isTrue,
+    );
+    expect(
+      showTokenizationSubmit(
+        projectStatus: 'submitted',
+        applicationComplete: true,
+        tokenization: const {},
+      ),
+      isFalse,
+    );
+    expect(tokenizationTitle(const {}), 'Tokenization (Algorand Mainnet)');
+    expect(projectCanDiscard('draft'), isTrue);
+    expect(projectCanDiscard('submitted'), isFalse);
     expect(projectLifecycleLabel('draft'), 'Draft');
     expect(projectLifecycleLabel('submitted'), 'Submitted');
     expect(projectLifecycleLabel('under_review'), 'Under review');
