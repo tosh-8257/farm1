@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:farm/app_state.dart';
 import 'package:farm/backend/services/api_service.dart';
@@ -151,5 +152,80 @@ void main() {
     expect(FFAppState().role, 'user');
     expect((await AuthSessionStore.readUserSession())?.refreshToken,
         'rejected-refresh-token');
+  });
+
+  test('a 403 does not sign the user out', () async {
+    FFAppState().accessToken = 'access';
+    FFAppState().refreshToken = 'refresh';
+    FFAppState().isLoggedIn = true;
+    FFAppState().role = 'user';
+    RefreshManager.client = MockClient((request) async {
+      return http.Response(
+        jsonEncode({'message': 'Session not found or expired'}),
+        403,
+      );
+    });
+
+    final refreshed = await RefreshManager().refreshIfNeeded(force: true);
+
+    expect(refreshed, isFalse);
+    expect(RefreshManager().lastFailureWasTerminal, isFalse);
+    expect(FFAppState().isLoggedIn, isTrue);
+    expect(FFAppState().accessToken, 'access');
+    expect(FFAppState().refreshToken, 'refresh');
+  });
+
+  test('biometrics keep the session after a revoked refresh', () async {
+    FFAppState().accessToken = 'access';
+    FFAppState().refreshToken = 'refresh';
+    FFAppState().isLoggedIn = true;
+    FFAppState().role = 'user';
+    FFAppState().biometricsEnabled = true;
+    RefreshManager.client = MockClient((request) async {
+      return http.Response(
+        jsonEncode({'message': 'Session not found or expired'}),
+        401,
+      );
+    });
+
+    final refreshed = await RefreshManager().refreshIfNeeded(force: true);
+
+    expect(refreshed, isFalse);
+    expect(FFAppState().isLoggedIn, isTrue);
+    expect(FFAppState().accessToken, 'access');
+    expect(FFAppState().refreshToken, 'refresh');
+    expect(FFAppState().needsBiometricReauth, isTrue);
+    expect(FFAppState().biometricsEnabled, isTrue);
+  });
+
+  test('a failed image upload does not sign the user out', () async {
+    FFAppState().accessToken = 'access';
+    FFAppState().refreshToken = 'refresh';
+    FFAppState().isLoggedIn = true;
+    FFAppState().role = 'user';
+    final mock = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/refresh')) {
+        return http.Response(
+          jsonEncode({'message': 'Session not found or expired'}),
+          401,
+        );
+      }
+      return http.Response(jsonEncode({'message': 'Unauthorized'}), 401);
+    });
+    ApiService.client = mock;
+    RefreshManager.client = mock;
+
+    await expectLater(
+      ApiService.uploadImages(
+        files: [Uint8List.fromList(const [1, 2, 3])],
+        filenames: const ['cover.jpg'],
+        mimeTypes: const ['image/jpeg'],
+      ),
+      throwsA(isA<Exception>()),
+    );
+
+    expect(FFAppState().isLoggedIn, isTrue);
+    expect(FFAppState().accessToken, 'access');
+    expect(FFAppState().refreshToken, 'refresh');
   });
 }

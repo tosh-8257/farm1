@@ -101,7 +101,10 @@ class ApiService {
     if (response.statusCode == 401 &&
         !isRetry &&
         FFAppState().refreshToken.isNotEmpty) {
-      final refreshed = await RefreshManager().refreshIfNeeded(force: true);
+      final refreshed = await RefreshManager().refreshIfNeeded(
+        force: true,
+        endSession: false,
+      );
       if (refreshed) {
         return transcribeVoice(
             bytes: bytes, filename: filename, mimeType: mimeType, isRetry: true);
@@ -156,7 +159,10 @@ class ApiService {
     if (response.statusCode == 401 &&
         !isRetry &&
         FFAppState().refreshToken.isNotEmpty) {
-      final refreshed = await RefreshManager().refreshIfNeeded(force: true);
+      final refreshed = await RefreshManager().refreshIfNeeded(
+        force: true,
+        endSession: false,
+      );
       if (refreshed) {
         return uploadDocument(bytes: bytes, filename: filename, isRetry: true);
       }
@@ -228,7 +234,10 @@ class ApiService {
     if (response.statusCode == 401 &&
         !isRetry &&
         FFAppState().refreshToken.isNotEmpty) {
-      final refreshed = await RefreshManager().refreshIfNeeded(force: true);
+      final refreshed = await RefreshManager().refreshIfNeeded(
+        force: true,
+        endSession: false,
+      );
       if (refreshed) {
         return _uploadImages(
           files: files,
@@ -428,13 +437,17 @@ class ApiService {
     }
 
     final message = _apiMessage(decoded, responseBody);
+    final failureCode =
+        decoded['code'] is String ? decoded['code'] as String : null;
     if (response.statusCode == 401 &&
         requiresAuth &&
-        (RefreshManager().lastFailureWasTerminal ||
-            isTerminalSessionFailure(
-              message,
-              code: decoded['code'] is String ? decoded['code'] as String : null,
-            ))) {
+        shouldForceLocalSignOut(
+          statusCode: 401,
+          message: message,
+          code: failureCode,
+          sessionInvalid: sessionInvalidFlag(decoded),
+          biometricsOn: FFAppState().biometricsEnabled,
+        )) {
       await SessionEnd.forceLocalSignOut('revoked or expired session');
     }
     if (response.statusCode == 429) {

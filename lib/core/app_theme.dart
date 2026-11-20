@@ -12,6 +12,10 @@ class AppTheme {
   /// Accent fill (buttons, chips, indicators, art).
   static const accent = kBrandAccent;
 
+  /// Gold for fine lines only: dividers, thin outlines, focus rings, progress.
+  /// Primary buttons keep [accent] and are not restyled here.
+  static const hairline = kBrandAccent;
+
   /// Text/icons drawn ON an accent fill. Black on gold is ~10:1.
   static const onAccent = Color(0xFF000000);
 
@@ -141,10 +145,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: accentOn(lightSurface, minContrast: 3),
-            width: 2,
-          ),
+          borderSide: const BorderSide(color: hairline, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -184,10 +185,11 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       dividerTheme: const DividerThemeData(
-        color: lightDivider,
+        color: hairline,
         thickness: 1,
         space: 1,
       ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(color: hairline),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: lightBackground,
         selectedItemColor: accentOn(lightBackground, minContrast: 3),
@@ -299,10 +301,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: accentOn(darkSurface, minContrast: 3),
-            width: 2,
-          ),
+          borderSide: const BorderSide(color: hairline, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -342,10 +341,11 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       dividerTheme: const DividerThemeData(
-        color: darkDivider,
+        color: hairline,
         thickness: 1,
         space: 1,
       ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(color: hairline),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: darkSurface,
         selectedItemColor: accent,

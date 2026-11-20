@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '/pages/agent_payments/business_identity.dart';
 import '/backend/api_requests/business_ops_api.dart';
 import 'ops_ui.dart';
 import 'team_logic.dart';
@@ -271,6 +273,22 @@ class _ProfileState extends State<BusinessProfilePage> {
                     BusinessStatusBadge(status: b['status']?.toString()),
                   ]),
                   const SizedBox(height: 10),
+                  Builder(builder: (context) {
+                    final identity = parseBusinessIdentity(b);
+                    final shown = identity?.displayId ?? '';
+                    if (shown.isEmpty) return const SizedBox.shrink();
+                    return Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                      Expanded(child: KeyValue('Business ID', shown)),
+                      IconButton(
+                        tooltip: 'Copy Business ID',
+                        onPressed: () async {
+                          await Clipboard.setData(ClipboardData(text: shown));
+                          if (context.mounted) bizSnack(context, 'Business ID copied');
+                        },
+                        icon: Icon(Icons.copy, size: 18, color: fgColor(c)),
+                      ),
+                    ]);
+                  }),
                   KeyValue('Legal name', v('legal_name')),
                   KeyValue('Registration no.', v('registration_number')),
                   KeyValue('Country', v('registration_country')),

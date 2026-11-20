@@ -5,17 +5,30 @@ import '/backend/services/api_service.dart';
 class CoinLimit {
   const CoinLimit({
     required this.currency,
+    this.network,
     this.minAmount,
     this.maxAmount,
     this.minUsd,
     this.maxUsd,
+    this.feeEstimate,
+    this.available,
+    this.declared = false,
   });
 
   final String currency;
+  final String? network;
   final double? minAmount;
   final double? maxAmount;
   final double? minUsd;
   final double? maxUsd;
+  final double? feeEstimate;
+
+  /// False when the provider is down and the payload is a FARM floor.
+  final bool? available;
+
+  /// True when the server published this row, including a row whose
+  /// minimum and maximum are null (no limit).
+  final bool declared;
 
   bool get hasAnyBound =>
       minAmount != null || maxAmount != null || minUsd != null || maxUsd != null;
@@ -29,24 +42,28 @@ class CoinLimit {
 
   String get rangeLabel {
     final coin = currency.toUpperCase();
+    final net = (network ?? '').trim();
     final parts = <String>[];
+    if (net.isNotEmpty) parts.add(net);
     if (minAmount != null) {
       parts.add('Min $minAmount $coin');
-    } else if (minUsd != null) {
-      parts.add('Min USD ${_usd(minUsd!)}');
     }
     if (maxAmount != null) {
       parts.add('Max $maxAmount $coin');
-    } else if (maxUsd != null) {
-      parts.add('Max USD ${_usd(maxUsd!)}');
+    } else if (minAmount != null) {
+      parts.add('No maximum published');
     }
-    if (minUsd != null && minAmount != null) {
-      parts.add('at least USD ${_usd(minUsd!)}');
+    if (minUsd != null) parts.add('Min USD ${_usd(minUsd!)}');
+    if (maxUsd != null) parts.add('Max USD ${_usd(maxUsd!)}');
+    if (available == false && minUsd != null) {
+      parts.add('provider floor');
     }
-    if (maxUsd != null && maxAmount != null) {
-      parts.add('at most USD ${_usd(maxUsd!)}');
+    if (!hasAnyBound && declared) {
+      return 'No minimum or maximum is published for $coin';
     }
-    if (parts.isEmpty) return 'Limits for $coin were not returned';
+    if (parts.isEmpty || (parts.length == 1 && net.isNotEmpty)) {
+      return 'Limits for $coin were not returned';
+    }
     return parts.join(' · ');
   }
 }
@@ -84,29 +101,75 @@ CoinLimit? parseCoinLimit(Object? raw, {String? currency}) {
       .toString()
       .trim()
       .toLowerCase();
+  final network = (map['network'] ?? map['network_code'] ?? map['chain'] ?? '')
+      .toString()
+      .trim();
+  final available = map.containsKey('available')
+      ? map['available'] == true
+      : null;
+  final declared = map.containsKey('available') ||
+      map.containsKey('message') ||
+      _explicitNull(map, 'min_amount') ||
+      _explicitNull(map, 'max_amount') ||
+      _explicitNull(map, 'minimumUsd') ||
+      _explicitNull(map, 'min_usd') ||
+      _explicitNull(map, 'minimumAmount');
   final limit = CoinLimit(
     currency: code,
-    minAmount: _firstNum(map, ['min_amount', 'minAmount', 'minimumAmount', 'min']),
-    maxAmount: _firstNum(map, ['max_amount', 'maxAmount', 'maximumAmount', 'max']),
-    minUsd: _firstNum(map, ['minUsd', 'minimumUsd', 'min_usd', 'minimum_usd']),
-    maxUsd: _firstNum(map, ['maxUsd', 'maximumUsd', 'max_usd', 'maximum_usd']),
+    network: network.isEmpty ? null : network,
+    minAmount: _firstNum(map, ['min_amount', 'minAmount', 'minimumAmount', 'min', 'minimum_deposit', 'minimum_withdrawal']),
+    maxAmount: _firstNum(map, ['max_amount', 'maxAmount', 'maximumAmount', 'max', 'maximum_deposit', 'maximum_withdrawal']),
+    minUsd: _firstNum(map, [
+      'minUsd',
+      'minimumUsd',
+      'min_usd',
+      'minimum_usd',
+      'minimum_deposit_usd',
+      'minimumDepositUsd',
+    ]),
+    maxUsd: _firstNum(map, ['maxUsd', 'maximumUsd', 'max_usd', 'maximum_usd', 'maximum_deposit_usd']),
+    feeEstimate: _firstNum(map, ['fee_estimate', 'feeEstimate', 'fee']),
+    available: available,
+    declared: declared,
   );
+  if (!limit.hasAnyBound && !limit.declared) return null;
   if (limit.currency.isEmpty && !limit.hasAnyBound) return null;
-  if (!limit.hasAnyBound && limit.currency.isEmpty) return null;
-  return limit.hasAnyBound ? limit : null;
+  return limit;
+}
+
+bool _explicitNull(Map map, String key) => map.containsKey(key) && map[key] == null;
+
+List<CoinLimit> _expandNetworks(Map map, {String? currency}) {
+  final networks = map['networks'];
+  if (networks is! List || networks.isEmpty) {
+    final one = parseCoinLimit(map, currency: currency);
+    return one == null ? const [] : [one];
+  }
+  final out = <CoinLimit>[];
+  for (final network in networks) {
+    if (network is! Map) continue;
+    final row = Map<String, dynamic>.from(network);
+    row.putIfAbsent('currency', () => map['currency'] ?? map['coin'] ?? currency);
+    final one = parseCoinLimit(row, currency: currency ?? '${map['currency'] ?? ''}');
+    if (one != null) out.add(one);
+  }
+  return out;
 }
 
 /// A limits payload may be one coin or a list under `coins` / `data`.
+/// A coin may also carry a `networks` list with its own min and max.
 List<CoinLimit> parseCoinLimitList(Object? raw) {
   if (raw is Map) {
     final map = Map<String, dynamic>.from(raw);
-    final list = map['coins'] ?? map['limits'] ?? map['currencies'];
+    if (map['networks'] is List) return _expandNetworks(map);
+    final list = map['coins'] ?? map['limits'] ?? map['currencies'] ?? map['assets'];
     if (list is List) return parseCoinLimitList(list);
     final data = map['data'];
     if (data is List) return parseCoinLimitList(data);
     if (data is Map) {
       final inner = Map<String, dynamic>.from(data);
-      final innerList = inner['coins'] ?? inner['limits'];
+      if (inner['networks'] is List) return _expandNetworks(inner);
+      final innerList = inner['coins'] ?? inner['limits'] ?? inner['assets'];
       if (innerList is List) return parseCoinLimitList(innerList);
       if (innerList is Map) return _limitsFromCoinMap(innerList);
       final one = parseCoinLimit(inner);
@@ -127,51 +190,71 @@ List<CoinLimit> _limitsFromCoinMap(Map<dynamic, dynamic> raw) {
     if (value is! Map) return;
     final row = Map<String, dynamic>.from(value);
     row.putIfAbsent('currency', () => '$key');
-    final one = parseCoinLimit(row, currency: '$key');
-    if (one != null) out.add(one);
+    out.addAll(_expandNetworks(row, currency: '$key'));
   });
   return out;
 }
 
-CoinLimit? limitFor(List<CoinLimit> limits, String currency) {
+CoinLimit? limitFor(List<CoinLimit> limits, String currency, {String? network}) {
   final code = currency.trim().toLowerCase();
-  for (final limit in limits) {
-    if (limit.currency == code) return limit;
+  final net = network?.trim().toLowerCase();
+  final matches = limits.where((limit) => limit.currency == code || limit.currency.isEmpty).toList();
+  if (net != null && net.isNotEmpty) {
+    for (final limit in matches) {
+      if ((limit.network ?? '').toLowerCase() == net) return _withCurrency(limit, code);
+    }
+    if (matches.length == 1 && (matches.first.network ?? '').isEmpty) {
+      return _withCurrency(matches.first, code);
+    }
+    if (matches.length > 1) return null;
   }
-  if (limits.length == 1 && limits.first.currency.isEmpty) {
-    return CoinLimit(
-      currency: code,
-      minAmount: limits.first.minAmount,
-      maxAmount: limits.first.maxAmount,
-      minUsd: limits.first.minUsd,
-      maxUsd: limits.first.maxUsd,
-    );
-  }
+  if (matches.length == 1) return _withCurrency(matches.first, code);
+  final withNetwork = matches.where((limit) => (limit.network ?? '').isNotEmpty).toList();
+  if (withNetwork.length > 1 && (net == null || net.isEmpty)) return null;
+  if (matches.isNotEmpty) return _withCurrency(matches.first, code);
   return null;
 }
 
-Future<CoinLimit?> _firstLimit(List<String> paths, String currency) async {
+CoinLimit _withCurrency(CoinLimit limit, String code) {
+  if (limit.currency.isNotEmpty) return limit;
+  return CoinLimit(
+    currency: code,
+    network: limit.network,
+    minAmount: limit.minAmount,
+    maxAmount: limit.maxAmount,
+    minUsd: limit.minUsd,
+    maxUsd: limit.maxUsd,
+    feeEstimate: limit.feeEstimate,
+    available: limit.available,
+    declared: limit.declared,
+  );
+}
+
+String _withNetwork(String path, String? network) {
+  final net = network?.trim() ?? '';
+  if (net.isEmpty) return path;
+  final join = path.contains('?') ? '&' : '?';
+  return '$path$join${'network=${Uri.encodeQueryComponent(net)}'}';
+}
+
+Future<List<CoinLimit>> _limitsAt(List<String> paths, String currency, {String? network}) async {
   final code = currency.trim().toLowerCase();
   Object? lastError;
   for (final path in paths) {
     try {
       final response = await ApiService.request(
         method: 'GET',
-        path: path,
+        path: _withNetwork(path, network),
         requiresAuth: true,
       );
       final many = parseCoinLimitList(response);
-      final match = limitFor(many, code);
-      if (match != null) return match;
+      final matched = many.where((limit) => limit.currency == code || limit.currency.isEmpty).toList();
+      if (matched.isNotEmpty) {
+        return matched.map((limit) => _withCurrency(limit, code)).toList();
+      }
       final one = parseCoinLimit(response, currency: code);
-      if (one != null) {
-        return CoinLimit(
-          currency: one.currency.isEmpty ? code : one.currency,
-          minAmount: one.minAmount,
-          maxAmount: one.maxAmount,
-          minUsd: one.minUsd,
-          maxUsd: one.maxUsd,
-        );
+      if (one != null && (one.hasAnyBound || one.declared)) {
+        return [_withCurrency(one, code)];
       }
     } on ApiServiceException catch (e) {
       lastError = e;
@@ -180,32 +263,70 @@ Future<CoinLimit?> _firstLimit(List<String> paths, String currency) async {
     }
   }
   if (lastError != null) throw lastError;
-  return null;
+  return const [];
 }
 
-/// Deposit bounds for [currency]. Tries the per-coin limits route, then the
-/// existing NOWPayments minimum route. Throws if every route fails.
-Future<CoinLimit> fetchDepositCoinLimit(String currency) async {
+/// Deposit bounds for [currency], including one row per network when the
+/// payload has them. A missing USD minimum is not an error.
+Future<List<CoinLimit>> fetchDepositCoinLimits(String currency, {String? network}) async {
   final code = currency.trim().toLowerCase();
-  final limit = await _firstLimit([
+  final limits = await _limitsAt([
     '/wallet/deposit/crypto/limits/${Uri.encodeQueryComponent(code)}',
+    '/wallet/deposit/crypto/minimum/${Uri.encodeQueryComponent(code)}',
     '/wallet/deposit/crypto/limits',
-  ], code);
-  if (limit == null || !limit.hasAnyBound) {
+  ], code, network: network);
+  if (limits.isEmpty || limits.every((limit) => !limit.hasAnyBound && !limit.declared)) {
     throw const FormatException('Deposit limits for this coin were not returned.');
   }
-  return limit;
+  return limits;
 }
 
-/// Withdrawal bounds for [currency]. The legacy minimum route is global USD;
-/// a per-coin payload replaces it when the backend sends one.
-Future<CoinLimit> fetchWithdrawCoinLimit(String currency) async {
+Future<CoinLimit> fetchDepositCoinLimit(String currency, {String? network}) async {
+  final limits = await fetchDepositCoinLimits(currency, network: network);
+  final match = limitFor(limits, currency, network: network);
+  if (match == null || !match.hasAnyBound) {
+    throw const FormatException('Deposit limits for this coin were not returned.');
+  }
+  return match;
+}
+
+/// Withdrawal bounds for [currency]. One entry per network when the payload
+/// includes them. A missing USD minimum is left null.
+Future<List<CoinLimit>> fetchWithdrawCoinLimits(String currency, {String? network}) async {
   final code = currency.trim().toLowerCase();
-  final limit = await _firstLimit([
+  final limits = await _limitsAt([
     '/withdraw/crypto/limits/${Uri.encodeQueryComponent(code)}',
-  ], code);
-  if (limit == null || !limit.hasAnyBound) {
+  ], code, network: network);
+  if (limits.isEmpty || limits.every((limit) => !limit.hasAnyBound && !limit.declared)) {
     throw const FormatException('Withdrawal limits for this coin were not returned.');
   }
-  return limit;
+  return limits;
+}
+
+/// Algorand receive limits. Null bounds mean no published limit.
+/// A missing route (older server) returns an empty list.
+Future<List<CoinLimit>> fetchChainLimits() async {
+  try {
+    final response = await ApiService.request(
+      method: 'GET',
+      path: '/wallet/chain/limits',
+      requiresAuth: true,
+    );
+    final many = parseCoinLimitList(response);
+    if (many.isNotEmpty) return many;
+    final one = parseCoinLimit(response);
+    return one == null ? const [] : [one];
+  } on ApiServiceException catch (e) {
+    if (e.statusCode == 404 || e.statusCode == 405) return const [];
+    rethrow;
+  }
+}
+
+Future<CoinLimit> fetchWithdrawCoinLimit(String currency, {String? network}) async {
+  final limits = await fetchWithdrawCoinLimits(currency, network: network);
+  final match = limitFor(limits, currency, network: network);
+  if (match == null || !match.hasAnyBound) {
+    throw const FormatException('Withdrawal limits for this coin were not returned.');
+  }
+  return match;
 }

@@ -63,6 +63,9 @@ class InvestmentsApi {
       _call('DELETE', '/business/projects/$id/documents/$docId');
   static Future<Map<String, dynamic>> submitProject(String id) async =>
       _d(await _call('POST', '/business/projects/$id/submit'));
+  /// Drafts only. The server rejects anything that has left draft.
+  static Future<void> discardProject(String id) =>
+      _call('DELETE', '/business/projects/$id');
   static Future<Map<String, dynamic>> postUpdate(String id, String title, String body) async =>
       _d(await _call('POST', '/business/projects/$id/updates', {'title': title, 'body': body}));
   // Phase 5: Algorand tokenization (backend decides everything; disabled until configured)

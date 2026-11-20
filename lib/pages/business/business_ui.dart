@@ -13,7 +13,8 @@ Color cardColor(BuildContext c) => FlutterFlowTheme.of(c).secondaryBackground;
 /// Brand gold for headline money figures, darkened as needed for contrast
 /// against the card surface.
 Color goldOn(BuildContext c) => AppTheme.accentOn(cardColor(c));
-Color borderColor(BuildContext c) => FlutterFlowTheme.of(c).alternate;
+/// Thin gold outline shared by cards and secondary controls.
+Color borderColor(BuildContext c) => AppTheme.hairline;
 
 ButtonStyle primaryButtonStyle(BuildContext c) {
   final dark = Theme.of(c).brightness == Brightness.dark;

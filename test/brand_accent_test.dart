@@ -42,8 +42,9 @@ void main() {
         expect(t.chipTheme.selectedColor, AppTheme.accent);
         expect(t.tabBarTheme.indicatorColor, AppTheme.accent);
         final focus = (t.inputDecorationTheme.focusedBorder! as OutlineInputBorder).borderSide.color;
-        expect(HSLColor.fromColor(focus).hue, closeTo(HSLColor.fromColor(AppTheme.accent).hue, 1));
-        expect(AppTheme.contrastRatio(focus, t.colorScheme.surface), greaterThanOrEqualTo(3));
+        expect(focus, AppTheme.hairline);
+        expect(t.dividerTheme.color, AppTheme.hairline);
+        expect(t.progressIndicatorTheme.color, AppTheme.hairline);
       });
       test('error, success and toggles never use the accent', () {
         expect(t.colorScheme.error, isNot(AppTheme.accent));

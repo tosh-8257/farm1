@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/backend/api_requests/agent_payments_api.dart';
+import '/pages/agent_payments/business_identity.dart';
 import '/pages/business/ops/ops_ui.dart';
+import '/utils/user_error_message.dart';
 
 const _labels = {
   'requires_payment': 'Awaiting payment',
@@ -309,6 +311,10 @@ class _NewMandatePageState extends State<_NewMandatePage> {
   final _day = TextEditingController();
   final _month = TextEditingController();
   final _days = TextEditingController(text: '30');
+  BusinessIdentity? _identity;
+  bool _looking = false;
+  String? _lookupNote;
+
   @override
   void dispose() {
     for (final x in [_biz, _label, _tx, _day, _month, _days]) {
@@ -317,29 +323,71 @@ class _NewMandatePageState extends State<_NewMandatePage> {
     super.dispose();
   }
 
-  Future<void> _save() async {
+  Future<void> _lookup() async {
     final id = _biz.text.trim();
+    if (id.length < 4) {
+      bizSnack(context, 'Enter the business ID');
+      return;
+    }
+    setState(() {
+      _looking = true;
+      _lookupNote = null;
+      _identity = null;
+    });
+    try {
+      final found = await AgentPaymentsApi.lookupBusiness(id);
+      if (!mounted) return;
+      setState(() {
+        _identity = found;
+        _lookupNote = found == null
+            ? 'The server did not return this business. Check the ID and try again.'
+            : found.name.isEmpty
+                ? 'Business ID ${found.displayId}. The server did not return a name.'
+                : null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _lookupNote = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _looking = false);
+    }
+  }
+
+  Future<void> _save() async {
+    final typed = _biz.text.trim();
+    final identity = _identity;
+    if (identity == null && _lookupNote == null) {
+      bizSnack(context, 'Look up the business so its name and ID are on screen before you confirm.');
+      return;
+    }
+    if (identity != null && identity.name.isEmpty && _lookupNote == null) {
+      bizSnack(context, 'Look up the business so its name and ID are on screen before you confirm.');
+      return;
+    }
+    final shownName = identity?.name ?? '';
+    final shownId = (identity != null && identity.displayId.isNotEmpty) ? identity.displayId : typed;
     final tx = num.tryParse(_tx.text), day = num.tryParse(_day.text), month = num.tryParse(_month.text);
     final days = int.tryParse(_days.text);
-    if (!_uuid.hasMatch(id)) return bizSnack(context, 'Enter the business ID');
     if (tx == null || day == null || month == null || tx <= 0) return bizSnack(context, 'Enter all three limits');
     if (tx > day || day > month) return bizSnack(context, 'Limits must go per payment ≤ daily ≤ monthly');
     if (days == null || days < 1 || days > 365) return bizSnack(context, 'Duration must be 1–365 days');
     final auth = await confirmWithPin(context,
-        title: 'Allow agent payments',
-        message: 'Let this business’s agent ask you for up to ${money(tx)} per payment. You still approve each one.',
-        biometricSupported: false);
+        biometricSupported: false,
+        title: shownName.isEmpty ? 'Allow this business' : 'Allow $shownName',
+        message: shownName.isEmpty
+            ? 'Business ID: $shownId\nThe server did not return a business name. Continue only if this ID is the business you mean.\n\nUp to ${money(tx)} per payment. You still approve each one with your PIN or biometrics.'
+            : 'Business: $shownName\nBusiness ID: $shownId\n\nLet this business’s agent ask you for up to ${money(tx)} per payment. You still approve each one with your PIN or biometrics.');
     if (auth == null || !mounted) return;
     final r = await runBusy(
         context,
         () => AgentPaymentsApi.createMandate({
-              'business_id': id,
+              'business_id': identity != null && identity.id.isNotEmpty ? identity.id : typed,
               if (_label.text.trim().isNotEmpty) 'label': _label.text.trim(),
               'per_tx_cap': tx,
               'daily_cap': day,
               'monthly_cap': month,
               'expires_in_days': days,
-              'pin': auth.pin,
+              ...auth.authFields(),
             }),
         success: 'Permission added');
     if (r != null && mounted) Navigator.pop(context);
@@ -351,7 +399,40 @@ class _NewMandatePageState extends State<_NewMandatePage> {
     return BizScaffold(
       title: 'Allow a business',
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        TextField(controller: _biz, decoration: bizInput(c, 'Business ID', hint: 'Given by the business')),
+        TextField(
+          controller: _biz,
+          decoration: bizInput(c, 'Business ID', hint: 'Given by the business'),
+          onChanged: (_) {
+            if (_identity != null || _lookupNote != null) {
+              setState(() {
+                _identity = null;
+                _lookupNote = null;
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          style: secondaryButtonStyle(c),
+          onPressed: _looking ? null : _lookup,
+          child: Text(_looking ? 'Looking up…' : 'Look up business'),
+        ),
+        if (_identity != null && _identity!.name.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          BizCard(
+            padding: const EdgeInsets.all(14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_identity!.name, style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(c))),
+              const SizedBox(height: 6),
+              KeyValue('Business ID', _identity!.displayId),
+              if (_identity!.status != null) KeyValue('Status', _identity!.status!),
+            ]),
+          ),
+        ],
+        if (_lookupNote != null) ...[
+          const SizedBox(height: 8),
+          Text(_lookupNote!, style: TextStyle(color: mutedColor(c))),
+        ],
         const SizedBox(height: 8),
         TextField(controller: _label, decoration: bizInput(c, 'Label (optional)')),
         const SizedBox(height: 8),

@@ -7,6 +7,38 @@ import '/pages/investments/investment_pages.dart' show openDoc;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import '/core/app_theme.dart';
+import '/core/crypto_coin_limit.dart';
+
+class _ChainLimitNote extends StatefulWidget {
+  const _ChainLimitNote();
+  @override
+  State<_ChainLimitNote> createState() => _ChainLimitNoteState();
+}
+
+class _ChainLimitNoteState extends State<_ChainLimitNote> {
+  late final Future<List<CoinLimit>> _limits = fetchChainLimits();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<CoinLimit>>(
+      future: _limits,
+      builder: (context, snap) {
+        final limits = snap.data ?? const <CoinLimit>[];
+        if (limits.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final limit in limits)
+                Text(limit.rangeLabel, style: TextStyle(fontSize: 12, color: mutedColor(context))),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
 
 const _depositLabels = {
   'detected': 'Confirming',
@@ -107,6 +139,7 @@ class WalletAddressPage extends StatelessWidget {
                       ),
                     ]),
                     const SizedBox(height: 12),
+                    const _ChainLimitNote(),
                   ],
                   Text(
                     ready
