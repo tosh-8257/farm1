@@ -10,6 +10,7 @@ import 'team_pages.dart';
 import 'project_pages.dart';
 import '/pages/agent_payments/agent_payments_pages.dart';
 import '/pages/x402/x402_pages.dart';
+import '/pages/ecosystem/ecosystem_pages.dart';
 
 /// Approved-business home: real summary numbers plus the tools the
 /// signed-in user's role is allowed to use.
@@ -132,6 +133,7 @@ class _BusinessHubState extends State<BusinessHub> {
               ],
             ),
             const SizedBox(height: 20),
+            const EcosystemTools(),
             Text('Recent business payments', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(ctx))),
             const SizedBox(height: 10),
             if (recent.isEmpty)

@@ -18,6 +18,7 @@ import 'package:fl_chart/fl_chart.dart';
 
 import 'merchant_dashboard_model.dart';
 import '/utils/user_error_message.dart';
+import '/pages/ecosystem/ecosystem_pages.dart';
 
 class MerchantDashboardWidget extends StatefulWidget {
   const MerchantDashboardWidget({super.key});
@@ -1586,6 +1587,7 @@ class _MerchantDashboardWidgetState extends State<MerchantDashboardWidget> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const EcosystemTools(),
                       Row(
                         mainAxisSize: MainAxisSize.max,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
