@@ -15,6 +15,7 @@ import '/pages/send_receive/send_receive_widget.dart';
 import '/pages/all_transactions/all_transactions_widget.dart';
 import '/pages/growth_tracking_page/growth_tracking_page_widget.dart';
 import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
+import '/pages/ecosystem/ecosystem_pages.dart';
 import '/services/account_context.dart';
 import '/components/account_switcher/account_switcher_widget.dart';
 import '/pages/business/ops/pay_business_page.dart';
@@ -824,6 +825,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            const PersonalCargoButton(),
             FloatingActionButton.extended(
               onPressed: () => context.pushNamed(QRScannerWidget.routeName),
               backgroundColor: FlutterFlowTheme.of(context).primary,

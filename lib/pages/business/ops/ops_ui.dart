@@ -260,7 +260,10 @@ class BizTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: InkWell(
+        child: Semantics(
+          button: onTap != null,
+          label: subtitle == null || subtitle!.isEmpty ? title : '$title. $subtitle',
+          child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: onTap,
           child: BizCard(
@@ -290,6 +293,7 @@ class BizTile extends StatelessWidget {
               if (trailing != null) trailing!,
             ]),
           ),
+        ),
         ),
       );
 }

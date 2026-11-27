@@ -28,6 +28,7 @@ import '/pages/business/business_status_page.dart';
 import '/pages/business/ops/pay_business_page.dart';
 import '/utils/farmpay_checkout.dart';
 import '/pages/tap_pay/tap_pay_pages.dart';
+import '/pages/merchant_portal/merchant_portal.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -366,7 +367,7 @@ GoRouter createRouter(
     FFRoute(
       name: MerchantDashboardWidget.routeName,
       path: MerchantDashboardWidget.routePath,
-      builder: (context, params) => const MerchantDashboardWidget(),
+      builder: (context, params) => const MerchantPortalPage(),
     ),
     FFRoute(
       name: 'MerchantPayment',

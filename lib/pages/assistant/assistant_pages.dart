@@ -231,6 +231,7 @@ class _AssistantChatPageState extends State<AssistantChatPage> with WidgetsBindi
   bool _listening = false;
   bool _foreground = true;
   bool _wakePaused = false;
+  bool _muted = false;
   bool _wakeClosed = false;
   Timer? _wakeTick;
   Completer<void>? _wakeWait;
@@ -293,7 +294,7 @@ class _AssistantChatPageState extends State<AssistantChatPage> with WidgetsBindi
   Future<void> _wakeLoop() async {
     _wake ??= ForegroundWake();
     while (mounted && !_wakeClosed) {
-      if (!_handsFree || !_foreground || _wakePaused) {
+      if (!_handsFree || !_foreground || _wakePaused || _muted) {
         if (_listening && mounted) setState(() => _listening = false);
         await _waitWake(const Duration(milliseconds: 400));
         continue;
@@ -301,7 +302,7 @@ class _AssistantChatPageState extends State<AssistantChatPage> with WidgetsBindi
       if (mounted) setState(() => _listening = true);
       try {
         final message = await _wake!.once();
-        if (!mounted || !_handsFree || _wakePaused) continue;
+        if (!mounted || !_handsFree || _wakePaused || _muted || !_foreground) continue;
         if (message != null) {
           await _sendText(message.text, language: message.language, fromVoice: true);
         }
@@ -599,43 +600,62 @@ class _AssistantChatPageState extends State<AssistantChatPage> with WidgetsBindi
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             dense: true,
-            title: Text('Hands-free Hey Mkulima', style: TextStyle(color: fgColor(c), fontSize: 14)),
+            title: Text('Hey Mkulima', style: TextStyle(color: fgColor(c), fontSize: 14)),
             subtitle: Text(
-              _listening ? 'Listening in the foreground' : 'Starts listening as soon as this is on',
+              'Foreground only. Listening starts when this is on.',
               style: TextStyle(color: mutedColor(c), fontSize: 12),
             ),
             value: _handsFree,
-            onChanged: _sending ? null : (v) => _setHandsFree(v),
-            secondary: IconButton(
-              tooltip: 'How hands-free works',
-              icon: Icon(Icons.info_outline, size: 18, color: mutedColor(c)),
-              onPressed: () => showDialog<void>(
-                context: c,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Hey Mkulima'),
-                  content: Text(handsFreeLimits),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-                  ],
-                ),
-              ),
-            ),
+            onChanged: _sending
+                ? null
+                : (value) {
+                    if (value) setState(() => _muted = false);
+                    _setHandsFree(value);
+                  },
+          ),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            dense: true,
+            title: Text('Listening limits', style: TextStyle(fontSize: 12, color: mutedColor(c))),
+            children: [
+              Text(handsFreeLimits, style: TextStyle(fontSize: 12, color: mutedColor(c), height: 1.35)),
+            ],
           ),
           if (_handsFree)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: Row(children: [
-                Icon(Icons.hearing, size: 16, color: _listening ? fgColor(c) : mutedColor(c)),
+                Icon(_muted ? Icons.mic_off : Icons.hearing, size: 16, color: _listening ? fgColor(c) : mutedColor(c)),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    _listening ? 'Listening for Hey Mkulima' : 'Hands-free is on',
+                    _muted
+                        ? 'Muted'
+                        : _listening
+                            ? 'Listening for Hey Mkulima'
+                            : _foreground
+                                ? 'Waiting to listen'
+                                : 'Paused. Foreground only.',
                     style: TextStyle(fontSize: 12, color: mutedColor(c)),
                   ),
                 ),
-                TextButton(
+                IconButton(
+                  tooltip: _muted ? 'Unmute' : 'Mute',
+                  onPressed: () {
+                    setState(() => _muted = !_muted);
+                    if (_muted) _wake?.stop();
+                  },
+                  icon: Icon(_muted ? Icons.volume_off : Icons.volume_up, size: 18),
+                ),
+                IconButton(
+                  tooltip: 'Cancel this clip',
+                  onPressed: () => _wake?.stop(),
+                  icon: const Icon(Icons.close, size: 18),
+                ),
+                IconButton(
+                  tooltip: 'Stop listening',
                   onPressed: () => _setHandsFree(false),
-                  child: const Text('Stop'),
+                  icon: const Icon(Icons.stop_circle_outlined, size: 18),
                 ),
               ]),
             ),

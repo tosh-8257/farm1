@@ -1,6 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 import '/backend/services/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
+import '/pages/ecosystem/ecosystem_flows.dart';
+import '/pages/ecosystem/ecosystem_logic.dart';
 import '/services/notification_feedback_service.dart';
 import '/services/notification_service.dart';
 import '/widgets/common/back_chevron.dart';
@@ -184,6 +186,11 @@ class _UserNotificationsPageWidgetState
     if (title.contains('kyc') || body.contains('kyc') || type.contains('kyc')) {
       return 'kyc';
     }
+    if (title.contains('delivery code')) return 'delivery_code';
+    if (title.contains('payout')) return 'payout';
+    if (title.contains('order') || body.contains('order on your account')) return 'order';
+    if (title.contains('shipment') || body.contains('shipment')) return 'shipment';
+    if (title.contains('delivery job') || body.contains('delivery job')) return 'job';
     return 'general';
   }
 
@@ -199,6 +206,16 @@ class _UserNotificationsPageWidgetState
         return 'Withdrawals';
       case 'kyc':
         return 'KYC Updates';
+      case 'order':
+        return 'Orders';
+      case 'shipment':
+        return 'Shipments';
+      case 'job':
+        return 'Delivery jobs';
+      case 'delivery_code':
+        return 'Delivery codes';
+      case 'payout':
+        return 'Payouts';
       default:
         return 'General Notifications';
     }
@@ -739,8 +756,18 @@ class _UserNotificationsPageWidgetState
                                   items,
                                   isGroup: true,
                                 ),
-                                onTap: () =>
-                                    _showGroupDetails(items, groupLabel),
+                                onTap: () {
+                                  if (groupKey == 'delivery_code') {
+                                    final jobId = noticeEntityId(items.first);
+                                    if (jobId.isNotEmpty) {
+                                      Navigator.of(context).push(MaterialPageRoute(
+                                        builder: (_) => RecipientDeliveryCodePage(jobId: jobId),
+                                      ));
+                                      return;
+                                    }
+                                  }
+                                  _showGroupDetails(items, groupLabel);
+                                },
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
                                   child: Column(

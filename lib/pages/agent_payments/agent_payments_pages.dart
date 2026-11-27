@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import '/backend/api_requests/agent_payments_api.dart';
 import '/pages/agent_payments/business_identity.dart';
 import '/pages/business/ops/ops_ui.dart';
@@ -426,6 +427,16 @@ class _NewMandatePageState extends State<_NewMandatePage> {
               const SizedBox(height: 6),
               KeyValue('Business ID', _identity!.displayId),
               if (_identity!.status != null) KeyValue('Status', _identity!.status!),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => SharePlus.instance.share(
+                    ShareParams(text: '${_identity!.name} · Business ID ${_identity!.displayId}'),
+                  ),
+                  icon: const Icon(Icons.share, size: 16),
+                  label: const Text('Share'),
+                ),
+              ),
             ]),
           ),
         ],
