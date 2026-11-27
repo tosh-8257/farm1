@@ -184,6 +184,9 @@ class _UserNotificationsPageWidgetState
     if (title.contains('kyc') || body.contains('kyc') || type.contains('kyc')) {
       return 'kyc';
     }
+    if (title.contains('order') || body.contains('order on your account')) return 'order';
+    if (title.contains('shipment') || body.contains('shipment')) return 'shipment';
+    if (title.contains('delivery job') || body.contains('delivery job')) return 'job';
     return 'general';
   }
 
@@ -199,6 +202,12 @@ class _UserNotificationsPageWidgetState
         return 'Withdrawals';
       case 'kyc':
         return 'KYC Updates';
+      case 'order':
+        return 'Orders';
+      case 'shipment':
+        return 'Shipments';
+      case 'job':
+        return 'Delivery jobs';
       default:
         return 'General Notifications';
     }

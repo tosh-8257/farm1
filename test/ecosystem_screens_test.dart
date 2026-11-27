@@ -62,4 +62,46 @@ void main() {
     );
     expect(const EcosystemFlags(catalogue: true, cargoList: true, partnerApply: true, cargoAdmin: true).any, isTrue);
   });
+
+  test('module list replaces route probes and fees stay server-side', () {
+    final flags = flagsFromModules({
+      'data': {
+        'modules': [
+          {'id': 'dropshipping_lite', 'enabled': true},
+          {'id': 'cargo_quotes', 'enabled': true},
+          {'id': 'cargo_admin', 'enabled': false},
+          {'id': 'shopify', 'enabled': false},
+        ],
+        'integrations': [
+          {'provider': 'shopify', 'enabled': false, 'verified': false},
+        ],
+      },
+    });
+    expect(flags.dropship, isTrue);
+    expect(flags.catalogue, isTrue);
+    expect(flags.cargo, isTrue);
+    expect(flags.escrowPay, isTrue);
+    expect(flags.cargoAdmin, isFalse);
+    expect(flags.stores, isFalse);
+    expect(moduleList({'data': {}}), isNull);
+    final lines = orderFeeLines({
+      'retail_total': 100,
+      'supplier_total': 40,
+      'commission_farm': null,
+    });
+    expect(lines.map((line) => line.value), contains('Not configured'));
+    expect(lines.map((line) => line.label), isNot(contains('Seller net')));
+    expect(feeSummary(cargoFeeLines({'price_farm': 25, 'eta': null, 'maps_verified': false})), contains('25'));
+    expect(feeSummary(cargoFeeLines({'price_farm': 25, 'eta': null, 'maps_verified': false})), contains('None published'));
+    final totals = salesTotals([
+      {'retail_total': 10, 'supplier_total': 4, 'commission_farm': 1},
+      {'retail_total': 5, 'supplier_total': 2, 'commission_farm': null},
+    ]);
+    expect(totals.retail, 15);
+    expect(totals.commission, isNull);
+    expect(totals.net, isNull);
+    expect(ecosystemNoticeGroup({'title': 'Shipment update', 'type': 'system'}), 'shipment');
+    expect(ecosystemNoticeGroup({'title': 'Order update'}), 'order');
+    expect(ecosystemNoticeGroup({'title': 'Delivery job'}), 'job');
+  });
 }

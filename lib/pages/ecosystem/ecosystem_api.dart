@@ -37,6 +37,7 @@ class EcosystemApi {
   static Future<EcosystemFlags> flags() async {
     final status = await platformStatus();
     if (status == null) return EcosystemFlags.hidden;
+    if (moduleList(status) != null) return flagsFromModules(status);
     final dropship = await _postExists('/suppliers/apply');
     final stores = await _postExists('/business/stores');
     final cargo = await _postExists('/cargo/quotes');
@@ -61,7 +62,9 @@ class EcosystemApi {
       orders: orders,
       cargoList: cargoList,
       partnerApply: partnerApply,
+      partnerPortal: partnerApply || dispatch,
       cargoAdmin: cargoAdmin,
+      escrowPay: dropship || cargo,
       shopifyEnabled: integrationEnabled(status, 'shopify'),
       wooEnabled: integrationEnabled(status, 'woocommerce'),
       mapsVerified: integrationVerified(status, 'maps'),
@@ -103,8 +106,17 @@ class EcosystemApi {
         ],
       });
 
-  static Future<Map<String, dynamic>> payOrder({required String orderId, required String transactionId}) =>
-      _call('POST', '/merchant/dropship/orders/$orderId/pay', {'transactionId': transactionId});
+  /// Server charges the caller into escrow. The body is the PIN or biometric
+  /// already used by wallet and escrow routes. No pasted transaction id.
+  static Future<Map<String, dynamic>> payOrder({
+    required String orderId,
+    required String idempotencyKey,
+    required Map<String, dynamic> auth,
+  }) =>
+      _call('POST', '/merchant/dropship/orders/$orderId/pay', {
+        'idempotencyKey': idempotencyKey,
+        ...auth,
+      });
 
   static Future<Map<String, dynamic>> forwardOrder(String orderId) =>
       _call('POST', '/merchant/dropship/orders/$orderId/forward');
@@ -171,7 +183,7 @@ class EcosystemApi {
     required String toZone,
     required num weightKg,
     required String idempotencyKey,
-    required String transactionId,
+    required Map<String, dynamic> auth,
     String? pickupAddress,
     String? deliveryAddress,
   }) =>
@@ -180,10 +192,17 @@ class EcosystemApi {
         'toZone': toZone,
         'weightKg': weightKg,
         'idempotencyKey': idempotencyKey,
-        'transactionId': transactionId,
+        ...auth,
         if (pickupAddress != null && pickupAddress.isNotEmpty) 'pickupAddress': pickupAddress,
         if (deliveryAddress != null && deliveryAddress.isNotEmpty) 'deliveryAddress': deliveryAddress,
       });
+
+  static Future<Map<String, dynamic>> cancelShipment({
+    required String id,
+    required String reason,
+    required Map<String, dynamic> auth,
+  }) =>
+      _call('POST', '/cargo/shipments/$id/cancel', {'reason': reason, ...auth});
 
   static Future<Map<String, dynamic>> shipments() => _call('GET', '/cargo/shipments');
 
@@ -216,6 +235,20 @@ class EcosystemApi {
       });
 
   static Future<Map<String, dynamic>> myPartner() => _call('GET', '/partners/me');
+
+  static Future<Map<String, dynamic>> partnerJobs() => _call('GET', '/partners/jobs');
+
+  static Future<Map<String, dynamic>> acceptJob(String id) => _call('POST', '/partners/jobs/$id/accept');
+
+  static Future<Map<String, dynamic>> rejectJob({required String id, required String reason}) =>
+      _call('POST', '/partners/jobs/$id/reject', {'reason': reason});
+
+  static Future<Map<String, dynamic>> setAvailability(bool available) =>
+      _call('POST', '/partners/availability', {'available': available});
+
+  static Future<Map<String, dynamic>> partnerEarnings() => _call('GET', '/partners/earnings');
+
+  static Future<Map<String, dynamic>> partnerDocuments() => _call('GET', '/partners/documents');
 
   static Future<Map<String, dynamic>> addVehicle({
     required String category,

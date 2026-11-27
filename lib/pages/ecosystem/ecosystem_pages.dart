@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '/pages/business/ops/ops_ui.dart';
 import 'ecosystem_api.dart';
+import 'ecosystem_flows.dart';
 import 'ecosystem_logic.dart';
 
 String _key() {
@@ -14,7 +15,8 @@ String _key() {
 
 /// Entry points that stay hidden until the matching backend phase answers.
 class EcosystemTools extends StatefulWidget {
-  const EcosystemTools({super.key});
+  const EcosystemTools({super.key, this.preview});
+  final EcosystemFlags? preview;
 
   @override
   State<EcosystemTools> createState() => _EcosystemToolsState();
@@ -26,6 +28,10 @@ class _EcosystemToolsState extends State<EcosystemTools> {
   @override
   void initState() {
     super.initState();
+    if (widget.preview != null) {
+      _flags = widget.preview;
+      return;
+    }
     EcosystemApi.flags().then((flags) {
       if (mounted) setState(() => _flags = flags);
     }).catchError((_) {
@@ -44,10 +50,13 @@ class _EcosystemToolsState extends State<EcosystemTools> {
           Icons.storefront_outlined,
           DropshipPage(catalogue: flags.catalogue, orders: flags.orders),
         ),
+      if (flags.orders || flags.dropship) ('Dropshipping sales', Icons.insights_outlined, const DropshipSalesPage()),
       if (flags.dropship) ('Supplier', Icons.inventory_2_outlined, const SupplierPage()),
       if (flags.stores) ('Store connections', Icons.shopping_bag_outlined, StoreConnectionsPage(flags: flags)),
       if (flags.cargo || flags.cargoList)
         ('FARM Cargo', Icons.local_shipping_outlined, CargoPage(history: flags.cargoList, addresses: flags.cargoList)),
+      if (flags.partnerPortal || flags.partnerApply)
+        ('Partner portal', Icons.badge_outlined, PartnerPortalPage()),
       if (flags.dispatch || flags.partnerApply) ('Delivery partner', Icons.badge_outlined, PartnerPage(apply: flags.partnerApply)),
       if (flags.cargoAdmin) ('Cargo rates', Icons.tune, const CargoAdminPage()),
       if (flags.settlement) ('Settlements', Icons.account_balance_outlined, const SettlementPage()),
@@ -230,10 +239,10 @@ class _DropshipPageState extends State<DropshipPage> {
   final _retail = TextEditingController();
   final _qty = TextEditingController(text: '1');
   final _order = TextEditingController();
-  final _tx = TextEditingController();
   final _reason = TextEditingController();
   final _search = TextEditingController();
   String? _orderKey;
+  String? _payKey;
   String? _caseKey;
   Map<String, dynamic>? _result;
   List<Map<String, dynamic>> _catalogue = const [];
@@ -245,7 +254,6 @@ class _DropshipPageState extends State<DropshipPage> {
     _retail.dispose();
     _qty.dispose();
     _order.dispose();
-    _tx.dispose();
     _reason.dispose();
     _search.dispose();
     super.dispose();
@@ -350,29 +358,31 @@ class _DropshipPageState extends State<DropshipPage> {
         const SizedBox(height: 16),
         TextField(controller: _order, decoration: bizInput(context, 'Order ID')),
         const SizedBox(height: 8),
-        TextField(controller: _tx, decoration: bizInput(context, 'Completed transaction ID')),
+        if (_result != null) FeeBreakdown(orderFeeLines(_result!['data'] is Map ? _result!['data'] as Map : _result!)),
         const SizedBox(height: 8),
         ElevatedButton(
           style: primaryButtonStyle(context),
           onPressed: () async {
-            if (_order.text.trim().isEmpty || _tx.text.trim().isEmpty) {
-              bizSnack(context, 'Enter the order and the completed transaction');
+            if (_order.text.trim().isEmpty) {
+              bizSnack(context, 'Choose an order from the list');
               return;
             }
+            final lines = orderFeeLines(_result ?? const {});
             final auth = await confirmWithPin(
               context,
-              title: 'Link this payment',
-              message: 'This does not create a new charge. It links a completed transaction to the order. Confirm with your PIN or biometrics.',
+              title: 'Pay for this order',
+              message: '${lines.isEmpty ? 'The server charges the order total into escrow.' : feeSummary(lines)}\n\nConfirm with your PIN or biometrics.',
             );
             if (auth == null || !mounted) return;
+            _payKey ??= _key();
             final result = await runBusy(
               context,
-              () => EcosystemApi.payOrder(orderId: _order.text.trim(), transactionId: _tx.text.trim()),
-              success: 'Payment linked',
+              () => EcosystemApi.payOrder(orderId: _order.text.trim(), idempotencyKey: _payKey!, auth: auth.authFields()),
+              success: 'Payment sent to escrow',
             );
             if (mounted) setState(() => _result = result);
           },
-          child: const Text('Confirm payment link'),
+          child: const Text('Pay for this order'),
         ),
         const SizedBox(height: 8),
         OutlinedButton(
@@ -397,7 +407,7 @@ class _DropshipPageState extends State<DropshipPage> {
           const SizedBox(height: 8),
           _RecordTiles(_orders, onTap: (row) {
             _order.text = '${row['id'] ?? ''}';
-            setState(() {});
+            pushPage(context, OrderStatusPage(order: row));
           }),
           const SizedBox(height: 8),
           TextField(controller: _reason, decoration: bizInput(context, 'Reason')),
@@ -539,7 +549,6 @@ class _CargoPageState extends State<CargoPage> {
   final _from = TextEditingController();
   final _to = TextEditingController();
   final _weight = TextEditingController();
-  final _tx = TextEditingController();
   final _pickup = TextEditingController();
   final _dropoff = TextEditingController();
   final _shipmentId = TextEditingController();
@@ -555,7 +564,6 @@ class _CargoPageState extends State<CargoPage> {
     _from.dispose();
     _to.dispose();
     _weight.dispose();
-    _tx.dispose();
     _pickup.dispose();
     _dropoff.dispose();
     _shipmentId.dispose();
@@ -608,21 +616,17 @@ class _CargoPageState extends State<CargoPage> {
           const SizedBox(height: 12),
           Text(cargoQuoteSummary(_quote!), style: TextStyle(color: fgColor(context))),
           const SizedBox(height: 8),
-          TextField(controller: _tx, decoration: bizInput(context, 'Completed transaction ID')),
+          FeeBreakdown(cargoFeeLines(_quote!)),
           const SizedBox(height: 8),
           ElevatedButton(
             style: primaryButtonStyle(context),
             onPressed: () async {
-              if (_tx.text.trim().isEmpty) {
-                bizSnack(context, 'Enter the completed transaction that paid this quote');
-                return;
-              }
               final weight = num.tryParse(_weight.text);
               if (weight == null) return;
               final auth = await confirmWithPin(
                 context,
-                title: 'Book this shipment',
-                message: '${cargoQuoteSummary(_quote!)}\n\nBooking uses the completed transaction. Confirm with your PIN or biometrics.',
+                title: 'Pay for this shipment',
+                message: '${feeSummary(cargoFeeLines(_quote!))}\n\nThe server charges your wallet into escrow. Confirm with your PIN or biometrics.',
               );
               if (auth == null || !mounted) return;
               _keyUsed ??= _key();
@@ -633,7 +637,7 @@ class _CargoPageState extends State<CargoPage> {
                   toZone: _to.text.trim(),
                   weightKg: weight,
                   idempotencyKey: _keyUsed!,
-                  transactionId: _tx.text.trim(),
+                  auth: auth.authFields(),
                   pickupAddress: widget.addresses ? _pickup.text.trim() : null,
                   deliveryAddress: widget.addresses ? _dropoff.text.trim() : null,
                 ),
@@ -641,7 +645,7 @@ class _CargoPageState extends State<CargoPage> {
               );
               if (mounted) setState(() => _booked = result);
             },
-            child: const Text('Book shipment'),
+            child: const Text('Pay and book'),
           ),
         ],
         if (_booked != null) ...[
@@ -663,7 +667,10 @@ class _CargoPageState extends State<CargoPage> {
             child: const Text('Load my shipments'),
           ),
           const SizedBox(height: 8),
-          _RecordTiles(_shipments, onTap: (row) => _shipmentId.text = '${row['id'] ?? ''}'),
+          _RecordTiles(_shipments, onTap: (row) {
+            _shipmentId.text = '${row['id'] ?? ''}';
+            pushPage(context, ShipmentStatusPage(shipment: row));
+          }),
           const SizedBox(height: 8),
           TextField(controller: _shipmentId, decoration: bizInput(context, 'Shipment ID')),
           const SizedBox(height: 8),
@@ -1187,5 +1194,42 @@ class _CargoAdminPageState extends State<CargoAdminPage> {
   Future<void> _active(bool active) async {
     if (_rateId.text.trim().isEmpty) return;
     await runBusy(context, () => EcosystemApi.setCargoRateActive(id: _rateId.text.trim(), active: active));
+  }
+}
+
+/// Cargo for a personal account. Hidden until the platform module list includes cargo.
+class PersonalCargoButton extends StatefulWidget {
+  const PersonalCargoButton({super.key});
+  @override
+  State<PersonalCargoButton> createState() => _PersonalCargoButtonState();
+}
+
+class _PersonalCargoButtonState extends State<PersonalCargoButton> {
+  EcosystemFlags _flags = EcosystemFlags.hidden;
+
+  @override
+  void initState() {
+    super.initState();
+    EcosystemApi.flags().then((flags) {
+      if (mounted) setState(() => _flags = flags);
+    }).catchError((_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_flags.cargo && !_flags.cargoList) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: FloatingActionButton.extended(
+        heroTag: 'personal-cargo',
+        tooltip: 'FARM Cargo',
+        onPressed: () => pushPage(
+          context,
+          CargoPage(history: _flags.cargoList, addresses: _flags.cargoList),
+        ),
+        icon: const Icon(Icons.local_shipping_outlined),
+        label: const Text('Cargo'),
+      ),
+    );
   }
 }

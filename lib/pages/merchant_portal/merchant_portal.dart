@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '/pages/business/ops/ops_ui.dart';
+import '/pages/ecosystem/ecosystem_flows.dart';
+import '/pages/ecosystem/ecosystem_logic.dart';
 import '/pages/ecosystem/ecosystem_pages.dart';
 import '/pages/merchant_dashboard/merchant_dashboard_widget.dart';
 import '/pages/merchant_sales/merchant_sales_widget.dart';
@@ -27,13 +29,15 @@ const merchantPortalAreas = <MerchantArea>[
 ];
 
 class MerchantPortalPage extends StatelessWidget {
-  const MerchantPortalPage({super.key});
+  const MerchantPortalPage({super.key, this.previewFlags});
+  final EcosystemFlags? previewFlags;
 
   @override
   Widget build(BuildContext context) {
     final areas = <(MerchantArea, Widget)>[
       (merchantPortalAreas[0], const MerchantDashboardWidget()),
       (merchantPortalAreas[1], const MerchantSalesWidget()),
+      (const MerchantArea('Dropshipping sales', 'Orders, commission, and seller net from this server.'), const DropshipSalesPage()),
       (merchantPortalAreas[2], const MerchantDashboardWidget()),
       (merchantPortalAreas[3], const ProfileSettingsWidget()),
       (merchantPortalAreas[4], const UserNotificationsPageWidget()),
@@ -57,7 +61,7 @@ class MerchantPortalPage extends StatelessWidget {
         Text(merchantPortalAreas[6].title, style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(context))),
         Text(merchantPortalAreas[6].detail, style: TextStyle(color: mutedColor(context), fontSize: 12)),
         const SizedBox(height: 8),
-        const EcosystemTools(),
+        EcosystemTools(preview: previewFlags),
       ]),
     );
   }
