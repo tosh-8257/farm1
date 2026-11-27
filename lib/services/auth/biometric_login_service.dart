@@ -3,8 +3,7 @@ import '/services/biometric_lock_service.dart';
 import 'package:local_auth/local_auth.dart';
 import '/app_state.dart';
 import '/services/secure_storage_service.dart';
-import '/services/auth/auth_service.dart';
-import '/services/auth/biometric_reauth.dart';
+import '/services/auth/biometric_session.dart';
 
 /// Service for biometric-based login (fingerprint/face ID).
 ///
@@ -105,28 +104,12 @@ class BiometricLoginService {
       }
 
       debugPrint('[Biometric] Refreshing backend session with stored refresh token...');
-      String? refreshedToken;
-      try {
-        refreshedToken = await AuthService().refreshSession(force: true);
-      } catch (e) {
-        debugPrint('[Biometric] Refresh threw, trying biometric re-auth: $e');
-      }
-      if (refreshedToken == null || refreshedToken.isEmpty) {
-        final reauth = await BiometricReauth.exchange();
-        if (reauth != null) {
-          refreshedToken = FFAppState().accessToken;
-        }
-      }
-      // A failed refresh must not sign the user out. The local unlock stands.
-      if ((refreshedToken == null || refreshedToken.isEmpty) &&
-          FFAppState().accessToken.isEmpty &&
-          FFAppState().refreshToken.isEmpty) {
+      final renewed = await BiometricSession.renewStoredSession();
+      if (!renewed) {
         throw Exception(
-          'No stored session found. Please log in with your password.',
+          'Your session could not be renewed. Try again, or sign in with your phone code.',
         );
       }
-      FFAppState().isLoggedIn = true;
-      FFAppState().needsBiometricReauth = false;
 
       final farmJwt = FFAppState().accessToken;
       final refreshToken = FFAppState().refreshToken;

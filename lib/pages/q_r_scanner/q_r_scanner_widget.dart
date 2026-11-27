@@ -12,6 +12,7 @@ import '/services/branded_qr_card_service.dart';
 import '/services/qr_download_service.dart';
 import '/services/transaction_authentication_service.dart';
 import '/services/transaction_authorization_service.dart';
+import '/services/auth/session_token.dart';
 import '/utils/merchant_qr_parser.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/material.dart';
@@ -122,18 +123,22 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
 
   Future<void> _fetchWalletBalance() async {
     try {
+      if (!mounted) return;
       setState(() => balanceLoading = true);
 
       final resp = await ApiService.getWallet();
+      if (!mounted) return;
+      final data = asStringKeyMap(resp['data']) ?? resp;
       setState(() {
         walletBalance = double.tryParse(
-                (resp['data']?['balance'] ?? resp['balance'] ?? 0)
+                (data['balance'] ?? data['available_balance'] ?? 0)
                     .toString()) ??
             0.0;
         balanceLoading = false;
       });
     } catch (e) {
       debugPrint('Failed to fetch wallet balance: $e');
+      if (!mounted) return;
       setState(() {
         walletBalance = 0.0;
         balanceLoading = false;
@@ -471,6 +476,10 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
     final tapToken = NfcPayApi.extractToken(qrPayload);
     if (tapToken != null) {
       isProcessing = true;
+      if (!mounted) {
+        isProcessing = false;
+        return;
+      }
       await Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => TapPayPage(initialToken: tapToken)));
       isProcessing = false;
@@ -499,7 +508,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
           method: 'POST',
           path: '/qr/validate',
           body: {'qr_payload': qrPayload});
-      final qrData = data['data'] ?? data;
+      final qrData = asStringKeyMap(data['data']) ?? asStringKeyMap(data);
 
       debugPrint(qrData.toString());
 
@@ -531,6 +540,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
             }
           }
         } else if (qrData['type'] == 'merchant') {
+          if (!mounted) return;
           context.pushNamed(
             'MerchantPayment',
             queryParameters: {
@@ -542,7 +552,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
             },
           );
         }
-      } else {
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Invalid QR Code'),
@@ -551,33 +561,57 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
       }
     } catch (e) {
       debugPrint(e.toString());
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'QR Validation Error: ${userErrorMessage(e)}',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'QR Validation Error: ${userErrorMessage(e)}',
+            ),
           ),
-        ),
-      );
+        );
+      }
+    } finally {
+      isProcessing = false;
     }
-
-    isProcessing = false;
   }
 
   Future<void> scanFromGallery() async {
     final picker = ImagePicker();
 
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.gallery,
-    );
+    final XFile? image;
+    try {
+      image = await picker.pickImage(
+        source: ImageSource.gallery,
+      );
+    } catch (e) {
+      debugPrint('Gallery picker failed: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open your photos. You can type a username instead.'),
+        ),
+      );
+      return;
+    }
 
-    if (image == null) return;
+    if (image == null || !mounted) return;
 
     final file = File(image.path);
 
-    final barcodeCapture = await cameraController.analyzeImage(file.path);
+    BarcodeCapture? barcodeCapture;
+    try {
+      barcodeCapture = await cameraController.analyzeImage(file.path);
+    } catch (e) {
+      debugPrint('Could not read the selected image: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not read that image.')),
+      );
+      return;
+    }
 
     if (barcodeCapture == null || barcodeCapture.barcodes.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("No QR found in image")),
       );
@@ -613,7 +647,9 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
                   final resp = await ApiService.searchUsers(value.trim());
                   final users = resp['data'] ?? resp;
                   if (!mounted) return;
-                  setState(() => suggestionUsers = users);
+                  setState(() {
+                    suggestionUsers = users is List ? users : [];
+                  });
                 } catch (_) {
                   if (!mounted) return;
                   setState(() => suggestionUsers = []);
@@ -891,6 +927,21 @@ class _QRScannerWidgetState extends State<QRScannerWidget>
               child: MobileScanner(
                 fit: BoxFit.cover,
                 controller: cameraController,
+                errorBuilder: (context, error, child) {
+                  return const ColoredBox(
+                    color: Color(0xFF111111),
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'The camera is unavailable. Allow camera access, or pick a QR photo instead.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  );
+                },
                 onDetect: (capture) async {
                   for (final barcode in capture.barcodes) {
                     final code = barcode.rawValue;

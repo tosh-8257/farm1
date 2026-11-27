@@ -10,6 +10,7 @@ import '/pages/forgot_pin_page/forgot_pin_page_widget.dart';
 import '/pages/splash_page.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/services/auth/route_guard_service.dart';
+import '/services/auth/session_token.dart';
 import '/pages/support/faq_page_widget.dart';
 import '/pages/support/live_chat_page_widget.dart';
 import '/pages/support/email_support_page_widget.dart';
@@ -130,8 +131,12 @@ GoRouter createRouter(
     final hasStoredSession = authState.isLoggedIn ||
         authState.refreshToken.isNotEmpty ||
         authState.accessToken.isNotEmpty;
-    if (hasStoredSession &&
-        authState.needsBiometricReauth &&
+    if (mustRenewBiometricSession(
+          biometricsAllowed: authState.isBiometricAllowed,
+          needsBiometricReauth: authState.needsBiometricReauth,
+          accessToken: authState.accessToken,
+          refreshToken: authState.refreshToken,
+        ) &&
         path != BiometricUnlockPageWidget.routePath &&
         !publicRoute) {
       return BiometricUnlockPageWidget.routePath;
@@ -140,6 +145,16 @@ GoRouter createRouter(
     if (hasStoredSession &&
         ((publicRoute && !isLegalDocumentRoute) ||
             path == OnboardingWidget.routePath)) {
+      final renewing = mustRenewBiometricSession(
+        biometricsAllowed: authState.isBiometricAllowed,
+        needsBiometricReauth: authState.needsBiometricReauth,
+        accessToken: authState.accessToken,
+        refreshToken: authState.refreshToken,
+      );
+      if (renewing) {
+        if (smsSignInPath(path)) return null;
+        return BiometricUnlockPageWidget.routePath;
+      }
       if (path == OnboardingWidget.routePath && authState.isBiometricAllowed) {
         return BiometricUnlockPageWidget.routePath;
       }
@@ -595,8 +610,7 @@ extension NavigationExtensions on BuildContext {
 }
 
 extension _GoRouterStateExtensions on GoRouterState {
-  Map<String, dynamic> get extraMap =>
-      extra != null ? extra as Map<String, dynamic> : {};
+  Map<String, dynamic> get extraMap => asStringKeyMap(extra) ?? {};
   Map<String, dynamic> get allParams => <String, dynamic>{}
     ..addAll(pathParameters)
     ..addAll(uri.queryParameters)

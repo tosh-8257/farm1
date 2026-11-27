@@ -3,7 +3,7 @@ import '../../core/app_theme.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/services/biometric_lock_service.dart';
-import '/services/auth/biometric_reauth.dart';
+import '/services/auth/biometric_session.dart';
 import '/services/auth/route_guard_service.dart';
 import '/admin/pages/admin_shell.dart';
 import '/admin/core/admin_navigation.dart';
@@ -66,11 +66,12 @@ class _BiometricUnlockPageWidgetState extends State<BiometricUnlockPageWidget> {
         throw Exception('Biometric verification failed.');
       }
 
-      FFAppState().isLoggedIn = true;
-      FFAppState().needsBiometricReauth = false;
-      // Renew the server session when it can. Failure keeps the local login.
-      await BiometricReauth.exchange();
-      FFAppState().needsBiometricReauth = false;
+      final renewed = await BiometricSession.renewStoredSession();
+      if (!renewed) {
+        throw Exception(
+          'Your session could not be renewed. Try again, or sign in with your phone code.',
+        );
+      }
 
       _navigateToDestination();
     } catch (e) {

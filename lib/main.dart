@@ -21,17 +21,13 @@ import 'services/biometric_lock_service.dart';
 import 'services/notification_service.dart';
 import 'services/socket_service.dart';
 import 'services/auth/startup_authenticator.dart';
+import 'services/app_error_handler.dart';
 import 'pages/biometric_unlock_page/biometric_unlock_page_widget.dart';
 import 'pages/all_transactions/all_transactions_widget.dart';
 import 'pages/dashboard/dashboard_widget.dart';
 import 'admin/pages/admin_password_reset_page.dart';
 import 'utils/farmpay_checkout.dart';
 import 'utils/merchant_qr_parser.dart';
-
-Widget buildSafeErrorWidget(FlutterErrorDetails details) {
-  debugPrint('Suppressing app error overlay: ${details.exception}');
-  return const SizedBox.shrink();
-}
 
 void main() async {
   print('APP START');
@@ -49,13 +45,7 @@ void main() async {
     debugPrint('Could not load .env (it may be missing): $e');
   }
 
-  // Global Flutter framework error handler
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.dumpErrorToConsole(details);
-  };
-
-  ErrorWidget.builder =
-      (FlutterErrorDetails details) => buildSafeErrorWidget(details);
+  AppErrorHandler.install();
 
   // Only local, fast work happens before the first frame. Independent steps
   // run in parallel; nothing here waits on the network.
@@ -129,15 +119,7 @@ void main() async {
       (_) => unawaited(_initializeOptionalServices()),
     );
   }, (error, stack) {
-    // Print uncaught errors to console so they appear in the browser devtools
-    // and in the terminal running `flutter run`.
-    // Use debugPrint if available at runtime.
-    try {
-      // ignore: avoid_print
-      print('Uncaught error: $error');
-      // ignore: avoid_print
-      print(stack.toString());
-    } catch (_) {}
+    AppErrorHandler.report(error, stack);
   });
 }
 

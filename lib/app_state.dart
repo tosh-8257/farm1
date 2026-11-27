@@ -63,28 +63,31 @@ class FFAppState extends ChangeNotifier {
     final secureUserId = await SecureStorageService.readUserId() ?? '';
     final secureIsLoggedIn = await SecureStorageService.readIsLoggedIn();
 
+    void applyRoleSession(AuthSession session) {
+      _accessToken = session.accessToken;
+      _refreshToken = session.refreshToken;
+      _userId = session.userId;
+      _role = session.role;
+      // Secure storage is written before the role session. If the process
+      // dies between those writes, the keystore copy is the rotated token.
+      final sameAccount =
+          secureUserId.isEmpty || secureUserId == session.userId;
+      if (sameAccount &&
+          secureRefreshToken.isNotEmpty &&
+          secureRefreshToken != session.refreshToken) {
+        _refreshToken = secureRefreshToken;
+        if (secureAccessToken.isNotEmpty) _accessToken = secureAccessToken;
+      }
+      _isLoggedIn = _accessToken.isNotEmpty || _refreshToken.isNotEmpty;
+    }
+
     if (normalizedStoredRole == 'admin' && adminSession != null) {
-      _accessToken = adminSession.accessToken;
-      _refreshToken = adminSession.refreshToken;
-      _userId = adminSession.userId;
-      _role = adminSession.role;
-      _isLoggedIn = adminSession.accessToken.isNotEmpty ||
-          adminSession.refreshToken.isNotEmpty;
+      applyRoleSession(adminSession);
     } else if (normalizedStoredRole == 'super_admin' &&
         superAdminSession != null) {
-      _accessToken = superAdminSession.accessToken;
-      _refreshToken = superAdminSession.refreshToken;
-      _userId = superAdminSession.userId;
-      _role = superAdminSession.role;
-      _isLoggedIn = superAdminSession.accessToken.isNotEmpty ||
-          superAdminSession.refreshToken.isNotEmpty;
+      applyRoleSession(superAdminSession);
     } else if (normalizedStoredRole == 'user' && userSession != null) {
-      _accessToken = userSession.accessToken;
-      _refreshToken = userSession.refreshToken;
-      _userId = userSession.userId;
-      _role = userSession.role;
-      _isLoggedIn = userSession.accessToken.isNotEmpty ||
-          userSession.refreshToken.isNotEmpty;
+      applyRoleSession(userSession);
     } else if (normalizedStoredRole.isNotEmpty &&
         (secureAccessToken.isNotEmpty ||
             secureRefreshToken.isNotEmpty ||
@@ -119,8 +122,9 @@ class FFAppState extends ChangeNotifier {
     _phone = prefs.getString('phone') ?? '';
     _email = prefs.getString('email') ?? '';
     _kycStatus = prefs.getString('kycStatus') ?? '';
-    // Authentication is restored only from the selected role session. Legacy
-    // SharedPreferences auth keys must never resurrect a different session.
+    // Authentication is restored from the selected role session. A newer
+    // keystore copy of that same account wins. Legacy SharedPreferences auth
+    // keys must never resurrect a different session.
     _biometricsEnabled = prefs.getBool('biometricsEnabled') ?? false;
     _hasPin = prefs.getBool('hasPin') ?? false;
     _pushNotifications = prefs.getBool('pushNotifications') ?? true;

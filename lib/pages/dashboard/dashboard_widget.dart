@@ -637,6 +637,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
     bool isBiometricChecking = false;
     TransactionAuthenticationResult? lastPinAuthResult;
 
+    var sheetAlive = true;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -688,7 +689,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                     (r) =>
                                         r.toTransactionAuthenticationResult(),
                                   );
-                          if (!mounted) return;
+                          if (!sheetAlive || !mounted) return;
 
                           if (authResult.biometricUsed) {
                             final success = await sendTransaction(
@@ -702,7 +703,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                               description: descController.text.trim(),
                               preAuthResult: authResult,
                             );
-                            if (!mounted) return;
+                            if (!sheetAlive || !mounted) return;
                             setState(() => isBiometricChecking = false);
                             if (success) {
                               Navigator.pop(context);
@@ -743,7 +744,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                 .then(
                                   (r) => r.toTransactionAuthenticationResult(),
                                 );
-                        if (!mounted) return;
+                        if (!sheetAlive || !mounted) return;
 
                         if (authResult.biometricUsed) {
                           final success = await sendTransaction(
@@ -755,7 +756,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                             description: descController.text.trim(),
                             preAuthResult: authResult,
                           );
-                          if (!mounted) return;
+                          if (!sheetAlive || !mounted) return;
                           setState(() => isBiometricChecking = false);
                           if (success) {
                             Navigator.pop(context);
@@ -790,7 +791,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                           preAuthResult: lastPinAuthResult,
                         );
 
-                        if (success && mounted) {
+                        if (success && sheetAlive && mounted) {
                           Navigator.pop(context);
                         }
                       },
@@ -803,6 +804,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
         );
       },
     ).whenComplete(() {
+      sheetAlive = false;
       recipientController.dispose();
       amountController.dispose();
       pinController.dispose();
@@ -1200,9 +1202,11 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                 size: 28.0,
                                               ),
                                         onPressed: () {
+                                          final router = GoRouter.of(context);
+                                          final navigator = Navigator.of(context);
                                           showModalBottomSheet(
                                             context: context,
-                                            builder: (context) {
+                                            builder: (sheetContext) {
                                               return Container(
                                                 padding: const EdgeInsets.all(
                                                   20,
@@ -1219,8 +1223,8 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                         'Profile',
                                                       ),
                                                       onTap: () {
-                                                        Navigator.pop(context);
-                                                        context.pushNamed(
+                                                        navigator.pop();
+                                                        router.pushNamed(
                                                           'ProfileSettings',
                                                         );
                                                       },
@@ -1233,7 +1237,7 @@ class _DashboardWidgetState extends State<DashboardWidget>
                                                         'Logout',
                                                       ),
                                                       onTap: () {
-                                                        Navigator.pop(context);
+                                                        navigator.pop();
                                                         logoutUser();
                                                       },
                                                     ),

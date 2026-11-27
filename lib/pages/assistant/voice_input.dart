@@ -109,8 +109,13 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
               ),
         path: kIsWeb ? '' : '${DateTime.now().millisecondsSinceEpoch}.m4a',
       ).timeout(const Duration(seconds: 15));
+      if (!mounted) return;
       setState(() => _stage = VoiceStage.recording);
       _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (!mounted) {
+          t.cancel();
+          return;
+        }
         setState(() => _secs++);
         if (_secs >= voiceMaxSeconds) _stop();
       });
@@ -123,6 +128,7 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
   Future<void> _stop() async {
     _timer?.cancel();
     if (_stage != VoiceStage.recording) return;
+    if (!mounted) return;
     setState(() => _stage = VoiceStage.uploading);
     try {
       final path = await _rec.stop();
@@ -151,12 +157,15 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
           return _fail('Say the command without your PIN. Money still needs your PIN or biometrics.');
         }
         if (!mounted) return;
-        Navigator.pop(context, VoiceMessage(command, r['language'] as String?));
+        Navigator.pop(
+          context,
+          VoiceMessage(command, r['language']?.toString()),
+        );
         return;
       }
       setState(() {
         _text.text = t;
-        _language = r['language'] as String?;
+        _language = r['language']?.toString();
         _stage = VoiceStage.review;
       });
     } catch (e) {

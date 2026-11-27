@@ -9,6 +9,7 @@ import 'session_store_service.dart';
 import '/core/app_config.dart';
 import '/services/secure_storage_service.dart';
 import '/services/auth/session_end.dart';
+import '/services/auth/session_token.dart';
 import '/services/push_session_policy.dart';
 
 class RefreshManager {
@@ -38,7 +39,6 @@ class RefreshManager {
   bool get isRefreshing => _refreshCompleter != null;
 
   bool get _hasRefreshToken => FFAppState().refreshToken.trim().isNotEmpty;
-  bool get _hasAccessToken => FFAppState().accessToken.trim().isNotEmpty;
 
   bool get _isBackoffActive {
     final nextAllowed = _nextAllowedRefreshTime;
@@ -55,8 +55,7 @@ class RefreshManager {
     if (isRefreshing) {
       debugPrint(
           '[RefreshManager] Refresh already in progress. Waiting for existing refresh.');
-      await _refreshCompleter!.future;
-      return _hasAccessToken;
+      return _refreshCompleter!.future;
     }
 
     if (!force && !_tokenNeedsRefresh()) {
@@ -64,7 +63,7 @@ class RefreshManager {
       return true;
     }
 
-    if (_isBackoffActive) {
+    if (!force && _isBackoffActive) {
       debugPrint(
           '[RefreshManager] Refresh backoff active until $_nextAllowedRefreshTime. Skipping refresh.');
       return false;
@@ -127,14 +126,18 @@ class RefreshManager {
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final body = response.body.isNotEmpty
-            ? jsonDecode(response.body) as Map<String, dynamic>
+        final decoded = response.body.isNotEmpty
+            ? jsonDecode(response.body)
             : <String, dynamic>{};
-        final payload = body['data'] is Map<String, dynamic>
-            ? body['data'] as Map<String, dynamic>
-            : body;
-        final newAccessToken = payload['access_token'] as String? ?? '';
-        final newRefreshToken = payload['refresh_token'] as String? ?? '';
+        final payload = refreshTokenPayload(decoded);
+        final newAccessToken = stringField(payload, const [
+          'access_token',
+          'accessToken',
+        ]);
+        final newRefreshToken = stringField(payload, const [
+          'refresh_token',
+          'refreshToken',
+        ]);
 
         if (newAccessToken.isEmpty) {
           debugPrint(
@@ -155,7 +158,11 @@ class RefreshManager {
         // admin/superadmin sessions and other persisted sessions are kept
         // in sync with the in-memory token state.
         try {
-          final role = FFAppState().role;
+          var role = FFAppState().role.trim();
+          if (role.isEmpty) {
+            role = (await AuthSessionStore.readActiveRole() ?? '').trim();
+            if (role.isNotEmpty) FFAppState().role = role;
+          }
           if (role.isNotEmpty) {
             await AuthSessionStore.saveRoleSession(
               role: role,
@@ -166,6 +173,16 @@ class RefreshManager {
           }
         } catch (e) {
           debugPrint('[RefreshManager] Failed to persist refreshed tokens: $e');
+        }
+
+        if (!accessTokenIsLive(newAccessToken)) {
+          debugPrint(
+              '[RefreshManager] Refreshed access token is already expired.');
+          if (FFAppState().biometricsEnabled) {
+            FFAppState().needsBiometricReauth = true;
+          }
+          _registerFailure();
+          return false;
         }
 
         _consecutiveFailures = 0;
@@ -192,8 +209,15 @@ class RefreshManager {
             _raceRetries++;
             return await _doRefresh(endSession: endSession);
           }
+          // The token we sent was already rotated and this process never
+          // stored the replacement. A non-empty access token here is the
+          // revoked one, so this is not a successful renewal.
+          if (FFAppState().biometricsEnabled) {
+            FFAppState().needsBiometricReauth = true;
+            FFAppState().isLoggedIn = true;
+          }
           _registerFailure();
-          return FFAppState().accessToken.trim().isNotEmpty;
+          return false;
         }
         final endSessionNow = shouldForceLocalSignOut(
           statusCode: 401,
