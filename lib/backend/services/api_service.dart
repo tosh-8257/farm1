@@ -441,6 +441,14 @@ class ApiService {
         decoded['code'] is String ? decoded['code'] as String : null;
     if (response.statusCode == 401 &&
         requiresAuth &&
+        FFAppState().biometricsEnabled &&
+        FFAppState().isUser &&
+        FFAppState().refreshToken.isNotEmpty) {
+      FFAppState().isLoggedIn = true;
+      FFAppState().needsBiometricReauth = true;
+    }
+    if (response.statusCode == 401 &&
+        requiresAuth &&
         shouldForceLocalSignOut(
           statusCode: 401,
           message: message,

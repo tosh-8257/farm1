@@ -35,7 +35,7 @@ class BiometricLockService {
       debugPrint('===== BIOMETRIC ERROR =====');
       debugPrint(e.toString());
       debugPrint(stack.toString());
-      rethrow;
+      return false;
     }
   }
 
@@ -48,7 +48,7 @@ class BiometricLockService {
       debugPrint('===== BIOMETRIC ERROR =====');
       debugPrint(e.toString());
       debugPrint(stack.toString());
-      rethrow;
+      return [];
     }
   }
 
@@ -81,7 +81,7 @@ class BiometricLockService {
       debugPrint('===== BIOMETRIC ERROR =====');
       debugPrint(e.toString());
       debugPrint(stack.toString());
-      rethrow;
+      return false;
     } finally {
       _isAuthenticating = false;
     }
