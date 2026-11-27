@@ -133,6 +133,76 @@ bool httpsReference(String value) {
   return uri != null && uri.isScheme('https') && uri.host.isNotEmpty;
 }
 
+/// Order pay accepts only the wallet auth fields. The server builds the escrow key.
+Map<String, dynamic> orderPayBody(Map<String, dynamic> auth) {
+  final body = <String, dynamic>{};
+  final pin = auth['pin'];
+  if (pin is String && pin.isNotEmpty) body['pin'] = pin;
+  if (auth['biometric_auth'] == true) body['biometric_auth'] = true;
+  final fingerprint = auth['device_fingerprint'];
+  if (fingerprint is String && fingerprint.isNotEmpty) {
+    body['device_fingerprint'] = fingerprint;
+  }
+  return body;
+}
+
+Map<String, dynamic> cargoBookBody({
+  required String fromZone,
+  required String toZone,
+  required num weightKg,
+  required String idempotencyKey,
+  required Map<String, dynamic> auth,
+  String? pickupAddress,
+  String? deliveryAddress,
+  String? orderId,
+}) =>
+    {
+      'fromZone': fromZone,
+      'toZone': toZone,
+      'weightKg': weightKg,
+      'idempotencyKey': idempotencyKey,
+      ...orderPayBody(auth),
+      if (pickupAddress != null && pickupAddress.isNotEmpty) 'pickupAddress': pickupAddress,
+      if (deliveryAddress != null && deliveryAddress.isNotEmpty) 'deliveryAddress': deliveryAddress,
+      if (orderId != null && orderId.isNotEmpty) 'orderId': orderId,
+    };
+
+Map<String, dynamic> shipmentEventBody(String status) => {'status': status};
+
+Map<String, dynamic> partnerDecisionBody(String decision) => {'decision': decision};
+
+Map<String, dynamic> partnerOnlineBody(bool online) => {'online': online};
+
+Map<String, dynamic> partnerLocationBody(num lat, num lng) => {'lat': lat, 'lng': lng};
+
+Map<String, dynamic> partnerDocumentBody(String kind, {String? expiresAt}) => {
+      'kind': kind,
+      if (expiresAt != null && expiresAt.isNotEmpty) 'expiresAt': expiresAt,
+    };
+
+/// Location is stored only while the partner is online and has an assigned job.
+bool partnerMayPostLocation({required bool online, required bool assigned}) => online && assigned;
+
+String assignmentJobId(Map<dynamic, dynamic> row) => '${row['job_id'] ?? row['jobId'] ?? ''}'.trim();
+
+/// A partner response must not display a delivery code.
+Map<String, dynamic> withoutDeliverySecret(Map<String, dynamic> body) {
+  Map<String, dynamic> strip(Map<dynamic, dynamic> input) {
+    final out = <String, dynamic>{};
+    input.forEach((key, value) {
+      if (key == 'otp' || key == 'code' || key == 'code_hash') return;
+      if (value is Map) {
+        out[key] = strip(value);
+      } else {
+        out[key] = value;
+      }
+    });
+    return out;
+  }
+
+  return strip(body);
+}
+
 bool cargoSplitValid(int farmBps, int partnerBps) =>
     farmBps >= 0 && partnerBps >= 0 && farmBps + partnerBps == 10000;
 
@@ -159,7 +229,10 @@ EcosystemFlags flagsFromModules(Object? status) {
   bool on(String id) => moduleEnabled(modules, id);
   final dropship = on('dropshipping_lite') || on('supplier_portal') || on('catalogue') || on('orders');
   final cargo = on('cargo_quotes') || on('cargo_bookings') || on('cargo_history') || on('cargo_tracking');
-  final partner = on('partner_assignment') || on('partner_apply') || on('partner_portal');
+  final partner = on('partner_assignment') ||
+      on('partner_apply') ||
+      on('partner_portal') ||
+      on('partner_applications');
   return EcosystemFlags(
     platform: true,
     dropship: dropship,
@@ -173,7 +246,7 @@ EcosystemFlags flagsFromModules(Object? status) {
     partnerApply: partner,
     partnerPortal: partner,
     cargoAdmin: on('cargo_admin'),
-    escrowPay: dropship || cargo || on('escrow_checkout'),
+    escrowPay: on('escrow_payments') || dropship || cargo,
     shopifyEnabled: integrationEnabled(status, 'shopify'),
     wooEnabled: integrationEnabled(status, 'woocommerce'),
     mapsVerified: integrationVerified(status, 'maps'),
@@ -254,7 +327,7 @@ SalesTotals salesTotals(List<Map<String, dynamic>> orders) {
   var commissionSeen = orders.isNotEmpty;
   for (final order in orders) {
     final r = _asNum(order['retail_total'] ?? order['retail']);
-    final s = _asNum(order['supplier_total'] ?? order['wholesale']);
+    final s = _asNum(order['supplier_total'] ?? order['wholesale'] ?? order['supplier']);
     if (r != null) {
       retail += r;
       retailSeen = true;
@@ -283,11 +356,19 @@ SalesTotals salesTotals(List<Map<String, dynamic>> orders) {
 }
 
 /// Groups the in-app notices the server sends for orders, shipments, and jobs.
+String noticeEntityId(Map<dynamic, dynamic> item) {
+  final metadata = item['metadata'];
+  final fromMeta = metadata is Map ? metadata['entityId'] ?? metadata['entity_id'] : null;
+  return '${item['entity_id'] ?? item['entityId'] ?? fromMeta ?? ''}'.trim();
+}
+
 String ecosystemNoticeGroup(Map<dynamic, dynamic> item) {
   final title = '${item['title'] ?? ''}'.toLowerCase();
   final body = '${item['body'] ?? item['message'] ?? ''}'.toLowerCase();
   final type = '${item['type'] ?? ''}'.toLowerCase();
   final text = '$title $body $type';
+  if (title.contains('delivery code')) return 'delivery_code';
+  if (title.contains('payout')) return 'payout';
   if (text.contains('delivery job') || title == 'delivery job') return 'job';
   if (text.contains('shipment')) return 'shipment';
   if (text.contains('order update') || title.contains('order')) return 'order';

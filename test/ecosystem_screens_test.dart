@@ -103,5 +103,46 @@ void main() {
     expect(ecosystemNoticeGroup({'title': 'Shipment update', 'type': 'system'}), 'shipment');
     expect(ecosystemNoticeGroup({'title': 'Order update'}), 'order');
     expect(ecosystemNoticeGroup({'title': 'Delivery job'}), 'job');
+    expect(ecosystemNoticeGroup({'title': 'Delivery code'}), 'delivery_code');
+    expect(flagsFromModules({
+      'data': {
+        'modules': [
+          {'id': 'escrow_payments', 'enabled': true},
+          {'id': 'partner_applications', 'enabled': true},
+        ],
+      },
+    }).partnerPortal, isTrue);
+  });
+
+  test('escrow and partner bodies match the backend contract', () {
+    final pay = orderPayBody({'pin': '1234', 'idempotencyKey': 'should-not-send'});
+    expect(pay, {'pin': '1234'});
+    expect(pay.containsKey('transactionId'), isFalse);
+    expect(pay.containsKey('idempotencyKey'), isFalse);
+    final book = cargoBookBody(
+      fromZone: 'A',
+      toZone: 'B',
+      weightKg: 2,
+      idempotencyKey: 'cargo-key-1',
+      auth: {'biometric_auth': true, 'device_fingerprint': 'dev'},
+    );
+    expect(book['idempotencyKey'], 'cargo-key-1');
+    expect(book['biometric_auth'], isTrue);
+    expect(book.containsKey('transactionId'), isFalse);
+    expect(shipmentEventBody('cancelled'), {'status': 'cancelled'});
+    expect(partnerDecisionBody('rejected'), {'decision': 'rejected'});
+    expect(partnerOnlineBody(true), {'online': true});
+    expect(partnerLocationBody(1.2, 36.8), {'lat': 1.2, 'lng': 36.8});
+    expect(partnerDocumentBody('licence', expiresAt: '2027-01-01'), {'kind': 'licence', 'expiresAt': '2027-01-01'});
+    expect(partnerMayPostLocation(online: true, assigned: true), isTrue);
+    expect(partnerMayPostLocation(online: true, assigned: false), isFalse);
+    expect(partnerMayPostLocation(online: false, assigned: true), isFalse);
+    expect(assignmentJobId({'id': 'assignment', 'job_id': 'job-1'}), 'job-1');
+    final shown = withoutDeliverySecret({
+      'data': {'method': 'otp', 'otp': '123456', 'sent_to_recipient': true},
+    });
+    expect(shown['data'], isNot(contains('otp')));
+    expect((shown['data'] as Map)['sent_to_recipient'], isTrue);
+    expect(noticeEntityId({'entityId': 'job-9'}), 'job-9');
   });
 }

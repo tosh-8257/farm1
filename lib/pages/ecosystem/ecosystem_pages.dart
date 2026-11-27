@@ -110,7 +110,7 @@ class _Result extends StatelessWidget {
   Widget build(BuildContext context) {
     final map = value;
     if (map == null) return const SizedBox.shrink();
-    final data = map['data'] is Map ? Map<String, dynamic>.from(map['data'] as Map) : map;
+    final data = withoutDeliverySecret(map['data'] is Map ? Map<String, dynamic>.from(map['data'] as Map) : map);
     return BizCard(
       padding: const EdgeInsets.all(14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -242,7 +242,6 @@ class _DropshipPageState extends State<DropshipPage> {
   final _reason = TextEditingController();
   final _search = TextEditingController();
   String? _orderKey;
-  String? _payKey;
   String? _caseKey;
   Map<String, dynamic>? _result;
   List<Map<String, dynamic>> _catalogue = const [];
@@ -374,10 +373,9 @@ class _DropshipPageState extends State<DropshipPage> {
               message: '${lines.isEmpty ? 'The server charges the order total into escrow.' : feeSummary(lines)}\n\nConfirm with your PIN or biometrics.',
             );
             if (auth == null || !mounted) return;
-            _payKey ??= _key();
             final result = await runBusy(
               context,
-              () => EcosystemApi.payOrder(orderId: _order.text.trim(), idempotencyKey: _payKey!, auth: auth.authFields()),
+              () => EcosystemApi.payOrder(orderId: _order.text.trim(), auth: auth.authFields()),
               success: 'Payment sent to escrow',
             );
             if (mounted) setState(() => _result = result);
@@ -752,7 +750,6 @@ class _PartnerPageState extends State<PartnerPage> {
   final _driver = TextEditingController();
   final _licence = TextEditingController();
   final _proofRef = TextEditingController();
-  final _otp = TextEditingController();
   String _kind = 'individual_rider';
   String _proof = 'otp';
   Map<String, dynamic>? _result;
@@ -773,7 +770,6 @@ class _PartnerPageState extends State<PartnerPage> {
     _driver.dispose();
     _licence.dispose();
     _proofRef.dispose();
-    _otp.dispose();
     super.dispose();
   }
 
@@ -894,6 +890,8 @@ class _PartnerPageState extends State<PartnerPage> {
           ),
           const SizedBox(height: 16),
           Text('Proof of delivery', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(context))),
+          Text('A one-time code is sent only to the recipient. This screen never shows it.',
+              style: TextStyle(color: mutedColor(context), fontSize: 12)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: _proof,
@@ -923,24 +921,9 @@ class _PartnerPageState extends State<PartnerPage> {
                 context,
                 () => EcosystemApi.jobProof(jobId: _job.text.trim(), method: _proof, reference: _proofRef.text.trim()),
               );
-              if (mounted) setState(() => _result = result);
+              if (mounted && result != null) setState(() => _result = withoutDeliverySecret(result));
             },
             child: const Text('Record proof'),
-          ),
-          const SizedBox(height: 8),
-          TextField(controller: _otp, decoration: bizInput(context, 'Code from the recipient')),
-          const SizedBox(height: 8),
-          OutlinedButton(
-            style: secondaryButtonStyle(context),
-            onPressed: () async {
-              if (_job.text.trim().isEmpty || _otp.text.trim().isEmpty) return;
-              final result = await runBusy(
-                context,
-                () => EcosystemApi.verifyProof(jobId: _job.text.trim(), code: _otp.text.trim()),
-              );
-              if (mounted) setState(() => _result = result);
-            },
-            child: const Text('Verify code'),
           ),
           const SizedBox(height: 8),
           ElevatedButton(

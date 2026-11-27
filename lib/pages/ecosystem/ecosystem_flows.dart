@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '/pages/business/ops/ops_ui.dart';
 import 'ecosystem_api.dart';
 import 'ecosystem_logic.dart';
+import 'partner_location.dart';
 
 class FeeBreakdown extends StatelessWidget {
   const FeeBreakdown(this.lines, {super.key});
@@ -66,14 +67,29 @@ class _DropshipSalesPageState extends State<DropshipSalesPage> {
       _loading = false;
       return;
     }
-    EcosystemApi.orders().then((value) {
-      if (mounted) setState(() {
-        _orders = recordList(value);
+    _loadSales();
+  }
+
+  Future<void> _loadSales() async {
+    try {
+      final earnings = recordList(await EcosystemApi.sellerEarnings());
+      if (!mounted) return;
+      if (earnings.isNotEmpty) {
+        setState(() {
+          _orders = earnings;
+          _loading = false;
+        });
+        return;
+      }
+      final orders = recordList(await EcosystemApi.orders());
+      if (!mounted) return;
+      setState(() {
+        _orders = orders;
         _loading = false;
       });
-    }).catchError((_) {
+    } catch (_) {
       if (mounted) setState(() => _loading = false);
-    });
+    }
   }
 
   @override
@@ -106,7 +122,6 @@ class OrderStatusPage extends StatefulWidget {
 
 class _OrderStatusPageState extends State<OrderStatusPage> {
   final _reason = TextEditingController();
-  String? _payKey;
   String? _caseKey;
   Map<String, dynamic>? _result;
 
@@ -158,10 +173,9 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       message: '${feeSummary(orderFeeLines(widget.order))}\n\nThe server charges your wallet into escrow. Confirm with your PIN or biometrics.',
     );
     if (auth == null || !mounted) return;
-    _payKey ??= _flowKey();
     final result = await runBusy(
       context,
-      () => EcosystemApi.payOrder(orderId: _id, idempotencyKey: _payKey!, auth: auth.authFields()),
+      () => EcosystemApi.payOrder(orderId: _id, auth: auth.authFields()),
       success: 'Payment sent to escrow',
     );
     if (mounted && result != null) setState(() => _result = result);
@@ -201,7 +215,8 @@ class ShipmentStatusPage extends StatefulWidget {
 }
 
 class _ShipmentStatusPageState extends State<ShipmentStatusPage> {
-  final _reason = TextEditingController();
+  final _code = TextEditingController();
+  final _disputeReason = TextEditingController();
   Map<String, dynamic>? _detail;
 
   @override
@@ -218,7 +233,8 @@ class _ShipmentStatusPageState extends State<ShipmentStatusPage> {
 
   @override
   void dispose() {
-    _reason.dispose();
+    _code.dispose();
+    _disputeReason.dispose();
     super.dispose();
   }
 
@@ -245,38 +261,53 @@ class _ShipmentStatusPageState extends State<ShipmentStatusPage> {
           for (final event in events)
             KeyValue('${event['status'] ?? event['type'] ?? 'Event'}', '${event['note'] ?? event['created_at'] ?? ''}'),
         const SizedBox(height: 12),
-        TextField(controller: _reason, decoration: bizInput(context, 'Reason to cancel or dispute')),
+        Text('Status updates are picked up, in transit, or cancelled. Cancelling a booked shipment refunds escrow.',
+            style: TextStyle(color: mutedColor(context))),
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: [
-          OutlinedButton(style: secondaryButtonStyle(context), onPressed: _cancel, child: const Text('Cancel shipment')),
-          OutlinedButton(style: secondaryButtonStyle(context), onPressed: _dispute, child: const Text('Dispute')),
+          OutlinedButton(style: secondaryButtonStyle(context), onPressed: () => _event('picked_up'), child: const Text('Picked up')),
+          OutlinedButton(style: secondaryButtonStyle(context), onPressed: () => _event('in_transit'), child: const Text('In transit')),
+          OutlinedButton(style: secondaryButtonStyle(context), onPressed: () => _event('cancelled'), child: const Text('Cancel shipment')),
         ]),
+        const SizedBox(height: 16),
+        Text('Delivery code', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(context))),
+        const SizedBox(height: 4),
+        Text('The code is sent only to you. The delivery partner cannot see it.', style: TextStyle(color: mutedColor(context))),
+        const SizedBox(height: 8),
+        if (_jobId.isNotEmpty) ...[
+          TextField(controller: _code, decoration: bizInput(context, 'Code from your notification')),
+          const SizedBox(height: 8),
+          OutlinedButton(style: secondaryButtonStyle(context), onPressed: _verifyCode, child: const Text('Confirm delivery code')),
+        ],
+        const SizedBox(height: 12),
+        TextField(controller: _disputeReason, decoration: bizInput(context, 'Dispute reason')),
+        const SizedBox(height: 8),
+        OutlinedButton(style: secondaryButtonStyle(context), onPressed: _dispute, child: const Text('Dispute')),
       ]),
     );
   }
 
   String get _id => '${widget.shipment['id'] ?? ''}';
+  String get _jobId => '${widget.shipment['job_id'] ?? widget.shipment['jobId'] ?? ''}'.trim();
 
-  Future<void> _cancel() async {
-    if (_reason.text.trim().length < 3) {
-      bizSnack(context, 'Enter a reason');
+  Future<void> _event(String status) async {
+    await runBusy(context, () => EcosystemApi.shipmentEvent(id: _id, status: status), success: 'Status sent');
+  }
+
+  Future<void> _verifyCode() async {
+    if (_jobId.isEmpty || _code.text.trim().length < 4) {
+      bizSnack(context, 'Enter the code from your delivery notification');
       return;
     }
-    final auth = await confirmWithPin(
-      context,
-      title: 'Cancel this shipment',
-      message: 'The server decides whether this status can be cancelled. Confirm with your PIN or biometrics.',
-    );
-    if (auth == null || !mounted) return;
     await runBusy(
       context,
-      () => EcosystemApi.cancelShipment(id: _id, reason: _reason.text.trim(), auth: auth.authFields()),
-      success: 'Cancellation sent',
+      () => EcosystemApi.verifyProof(jobId: _jobId, code: _code.text.trim()),
+      success: 'Code confirmed',
     );
   }
 
   Future<void> _dispute() async {
-    if (_reason.text.trim().length < 3) {
+    if (_disputeReason.text.trim().length < 3) {
       bizSnack(context, 'Enter a reason');
       return;
     }
@@ -286,7 +317,7 @@ class _ShipmentStatusPageState extends State<ShipmentStatusPage> {
       message: 'This freezes a scheduled cargo payout. Confirm with your PIN or biometrics.',
     );
     if (auth == null || !mounted) return;
-    await runBusy(context, () => EcosystemApi.shipmentDispute(id: _id, reason: _reason.text.trim()));
+    await runBusy(context, () => EcosystemApi.shipmentDispute(id: _id, reason: _disputeReason.text.trim()));
   }
 }
 
@@ -299,10 +330,10 @@ class PartnerPortalPage extends StatefulWidget {
 
 class _PartnerPortalPageState extends State<PartnerPortalPage> {
   List<Map<String, dynamic>> _jobs = const [];
-  Map<String, dynamic>? _earnings;
-  List<Map<String, dynamic>> _documents = const [];
-  bool _available = false;
-  final _reason = TextEditingController();
+  List<Map<String, dynamic>> _earnings = const [];
+  bool _online = false;
+  final _kind = TextEditingController();
+  final _expires = TextEditingController();
 
   @override
   void initState() {
@@ -317,20 +348,40 @@ class _PartnerPortalPageState extends State<PartnerPortalPage> {
 
   @override
   void dispose() {
-    _reason.dispose();
+    _kind.dispose();
+    _expires.dispose();
     super.dispose();
   }
+
+  bool get _assigned => _jobs.any((job) => assignmentJobId(job).isNotEmpty);
 
   Future<void> _load() async {
     final jobs = await runBusy(context, EcosystemApi.partnerJobs);
     final earnings = await runBusy(context, EcosystemApi.partnerEarnings);
-    final documents = await runBusy(context, EcosystemApi.partnerDocuments);
     if (!mounted) return;
     setState(() {
       _jobs = recordList(jobs);
-      _earnings = earnings;
-      _documents = recordList(documents);
+      _earnings = recordList(earnings);
     });
+  }
+
+  Future<void> _sendLocation() async {
+    if (!partnerMayPostLocation(online: _online, assigned: _assigned)) {
+      bizSnack(context, 'Position is sent only while you are available and on an assigned job');
+      return;
+    }
+    final position = await readPartnerPosition();
+    if (!mounted) return;
+    if (position == null) {
+      bizSnack(context, 'Location permission is needed');
+      return;
+    }
+    if (!partnerMayPostLocation(online: _online, assigned: _assigned)) return;
+    await runBusy(
+      context,
+      () => EcosystemApi.postPartnerLocation(lat: position.lat, lng: position.lng),
+      success: 'Position sent',
+    );
   }
 
   @override
@@ -343,54 +394,75 @@ class _PartnerPortalPageState extends State<PartnerPortalPage> {
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Available for jobs'),
-          value: _available,
+          subtitle: const Text('Position is sent only while this is on and you have an assigned job. There is no live map.'),
+          value: _online,
           onChanged: (value) async {
-            setState(() => _available = value);
+            setState(() => _online = value);
             if (widget.previewJobs != null) return;
             await runBusy(context, () => EcosystemApi.setAvailability(value), success: value ? 'Available' : 'Unavailable');
           },
         ),
         const SizedBox(height: 8),
+        OutlinedButton(
+          style: secondaryButtonStyle(context),
+          onPressed: partnerMayPostLocation(online: _online, assigned: _assigned) ? _sendLocation : null,
+          child: const Text('Send my position'),
+        ),
+        const SizedBox(height: 8),
         Text('Jobs', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(context))),
         if (_jobs.isEmpty) Text('No jobs yet.', style: TextStyle(color: mutedColor(context))),
         for (final job in _jobs)
-          BizTile(
-            title: '${job['status'] ?? 'Job'}',
-            subtitle: '${job['from_zone'] ?? ''} ${job['to_zone'] ?? ''}'.trim(),
-            onTap: () {},
-          ),
-        TextField(controller: _reason, decoration: bizInput(context, 'Reason if you reject')),
-        const SizedBox(height: 8),
-        for (final job in _jobs)
-          Wrap(spacing: 8, children: [
-            Text('${job['status'] ?? 'Job'}', style: TextStyle(color: fgColor(context))),
+          Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            Text(assignmentJobId(job).isEmpty ? 'Job' : 'Assigned job', style: TextStyle(color: fgColor(context))),
             TextButton(
-              onPressed: () => runBusy(context, () => EcosystemApi.acceptJob('${job['id']}'), success: 'Accepted'),
+              onPressed: assignmentJobId(job).isEmpty
+                  ? null
+                  : () => runBusy(
+                        context,
+                        () => EcosystemApi.decideJob(jobId: assignmentJobId(job), decision: 'accepted'),
+                        success: 'Accepted',
+                      ),
               child: const Text('Accept'),
             ),
             TextButton(
-              onPressed: () {
-                if (_reason.text.trim().length < 3) {
-                  bizSnack(context, 'Enter a reason');
-                  return;
-                }
-                runBusy(context, () => EcosystemApi.rejectJob(id: '${job['id']}', reason: _reason.text.trim()), success: 'Rejected');
-              },
+              onPressed: assignmentJobId(job).isEmpty
+                  ? null
+                  : () => runBusy(
+                        context,
+                        () => EcosystemApi.decideJob(jobId: assignmentJobId(job), decision: 'rejected'),
+                        success: 'Rejected',
+                      ),
               child: const Text('Reject'),
             ),
           ]),
         const SizedBox(height: 16),
         Text('Earnings', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(context))),
-        if (_earnings == null)
-          Text('Earnings appear when this server has them.', style: TextStyle(color: mutedColor(context)))
+        if (_earnings.isEmpty)
+          Text('No payouts yet.', style: TextStyle(color: mutedColor(context)))
         else
-          for (final entry in (_earnings!['data'] is Map ? _earnings!['data'] as Map : _earnings!).entries)
-            if (entry.value is! Map && entry.value is! List) KeyValue('${entry.key}', '${entry.value}'),
+          for (final row in _earnings)
+            KeyValue('${row['status'] ?? 'Payout'}', '${row['amount'] ?? ''} FARM'.trim()),
         const SizedBox(height: 16),
         Text('Documents', style: TextStyle(fontWeight: FontWeight.w700, color: fgColor(context))),
-        if (_documents.isEmpty) Text('No documents yet.', style: TextStyle(color: mutedColor(context))),
-        for (final doc in _documents)
-          KeyValue('${doc['kind'] ?? doc['type'] ?? 'Document'}', '${doc['status'] ?? doc['reference'] ?? ''}'),
+        TextField(controller: _kind, decoration: bizInput(context, 'Document kind')),
+        const SizedBox(height: 8),
+        TextField(controller: _expires, decoration: bizInput(context, 'Expires at (optional)')),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          style: secondaryButtonStyle(context),
+          onPressed: () async {
+            if (_kind.text.trim().length < 2) {
+              bizSnack(context, 'Enter the document kind');
+              return;
+            }
+            await runBusy(
+              context,
+              () => EcosystemApi.addPartnerDocument(kind: _kind.text.trim(), expiresAt: _expires.text.trim()),
+              success: 'Document saved',
+            );
+          },
+          child: const Text('Add document'),
+        ),
       ]),
     );
   }
@@ -399,4 +471,53 @@ class _PartnerPortalPageState extends State<PartnerPortalPage> {
 String _flowKey() {
   final now = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
   return 'pay$now';
+}
+
+/// Recipient-only confirmation. The partner is not given this screen or the code.
+class RecipientDeliveryCodePage extends StatefulWidget {
+  const RecipientDeliveryCodePage({super.key, required this.jobId});
+  final String jobId;
+  @override
+  State<RecipientDeliveryCodePage> createState() => _RecipientDeliveryCodePageState();
+}
+
+class _RecipientDeliveryCodePageState extends State<RecipientDeliveryCodePage> {
+  final _code = TextEditingController();
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BizScaffold(
+      title: 'Delivery code',
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        Text(
+          'Enter the code from your notification. Only the person receiving the parcel can confirm it. The partner cannot see this code.',
+          style: TextStyle(color: mutedColor(context)),
+        ),
+        const SizedBox(height: 12),
+        TextField(controller: _code, decoration: bizInput(context, 'Delivery code')),
+        const SizedBox(height: 12),
+        ElevatedButton(
+          style: primaryButtonStyle(context),
+          onPressed: () async {
+            if (_code.text.trim().length < 4) {
+              bizSnack(context, 'Enter the delivery code');
+              return;
+            }
+            await runBusy(
+              context,
+              () => EcosystemApi.verifyProof(jobId: widget.jobId, code: _code.text.trim()),
+              success: 'Code confirmed',
+            );
+          },
+          child: const Text('Confirm delivery code'),
+        ),
+      ]),
+    );
+  }
 }

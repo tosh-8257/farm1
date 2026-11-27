@@ -110,13 +110,11 @@ class EcosystemApi {
   /// already used by wallet and escrow routes. No pasted transaction id.
   static Future<Map<String, dynamic>> payOrder({
     required String orderId,
-    required String idempotencyKey,
     required Map<String, dynamic> auth,
   }) =>
-      _call('POST', '/merchant/dropship/orders/$orderId/pay', {
-        'idempotencyKey': idempotencyKey,
-        ...auth,
-      });
+      _call('POST', '/merchant/dropship/orders/$orderId/pay', orderPayBody(auth));
+
+  static Future<Map<String, dynamic>> sellerEarnings() => _call('GET', '/merchant/dropship/earnings');
 
   static Future<Map<String, dynamic>> forwardOrder(String orderId) =>
       _call('POST', '/merchant/dropship/orders/$orderId/forward');
@@ -187,22 +185,22 @@ class EcosystemApi {
     String? pickupAddress,
     String? deliveryAddress,
   }) =>
-      _call('POST', '/cargo/shipments', {
-        'fromZone': fromZone,
-        'toZone': toZone,
-        'weightKg': weightKg,
-        'idempotencyKey': idempotencyKey,
-        ...auth,
-        if (pickupAddress != null && pickupAddress.isNotEmpty) 'pickupAddress': pickupAddress,
-        if (deliveryAddress != null && deliveryAddress.isNotEmpty) 'deliveryAddress': deliveryAddress,
-      });
+      _call(
+        'POST',
+        '/cargo/shipments',
+        cargoBookBody(
+          fromZone: fromZone,
+          toZone: toZone,
+          weightKg: weightKg,
+          idempotencyKey: idempotencyKey,
+          auth: auth,
+          pickupAddress: pickupAddress,
+          deliveryAddress: deliveryAddress,
+        ),
+      );
 
-  static Future<Map<String, dynamic>> cancelShipment({
-    required String id,
-    required String reason,
-    required Map<String, dynamic> auth,
-  }) =>
-      _call('POST', '/cargo/shipments/$id/cancel', {'reason': reason, ...auth});
+  static Future<Map<String, dynamic>> shipmentEvent({required String id, required String status}) =>
+      _call('POST', '/cargo/shipments/$id/events', shipmentEventBody(status));
 
   static Future<Map<String, dynamic>> shipments() => _call('GET', '/cargo/shipments');
 
@@ -236,19 +234,22 @@ class EcosystemApi {
 
   static Future<Map<String, dynamic>> myPartner() => _call('GET', '/partners/me');
 
-  static Future<Map<String, dynamic>> partnerJobs() => _call('GET', '/partners/jobs');
+  static Future<Map<String, dynamic>> partnerJobs({int page = 1}) =>
+      _call('GET', '/partners/jobs?page=$page');
 
-  static Future<Map<String, dynamic>> acceptJob(String id) => _call('POST', '/partners/jobs/$id/accept');
+  static Future<Map<String, dynamic>> decideJob({required String jobId, required String decision}) =>
+      _call('POST', '/partners/jobs/$jobId/decision', partnerDecisionBody(decision));
 
-  static Future<Map<String, dynamic>> rejectJob({required String id, required String reason}) =>
-      _call('POST', '/partners/jobs/$id/reject', {'reason': reason});
-
-  static Future<Map<String, dynamic>> setAvailability(bool available) =>
-      _call('POST', '/partners/availability', {'available': available});
+  static Future<Map<String, dynamic>> setAvailability(bool online) =>
+      _call('POST', '/partners/availability', partnerOnlineBody(online));
 
   static Future<Map<String, dynamic>> partnerEarnings() => _call('GET', '/partners/earnings');
 
-  static Future<Map<String, dynamic>> partnerDocuments() => _call('GET', '/partners/documents');
+  static Future<Map<String, dynamic>> addPartnerDocument({required String kind, String? expiresAt}) =>
+      _call('POST', '/partners/documents', partnerDocumentBody(kind, expiresAt: expiresAt));
+
+  static Future<Map<String, dynamic>> postPartnerLocation({required num lat, required num lng}) =>
+      _call('POST', '/partners/location', partnerLocationBody(lat, lng));
 
   static Future<Map<String, dynamic>> addVehicle({
     required String category,
