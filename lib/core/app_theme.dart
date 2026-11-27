@@ -164,8 +164,14 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: lightPrimary,
-          side: const BorderSide(color: lightBorder),
+          side: const BorderSide(color: hairline, width: 1),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      cardTheme: CardThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: hairline, width: 1),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -320,8 +326,14 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: darkPrimary,
-          side: const BorderSide(color: darkBorder),
+          side: const BorderSide(color: hairline, width: 1),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      cardTheme: CardThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: hairline, width: 1),
         ),
       ),
       textButtonTheme: TextButtonThemeData(

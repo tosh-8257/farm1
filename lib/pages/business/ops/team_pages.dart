@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import '/pages/agent_payments/business_identity.dart';
 import '/backend/api_requests/business_ops_api.dart';
 import 'ops_ui.dart';
@@ -277,7 +278,9 @@ class _ProfileState extends State<BusinessProfilePage> {
                     final identity = parseBusinessIdentity(b);
                     final shown = identity?.displayId ?? '';
                     if (shown.isEmpty) return const SizedBox.shrink();
-                    return Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Share this ID when someone uses Allow a business.', style: TextStyle(fontSize: 12, color: mutedColor(c))),
+                      Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                       Expanded(child: KeyValue('Business ID', shown)),
                       IconButton(
                         tooltip: 'Copy Business ID',
@@ -287,6 +290,14 @@ class _ProfileState extends State<BusinessProfilePage> {
                         },
                         icon: Icon(Icons.copy, size: 18, color: fgColor(c)),
                       ),
+                      IconButton(
+                        tooltip: 'Share Business ID',
+                        onPressed: () => SharePlus.instance.share(
+                          ShareParams(text: 'FΛЯM Business ID: $shown'),
+                        ),
+                        icon: Icon(Icons.share, size: 18, color: fgColor(c)),
+                      ),
+                    ]),
                     ]);
                   }),
                   KeyValue('Legal name', v('legal_name')),
